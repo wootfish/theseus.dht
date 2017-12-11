@@ -1,11 +1,12 @@
 # Theseus DHT Protocol
 
-Revision: 2
-Date: 2017-12-11  TODO UPDATE THIS
+Theseus DHT is a distributed hash table with unusually strong security properties.
 
-## Introduction
+It is derived in large part from Kademlia, an efficient algorithm which is good at handling benign failures but bad at handling malicious interference. In particular, Kademlia is very vulnerable to Sybil attacks, which can result in the modification or erasure of arbitrary data in the network.
 
-The Theseus DHT is a distributed hash table with unusually strong security properties. It takes inspiration from Kademlia, an efficient algorithm which is good at dealing with benign failures but bad at dealing with malicious interference. In particular Kademlia is very vulnerable to Sybil attacks, which can result in the modification or erasure of arbitrary data in the network. The Theseus DHT protocol addresses these and other concerns, mitigating Sybil attacks through a combination of several novel strategies. It also adds features like strong encryption, optional authentication, optional perfect forward secrecy, and more. To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. This makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout, and the specific ciphersuites are configurable. The network's Sybil resistance also increases as the network itself grows. A more in-depth discussion of the Theseus DHT's security properties can be found below, after the formal specification.
+The Theseus DHT protocol addresses these and other concerns, mitigating Sybil attacks through a combination of several novel strategies. It also adds features like strong encryption, optional authentication, optional perfect forward secrecy, and more. The network's Sybil resistance also increases as the network itself grows.
+
+To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. Even message lengths can be made to follow arbitrary patterns or no pattern. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout, and the specific ciphersuites used are configurable.
 
 ## Table of Contents
 
@@ -32,9 +33,12 @@ After the initial handshake and establishment of the encrypted channel, addition
 
 The handshake patterns which may be used are `NNpsk0`, `KNpsk0`, `NKpsk0`, `KKpsk0`.
 
-The pattern may use any supported curve, cipher, or hash function. Wherever possible the default choices of Curve448, ChaChaPoly, and SHA512 should be favored.
+The pattern may use any supported curve, cipher, or hash function. Wherever possible the default choices of Curve448, ChaChaPoly, and SHA512 should be favored. These defaults may change if cryptographic weaknesses in any of the aforementioned primitives are discovered.
 
 #### Declaring Message Sizes
 
-Theseus uses a netstring-like strategy of prepending an encrypted declaration of each ciphertext's length to each ciphertext before sending it. The length declarations are fixed to 32 bits, so their ciphertexts also have a fixed length: 4 bytes for the length field, followed by 16 bytes for the AE tag. This allows the size of every ciphertext to be known in advance. This is convenient for resisting traffic analysis, because it allows message chunking without risk of ambiguity regarding message boundaries. The consequence of allowing this level of chunking is that individual packets can contain arbitrary amounts of data, with no upper or lower limits. This is a nice property to have when it comes to resisting traffic analysis.
+Theseus uses a netstring-like strategy of prepending an encrypted declaration of each ciphertext's length to each ciphertext before sending it. The length declarations are fixed to 32 bits, so their ciphertexts also have a fixed length: 4 bytes for the length field, followed by 16 bytes for the AE tag. This allows the size of every ciphertext to be known in advance. This is convenient for resisting traffic analysis, because it allows message chunking without risk of ambiguity regarding message boundaries.
+
+The consequence of allowing this level of chunking is that the data payloads of individual packets sent across the wire can be arbitrarily sized and message delineation will still be utterly unambiguous. This is a nice property to have,
+
 
