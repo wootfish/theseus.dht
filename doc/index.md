@@ -8,7 +8,7 @@ The Theseus DHT protocol addresses these and other concerns, mitigating Sybil at
 
 To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. Even message lengths can be made to follow arbitrary patterns or no pattern. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout, and the specific ciphersuites used are configurable.
 
-Theseus DHT is being developed as a component of the overall Theseus project. However, the DHT's resilience to Sybil attacks increases as the network gets bigger. Any app which requires a DHT providing these security features may feel free to use Theseus DHT. Features for per-app namespacing are included, to prevent naming conflicts. The larger the network, the better and more secure it is for everyone.
+Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resilience to Sybil attacks increases as the network gets bigger, this DHT component is being made separately available so that it may be integrated into any other app which needs a DHT providing these features. Support for per-app namespacing is included. The larger the network gets, the better and more secure it is for everyone.
 
 ## Table of Contents
 
