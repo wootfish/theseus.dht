@@ -46,6 +46,6 @@ The pattern may use any supported curve, cipher, or hash function. Wherever poss
 
 Theseus uses a netstring-like strategy of prepending an encrypted declaration of each ciphertext's length to each ciphertext before sending it. The length declarations are fixed to 32 bits, so their ciphertexts also have a fixed length: 4 bytes for the length field, followed by 16 bytes for the AE tag. This allows the size of every ciphertext to be known in advance. This is convenient for resisting traffic analysis, because it allows message chunking without risk of ambiguity regarding message boundaries.
 
-The consequence of allowing this level of chunking is that the data payloads of individual packets sent across the wire can be arbitrarily sized and message delineation will still be utterly unambiguous. This is a nice property to have,
+The consequence of allowing this level of chunking is that the data payloads of individual packets sent across the wire can be arbitrarily sized and message delineation will still be utterly unambiguous, which is a nice property to have,
 
-
+Note also that this scheme limits Theseus protocol messages to a maximum of 2^32-1 = 4,294,967,295 characters in length. This seems more than sufficient.
