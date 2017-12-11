@@ -12,12 +12,12 @@ Theseus DHT is being developed as a component of the overall Theseus project. Ho
 
 ## Table of Contents
 
-- [Specification](#spec)
+- [Specification](#specification)
   - [Transport](#transport)
   - [Encryption](#encryption)
-    - [Initial Handshake](#initial)
-    - [Subsequent Handshakes](#subsequent)
-    - [Declaring Message Sizes](#sizes)
+    - [Initial Handshake](#initial-handshake)
+    - [Subsequent Handshakes](#subsequent-handshakes)
+    - [Declaring Message Sizes](#declaring-message-sizes)
 
 
 ## Specification
