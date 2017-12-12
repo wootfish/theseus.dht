@@ -42,10 +42,16 @@ The handshake patterns which may be used are `NNpsk0`, `KNpsk0`, `NKpsk0`, `KKps
 
 The pattern may use any supported curve, cipher, or hash function. Wherever possible the default choices of Curve448, ChaChaPoly, and SHA512 should be favored. These defaults may change if cryptographic weaknesses in any of the aforementioned primitives are discovered.
 
-#### Declaring Message Sizes
+If for some reason two peers don't want to use a PSK, i.e. if they want to restart their Noise session from scratch, then rather than re-hanshaking they should just close and re-open their connection.
 
-Theseus uses a netstring-like strategy of prepending an encrypted declaration of each ciphertext's length to each ciphertext before sending it. The length declarations are fixed to 32 bits, so their ciphertexts also have a fixed length: 4 bytes for the length field, followed by 16 bytes for the AE tag. This allows the size of every ciphertext to be known in advance. This is convenient for resisting traffic analysis, because it allows message chunking without risk of ambiguity regarding message boundaries.
+#### Message Sizes
 
-The consequence of allowing this level of chunking is that the data payloads of individual packets sent across the wire can be arbitrarily sized and message delineation will still be utterly unambiguous, which is a nice property to have,
+Every encrypted Theseus protocol message is preceded by an encrypted declaration of the protocol message's size. Whenever a plaintext is ready to send, the plaintext bytestring's length is encoded as a big-endian 32-bit integer and encrypted, yielding a 20-byte ciphertext (4 message bytes + 16 AE bytes). This is sent, then the plaintext is encrypted and sent. This scheme allows the size of every ciphertext to be known in advance, which in turn allows arbitrary message chunking without risk of ambiguity regarding message boundaries. Thus, individual packets sent across the wire can be arbitrarily sized, and can thus mimic essentially any traffic pattern.
 
-Note also that this scheme limits Theseus protocol messages to a maximum of 2^32-1 = 4,294,967,295 characters in length. This seems more than sufficient.
+It's worth noting that this scheme creates a theoretical limit on the size of Theseus protocol messages: 2^32-1 = 4,294,967,295 bytes. That's 4 GiB, so any application running up against this limit has probably made some big mistakes along the way, to the point where the size limit is almost certainly the least of their concerns. In environments which don't happen to have 4+ GiB of RAM on hand at any given time, applications are encouraged to set smaller internal limits on message size -- maybe 2^20 bytes or so. This suggestion is conservatively large, as a sort of future-proofing. Theseus traffic will probably never even come close to this limit, except perhaps when exchanging uncompressed Bloom filters, and even then messages should fall comfortably short of the max size. Individual Noise protocol messages are capped at 65535 bytes of ciphertext, so Theseus protocol messages which exceed 65535-16=65519 bytes of plaintext will of course need to be sent in parts.
+
+#### Plaintext Format
+
+To aid with traffic masking, any message may contain arbitrary amounts of padding (or no padding at all). Each message starts with the RPC encoded as a netstring. Anything after the end of the netstring is discarded. Padding must be included when calculating the length of the plaintext,
+
+
