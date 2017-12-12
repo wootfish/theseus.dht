@@ -26,6 +26,10 @@ The Theseus DHT is being developed as a component of the overall Theseus project
       - [get_data](#get_data)
       - [put_data](#put_data)
       - [get_info](#get_info)
+    - [Data Types](#data-types)
+      - [`peers`](#peers)
+      - [`put_data` query](#put_data-query)
+      - [`get_data` response](#get_data-response)
 
 
 ## Specification
