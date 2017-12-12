@@ -27,7 +27,6 @@ The Theseus DHT is being developed as a component of the overall Theseus project
       - [put_data](#put_data)
       - [get_info](#get_info)
     - [Data Types](#data-types)
-      - [`peers`](#peers)
       - [`put_data` query](#put_data-query)
       - [`get_data` response](#get_data-response)
 
@@ -138,13 +137,9 @@ For instance, the full Theseus project will define and make use of a `theseus_si
 
 Nodes are gently encouraged not to play favorites when it comes to setting timeouts for stored data of different types. Shortening timeouts based on _amount_ of data stored would, however, be reasonable in extreme cases. Correspondingly, while applications are encouraged to use the DHT, they are also encouraged to do whatever they can to minimize the amount of data they store in it, so as to lighten the load on their peers.
 
-Only one data type is explicitly defined here: `peers`. This data type is for tracking torrent peers.
+Only one data type is explicitly defined here: `peers`. This data type is for tracking torrent peers. Queries of `get_data` or `announce_data` with the argument `"data": "peers"` indicate that torrent peer data is being queried or stored, respectively. Query and response data formats are as follows.
 
-#### peers
-
-`get_data` and `announce_data` with `"data": "peers"` indicate that torrent peer data is being queried or stored, respectively.
-
-##### put\_data query
+#### `put_data` query
 
 - Mandatory arguments:
   - `addr`: (bytestring) Specifies the 20-bit address (i.e. the torrent infohash) which this node is registering itself as a listener for.
@@ -152,6 +147,6 @@ Only one data type is explicitly defined here: `peers`. This data type is for tr
 - Optional argument:
   - `implied_port`: (int, 0 or 1) Interpreted as in BEP-5's `announce_peer` query: "If it is present and non-zero, the port argument should be ignored and the source port of the UDP packet should be used as the peer's port instead. This is useful for peers behind a NAT that may not know their external port, and supporting uTP, they accept incoming connections on the same port as the DHT port."
 
-##### get\_data response
+#### `get_data` response
 
 `{"data": ["<peer 1 address>", "<peer 2 address>", ...]}`
