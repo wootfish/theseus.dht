@@ -22,10 +22,10 @@ Theseus DHT is being developed as a component of the overall Theseus project. Si
   - [KRPC](#krpc)
     - [Definitions](#definitions)
     - [Queries](#queries)
-      - [find_node](#find-node)
-      - [get_data](#get-data)
-      - [announce_data](#announce-data)
-      - [get_info](#get-info)
+      - [find_node](#find_node)
+      - [get_data](#get_data)
+      - [announce_data](#announce_data)
+      - [get_info](#get_info)
 
 
 ## Specification
