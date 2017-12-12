@@ -20,6 +20,12 @@ Theseus DHT is being developed as a component of the overall Theseus project. Si
     - [Declaring Message Sizes](#declaring-message-sizes)
     - [Plaintext Format](#plaintext-format)
   - [KRPC](#krpc)
+    - [Definitions](#definitions)
+    - [Queries](#queries)
+      - [find_node](#find-node)
+      - [get_data](#get-data)
+      - [announce_data](#announce-data)
+      - [get_info](#get-info)
 
 
 ## Specification
@@ -70,7 +76,7 @@ Note that we follow the MLDHT KRPC protocol as regards message _format_, but not
 
 We define the following queries: `find_node`, `get_data`, `announce_data`, and `get_info`.
 
-### KRPC Queries
+### Queries
 
 #### find\_node
 
