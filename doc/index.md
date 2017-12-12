@@ -2,13 +2,13 @@
 
 The Theseus DHT is a distributed hash table with unusually strong security properties.
 
-It is derived in large part from Kademlia, an efficient algorithm which is good at handling benign failures but bad at handling malicious interference. In particular, Kademlia is very vulnerable to Sybil attacks, which can result in the modification or erasure of arbitrary data in the network.
+It is derived in large part from Kademlia, an efficient distributed hash table algorithm which is good at handling benign failures but bad at handling malicious interference. In particular, Kademlia is very vulnerable to Sybil attacks, which can result in the modification or erasure of arbitrary data in the network.
 
 The Theseus DHT protocol addresses these and other concerns, mitigating Sybil attacks through a combination of several novel strategies. It also adds features like strong encryption, optional authentication, optional perfect forward secrecy, and more. The network's Sybil resistance also increases as the network itself grows.
 
 To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. Even message lengths can be made to follow arbitrary patterns or no pattern. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout, and the specific ciphersuites used are configurable.
 
-Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resilience to Sybil attacks increases as the network gets bigger, this DHT component is being made separately available so that it may be integrated into any other app which needs a DHT providing these features. Support for per-app namespacing is included. The larger the network gets, the better and more secure it is for everyone.
+The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resilience to Sybil attacks increases as the network gets bigger, this DHT component is being made separately available so that it may be integrated into any other app which needs a DHT providing these features. Support for per-app namespacing is included. The larger the network gets, the better and more secure it is for everyone.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ Theseus DHT is being developed as a component of the overall Theseus project. Si
     - [Queries](#queries)
       - [find_node](#find_node)
       - [get_data](#get_data)
-      - [announce_data](#announce_data)
+      - [put_data](#put_data)
       - [get_info](#get_info)
 
 
@@ -82,21 +82,21 @@ We define the following queries: `find_node`, `get_data`, `announce_data`, and `
 
 Analogous to BEP-5's `find_node` query, though lacking an `id` key.
 
-Arguments: `{"target" : "<id of target node>"}`
+Arguments: `{"target": "<id of target node>"}`
 
-Response: `{"nodes" : "<compact node info>"}`
+Response: `{"nodes": "<compact node info>"}`
 
 #### get\_data
 
-Analogous to BEP-5's `get_peers`, but generalized to arbitrary data, not just peer tracking. A few example values for `type` are given in the next section.
+Analogous to BEP-5's `get_peers`, but generalized to arbitrary data, not just peer tracking. A few example values for `type` are given in the next section. The response differs based on whether the queried node has stored data to return (if it doesn't, it just returns routing suggestions).
 
 Arguments: `{"addr": "<20-byte DHT address for target data>", "type": "<data type>"}`
 
 Response:
-- `{"data" : <arbitrary data type>}`
-- or `{"nodes" : "<compact node info>"}`
+- `{"data": <arbitrary data type>}`
+- or `{"nodes": "<compact node info>"}`
 
-#### announce\_data
+#### put\_data
 
 For this query we specify an optional key, `sybil`, which keys to an integer value of 1 or 0 depending on whether the sending node believes a vertical Sybil attack is taking place at the write address. If `sybil` is present and nonzero, the receiving node may attempt to verify the claim and subsequently increase its timeout for stored data. The `sybil` key should be omitted if _and only if_ the sending node doesn't have enough statistical info to determine whether a Sybil attack is underway. If the receiving node finds no evidence of the claimed attack, it would be reasonable for it to blacklist the sending node. Methodology for detecting vertical Sybil attacks is described below.
 
@@ -112,7 +112,7 @@ Used to ask a remote peer to describe themself to the querying node. The reply c
 
 By default, all available data is returned. The querying peer may limit the data returned by including the optional `keys` argument in their query and providing a comprehensive list of keys desired. This prevents large data like Bloom filters from being transmitted unnecessarily. The querying peer may also report that its own info has changed (such as would happen when a node changes ID or when files are added to its cache) by including an optional `advertise` key.
 
-A query like `"{advertise": {"id": ["<querying node's id>", "<querying node's id preimage>"]}, "keys" : ["id"]}` allows two nodes to exchange ID information in one round trip.
+A query like `"{advertise": {"id": ["<querying node's id>", "<querying node's id preimage>"]}, "keys": ["id"]}` allows two nodes to exchange ID information in one round trip.
 
 Submitting a query with `keys` included and mapped to an empty list is allowed. The reply's `info` key should map to an empty dictionary.
 
@@ -120,8 +120,34 @@ Note that the `values` associated with keys within the `info` dictionary may be 
 
 For simplicity, there are no namespacing mechanisms here. Applications worried about avoiding naming conflicts should use a uniform and unusual prefix. Theseus-specific parameters like Bloom filters for search are prefixed `theseus_`.
 
-A node may have as many info fields as it wants, but it should at the very minimum provide these: `{"id" : ["<node's id>", "<id hash preimage>"], "max_version" : "protocol version string"}`.
+A node may have as many info fields as it wants, but it should at the very minimum provide these: `{"id": ["<node's id>", "<id hash preimage>"], "max_version": "protocol version string"}`.
 
-Arguments: `{"advertise" : {"sender_key_one" : "sender_value_one", ...}, "keys" : ["key_one", "key_two", ..., "key_n"]}`
+Arguments: `{"advertise": {"sender_key_one": "sender_value_one", ...}, "keys": ["key_one", "key_two", ..., "key_n"]}`
 
-Response: `{"info" : {"key_one" : "value_one", "key_two" : "value_two", ... , "key_n" : "value_n"}}`
+Response: `{"info": {"key_one": "value_one", "key_two": "value_two", ... , "key_n": "value_n"}}`
+
+### Data Types
+
+Any application using the Theseus DHT may define and store its own data types. The general idea is to have one type per application or major application function.
+
+For instance, the full Theseus project will define and make use of a `theseus_sigs` data type, but that is outside the scope of this library.
+
+Nodes are gently encouraged not to play favorites when it comes to setting timeouts for stored data of different types. Shortening timeouts based on _amount_ of data stored would, however, be reasonable in extreme cases. Correspondingly, while applications are encouraged to use the DHT, they are also encouraged to do whatever they can to minimize the amount of data they store in it, so as to lighten the load on their peers.
+
+Only one data type is explicitly defined here: `peers`. This data type is for tracking torrent peers.
+
+#### peers
+
+`get_data` and `announce_data` with `"data": "peers"` indicate that torrent peer data is being queried or stored, respectively.
+
+##### put\_data query
+
+- Mandatory arguments:
+  - `addr`: (bytestring) Specifies the 20-bit address (i.e. the torrent infohash) which this node is registering itself as a listener for.
+  - `port`: (int) Specifies the port on which the querier is listening for peer connections.
+- Optional argument:
+  - `implied_port`: (int, 0 or 1) Interpreted as in BEP-5's `announce_peer` query: "If it is present and non-zero, the port argument should be ignored and the source port of the UDP packet should be used as the peer's port instead. This is useful for peers behind a NAT that may not know their external port, and supporting uTP, they accept incoming connections on the same port as the DHT port."
+
+##### get\_data response
+
+`{"data": ["<peer 1 address>", "<peer 2 address>", ...]}`
