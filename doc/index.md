@@ -10,7 +10,7 @@ To a passive observer, all Theseus DHT protocol traffic is indistinguishable fro
 
 The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resilience to Sybil attacks increases as the network gets bigger, this DHT component is being made separately available so that it may be integrated into any other app which needs a DHT providing these features. Support for per-app namespacing is included. The larger the network gets, the better and more secure it is for everyone.
 
-## Table of Contents
+# Table of Contents
 
 - [Specification](#specification)
   - [Transport](#transport)
@@ -31,21 +31,21 @@ The Theseus DHT is being developed as a component of the overall Theseus project
       - [`get_data` response](#get_data-response)
 
 
-## Specification
+# Specification
 
-### Transport
+## Transport
 
 We deviate from Kademlia by using TCP rather than UDP at the transport layer. The move to a stateful, connection-based protocol adds some overhead but makes the cryptography much easier by providing reliability and ordered delivery.
 
-### Encryption
+## Encryption
 
-#### Initial Handshake
+### Initial Handshake
 
 Encryption is handled through the Noise Protocol Framework. This is what allows us to produce seemingly-random protocol traffic. The authoritative documentation for Noise can be found [here](https://noiseprotocol.org/noise.html), and the Python library we will use is [here](https://github.com/plizonczyk/noiseprotocol). In order to avoid any (fingerprintable) protocol preamble, we will specify a default handshake and ciphersuite: `Noise_NN_448_ChaChaPoly_SHA512`. The `NN` pattern here provides for an exchange of ephemeral public keys to establish an encrypted channel. The public keys should be Ellegator-encoded to keep them from being trivially fingerprintable.
 
     (TODO: make doubly sure using Elligator here is viable)
 
-#### Subsequent Handshakes
+### Subsequent Handshakes
 
 After the initial handshake and establishment of the encrypted channel, additional handshakes may be performed. These are negotiated through RPC queries and responses. Once the peers agree on parameters like the handshake pattern and the public keys to be used for authentication, they may discard their current `CipherState` objects and, within the same TCP connection, start from scratch executing a new handshake. In order for the new handshake's session to inherit the security properties of the old session, a PSK must be negotiated within the old session and included in the new handshake via the `psk0` modifier. Either or both parties may suggest a PSK. If multiple keys are chosen, the actual PSK used should be the result of XORing the keys' `SHA256` hashes.
 
@@ -55,7 +55,7 @@ The pattern may use any supported curve, cipher, or hash function. Wherever poss
 
 If for some reason two peers don't want to use a PSK, i.e. if they want to restart their Noise session from scratch, then rather than re-hanshaking they should just close and re-open their connection.
 
-#### Message Sizes
+### Message Sizes
 
 Every encrypted Theseus protocol message is preceded by an encrypted declaration of the protocol message's size. Whenever a plaintext is ready to send, the plaintext bytestring's length is encoded as a big-endian 32-bit integer and encrypted, yielding a 20-byte ciphertext (4 message bytes + 16 AE tag bytes). This is sent, then the plaintext is encrypted and sent. This scheme allows the size of every ciphertext to be known in advance, which in turn allows arbitrary message chunking without risk of ambiguity regarding message boundaries. Thus, individual packets sent across the wire can be arbitrarily sized, and can thus mimic essentially any traffic pattern.
 
@@ -63,13 +63,13 @@ It's worth noting that this scheme creates a theoretical limit on the size of Th
 
 In environments which aren't likely to have 4 GiB of RAM to spare at any given moment, applications are encouraged to set smaller internal limits on message size -- maybe 2<sup>20</sup> bytes or so. This suggestion, while much smaller, is still conservatively large as a sort of future-proofing. Theseus traffic will probably never even come close to this limit, except perhaps when exchanging uncompressed Bloom filters, and even then messages should fall comfortably short of the max size. Individual Noise protocol messages are capped at 65535 bytes of ciphertext, so Theseus protocol messages exceeding 65535 - 16 = 65519 bytes of plaintext will of course need to be sent in parts.
 
-#### Plaintext Format
+### Plaintext Format
 
 To aid with traffic masking, any message may contain arbitrary amounts of padding (or no padding at all). Each message starts with the RPC encoded as a netstring. Anything after the end of the netstring is discarded. Padding must be included when calculating the length of the plaintext,
 
-### KRPC
+## KRPC
 
-#### Definitions
+### Definitions
 
 The protocol is conceptualized as a set of bencoded RPC messages following the KRPC protocol format as described by the Mainline DHT implementation of Kademlia, with a custom set of RPCs. BEP-05 defines the KRPC format as follows:
 
@@ -79,9 +79,9 @@ Note that we follow the MLDHT KRPC protocol as regards message _format_, but not
 
 We define the following queries: `find_node`, `get_data`, `announce_data`, and `get_info`.
 
-### Queries
+## Queries
 
-#### find\_node
+### find\_node
 
 Analogous to BEP-5's `find_node` query, though lacking an `id` key.
 
@@ -89,7 +89,7 @@ Arguments: `{"target": "<id of target node>"}`
 
 Response: `{"nodes": "<compact node info>"}`
 
-#### get\_data
+### get\_data
 
 Analogous to BEP-5's `get_peers`, but generalized to arbitrary data, not just peer tracking. A few example values for `type` are given in the next section. The response differs based on whether the queried node has stored data to return (if it doesn't, it just returns routing suggestions).
 
@@ -99,7 +99,7 @@ Response:
 - `{"data": <arbitrary data type>}`
 - or `{"nodes": "<compact node info>"}`
 
-#### put\_data
+### put\_data
 
 For this query we specify an optional key, `sybil`, which keys to an integer value of 1 or 0 depending on whether the sending node believes a vertical Sybil attack is taking place at the write address. If `sybil` is present and nonzero, the receiving node may attempt to verify the claim and subsequently increase its timeout for stored data. The `sybil` key should be omitted if _and only if_ the sending node doesn't have enough statistical info to determine whether a Sybil attack is underway. If the receiving node finds no evidence of the claimed attack, it would be reasonable for it to blacklist the sending node. Methodology for detecting vertical Sybil attacks is described below.
 
@@ -109,7 +109,7 @@ Arguments: `{"type": "<data type>", "data": <arbitrary data type>}`
 
 Response: `{}`
 
-#### get\_info
+### get\_info
 
 Used to ask a remote peer to describe themself to the querying node. The reply contains a dictionary encoding information such as the remote node's ID, their local content Bloom filter, a protocol version or details on specific features they do or don't support, and so on.
 
@@ -129,7 +129,7 @@ Arguments: `{"advertise": {"sender_key_one": "sender_value_one", ...}, "keys": [
 
 Response: `{"info": {"key_one": "value_one", "key_two": "value_two", ... , "key_n": "value_n"}}`
 
-### Data Types
+## Data Types
 
 Any application using the Theseus DHT may define and store its own data types. The general idea is to have one type per application or major application function.
 
@@ -139,14 +139,6 @@ Nodes are gently encouraged not to play favorites when it comes to setting timeo
 
 Only one data type is explicitly defined here: `peers`. This data type is for tracking torrent peers. Queries of `get_data` or `announce_data` with the argument `"data": "peers"` indicate that torrent peer data is being queried or stored, respectively. Query and response data formats are as follows.
 
-#### `put_data` query
+### `peers` Data Type
 
-- Mandatory arguments:
-  - `addr`: (bytestring) Specifies the 20-bit address (i.e. the torrent infohash) which this node is registering itself as a listener for.
-  - `port`: (int) Specifies the port on which the querier is listening for peer connections.
-- Optional argument:
-  - `implied_port`: (int, 0 or 1) Interpreted as in BEP-5's `announce_peer` query: "If it is present and non-zero, the port argument should be ignored and the source port of the UDP packet should be used as the peer's port instead. This is useful for peers behind a NAT that may not know their external port, and supporting uTP, they accept incoming connections on the same port as the DHT port."
 
-#### `get_data` response
-
-`{"data": ["<peer 1 address>", "<peer 2 address>", ...]}`
