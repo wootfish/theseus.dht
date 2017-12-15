@@ -30,6 +30,7 @@ The Theseus DHT is being developed as a component of the overall Theseus project
       - [`peers` Data Type](#peers-data-type)
         - [Query Data Format](#query-data-format)
         - [Response Data Format](#response-data-format)
+- [Discussion](#discussion)
 
 
 # Specification
@@ -141,3 +142,14 @@ Nodes are gently encouraged not to play favorites when it comes to setting timeo
 Only one data type is explicitly defined here: `peers`. It is included primarily to show by example how data types work and how to specify one.
 
 ### `peers` Data Type
+
+This data type is for tracking torrent peers. Queries of `get_data` or `announce_data` with the argument `"data": "peers"` indicate that torrent peer data is being queried or stored, respectively. Query and response data formats are as follows.
+
+#### Query Data Format
+
+#### Response Data Format
+
+
+# Discussion
+
+...
