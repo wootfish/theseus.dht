@@ -8,7 +8,7 @@ The Theseus DHT protocol addresses these and other concerns, mitigating Sybil at
 
 To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. Even message lengths can be made to follow arbitrary patterns or no pattern. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout, and the specific ciphersuites used are configurable.
 
-The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resilience to Sybil attacks increases as the network gets bigger, this DHT component is being made separately available so that it may be integrated into any other app which needs a DHT providing these features. Support for per-app namespacing is included. The larger the network gets, the better and more secure it is for everyone.
+The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resilience to Sybil attacks increases as the network gets bigger, this DHT component is being made separately available so that it may be integrated into any other apps which want a DHT providing these features. Support for per-app namespacing is included, to help the DHT scale well if it sees widespread adoption. The larger the network gets, the better and more secure it is for everyone.
 
 # Table of Contents
 
@@ -27,8 +27,9 @@ The Theseus DHT is being developed as a component of the overall Theseus project
       - [put_data](#put_data)
       - [get_info](#get_info)
     - [Data Types](#data-types)
-      - [`put_data` query](#put_data-query)
-      - [`get_data` response](#get_data-response)
+      - [`peers` Data Type](#peers-data-type)
+        - [Query Data Format](#query-data-format)
+        - [Response Data Format](#response-data-format)
 
 
 # Specification
@@ -81,7 +82,7 @@ We define the following queries: `find_node`, `get_data`, `announce_data`, and `
 
 ## Queries
 
-### find\_node
+### `find_node`
 
 Analogous to BEP-5's `find_node` query, though lacking an `id` key.
 
@@ -89,7 +90,7 @@ Arguments: `{"target": "<id of target node>"}`
 
 Response: `{"nodes": "<compact node info>"}`
 
-### get\_data
+### `get_data`
 
 Analogous to BEP-5's `get_peers`, but generalized to arbitrary data, not just peer tracking. A few example values for `type` are given in the next section. The response differs based on whether the queried node has stored data to return (if it doesn't, it just returns routing suggestions).
 
@@ -99,7 +100,7 @@ Response:
 - `{"data": <arbitrary data type>}`
 - or `{"nodes": "<compact node info>"}`
 
-### put\_data
+### `put_data`
 
 For this query we specify an optional key, `sybil`, which keys to an integer value of 1 or 0 depending on whether the sending node believes a vertical Sybil attack is taking place at the write address. If `sybil` is present and nonzero, the receiving node may attempt to verify the claim and subsequently increase its timeout for stored data. The `sybil` key should be omitted if _and only if_ the sending node doesn't have enough statistical info to determine whether a Sybil attack is underway. If the receiving node finds no evidence of the claimed attack, it would be reasonable for it to blacklist the sending node. Methodology for detecting vertical Sybil attacks is described below.
 
@@ -109,7 +110,7 @@ Arguments: `{"type": "<data type>", "data": <arbitrary data type>}`
 
 Response: `{}`
 
-### get\_info
+### `get_info`
 
 Used to ask a remote peer to describe themself to the querying node. The reply contains a dictionary encoding information such as the remote node's ID, their local content Bloom filter, a protocol version or details on specific features they do or don't support, and so on.
 
@@ -137,8 +138,6 @@ For instance, the full Theseus project will define and make use of a `theseus_si
 
 Nodes are gently encouraged not to play favorites when it comes to setting timeouts for stored data of different types. Shortening timeouts based on _amount_ of data stored would, however, be reasonable in extreme cases. Correspondingly, while applications are encouraged to use the DHT, they are also encouraged to do whatever they can to minimize the amount of data they store in it, so as to lighten the load on their peers.
 
-Only one data type is explicitly defined here: `peers`. This data type is for tracking torrent peers. Queries of `get_data` or `announce_data` with the argument `"data": "peers"` indicate that torrent peer data is being queried or stored, respectively. Query and response data formats are as follows.
+Only one data type is explicitly defined here: `peers`. It is included primarily to show by example how data types work and how to specify one.
 
 ### `peers` Data Type
-
-
