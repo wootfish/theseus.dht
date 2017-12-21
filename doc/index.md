@@ -37,6 +37,7 @@ The larger the network gets, the more secure and reliable it is for everyone.
 - [Discussion](#discussion)
   - [Design Decisions](#design-decisions)
   - [Extending the Protocol](#extending-the-protocol)
+  - [Next Steps](#next-steps)
 
 
 # Specification
@@ -180,3 +181,6 @@ The following error codes are defined:
 
 ...
 
+## Next Steps
+
+...
