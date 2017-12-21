@@ -74,7 +74,7 @@ In environments which aren't likely to have 4 GiB of RAM to spare at any given m
 
 ### Plaintext Format
 
-To aid with traffic masking, any message may contain arbitrary amounts of padding (or no padding at all). Each message starts with the RPC encoded as a netstring. Anything after the end of the netstring is discarded. Padding must be included when calculating the length of the plaintext,
+To aid with traffic masking, any message may contain arbitrary amounts of padding (or no padding at all). Each message starts with the RPC embedded in a netstring. Anything after the end of the netstring is discarded. Padding must be included when calculating the length of the plaintext,
 
 ## Storing Data
 
