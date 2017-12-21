@@ -8,9 +8,9 @@ The Theseus DHT protocol addresses these and other concerns, mitigating Sybil at
 
 To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. Even message lengths can be made to follow arbitrary patterns or no pattern. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout, and the specific ciphersuites used are configurable.
 
-The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resistance to Sybil attacks increases as the network itself grows, it is being made available on its own so that it may be integrated into any programs wanting a DHT which provides these features.
+The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resistance to Sybil attacks increases as the network itself grows, the DHT is being developed as a stand-alone library which can be used by any program that wants to be able to use a simple, secure distributed hash table.
 
-With multiple applications using the same DHT, any given user's presence on the DHT indicates their use of one of these applications but does not in and of itself give any indication as to which one is in use, much like how a person's presence on the internet gives no indication as to what sorts of web sites they frequent.
+A nice privacy property: With multiple applications using the same DHT, a user's presence on the DHT indicates their use of one of these applications, _but not which one_ -- much like how a person's mere presence on the internet gives no indication, by itself, of the web sites they frequent.
 
 The larger the network gets, the more secure and reliable it is for everyone.
 
