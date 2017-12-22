@@ -29,7 +29,7 @@ The larger the network gets, the more secure and reliable it is for everyone.
   - [KRPC](#krpc)
     - [Definitions](#definitions)
     - [Queries](#queries)
-      - [`find_node`](#find_node)
+      - [`find`](#find)
       - [`get`](#get)
       - [`put`](#put)
       - [`info`](#info)
@@ -104,7 +104,7 @@ We define the following queries: `find`, `get`, `put`, and `info`. These deal wi
 
 ### Queries
 
-#### `find_node`
+#### `find`
 
 This is essentially analogous to Kademlia's `find_node` query. Takes a target DHT address as an argument. The queried node returns the closest nodes to that target in its routing table.
 
