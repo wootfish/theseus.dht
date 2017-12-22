@@ -86,7 +86,9 @@ In order to provide both the flexibility that comes from allowing arbitrary data
 
 ### Tags
 
-Tags are specified via a `tags` argument within individual RPCs. Nodes should implement all specified tags, and when asked to populate tags they don't recognize should respond with the appropriate error code (TODO: pick that error code). The only specified tags at this time are `ip` and `port`. The topic of adding additional tags is discussed at some length below.
+Tags are specified via a `tags` argument within individual RPCs. Nodes should implement all specified tags, and if asked to populate tags they don't recognize should respond with error 203.
+
+The only specified tags at this time are `ip` and `port`. The topic of adding additional tags is discussed at some length below.
 
 ## KRPC
 
@@ -146,7 +148,7 @@ Note that the `values` associated with keys within the `info` dictionary may be 
 
 Applications using the Theseus DHT may feel free to add their own metadata keys, and are encouraged to use a uniform and unusual prefix for these keys to avoid naming conflicts. For instance, Theseus-specific parameters like Bloom filters for search are prefixed `theseus_`.
 
-A node may have as many info fields as it wants. It should at the very minimum provide these: `{"id": ["<node's id>", "<id hash preimage>"], "max_version": "protocol version string"}`.
+A node may have as many info fields as it wants. It should at the very minimum provide these: `{"id": ["<160-bit node id>", "<node id hash preimage>"], "max_version": "protocol version string"}`.
 
 Arguments: `{"advertise": {"sender_key_one": "sender_value_one", ...}, "keys": ["key_one", "key_two", ..., "key_n"]}`
 
@@ -156,18 +158,16 @@ Response: `{"info": {"key_one": "value_one", "key_two": "value_two", ... , "key_
 
 Errors at the KRPC level are prefixed 1xx. Errors at the Theseus DHT protocol level are prefixed 2xx. Errors at higher levels of abstraction are prefixed 3xx.
 
-These error codes are likely to be subject to considerable change in later drafts.
-
-The following error codes are defined:
+So far, the following error codes are defined:
 
 - `1xx` level:
-  - `100: KRPC protocol error`
+  - `100: Invalid KRPC message`
   - `101: Internal error`
 - `2xx` level:
-  - `200: DHT protocol error`
+  - `200: Invalid DHT protocol message`
   - `201: Internal error`
-  - `201: Method not recognized`
-  - `202: Tag not recognized`
+  - `202: Method not recognized`
+  - `203: Tag not recognized`
 - `3xx` level:
   - `300: Rate-limiting active`
 
