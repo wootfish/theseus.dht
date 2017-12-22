@@ -146,9 +146,9 @@ Submitting a query with `keys` included and mapped to an empty list is allowed. 
 
 Note that the `values` associated with keys within the `info` dictionary may be arbitrary bencoded data, even though the example below only shows strings. It is perfectly fine to include a set of flags as a binary string, to include nested lists or dictionaries, etc.
 
-Applications using the Theseus DHT may feel free to add their own metadata keys, and are encouraged to use a uniform and unusual prefix for these keys to avoid naming conflicts. For instance, Theseus-specific parameters like Bloom filters for search are prefixed `theseus_`.
-
 A node may have as many info fields as it wants. It should at the very minimum provide these: `{"id": ["<160-bit node id>", "<node id hash preimage>"], "max_version": "protocol version string"}`.
+
+Applications using the Theseus DHT may feel free to add their own metadata keys, and are encouraged to use a uniform and unusual prefix for these keys to avoid naming conflicts. For instance, Theseus-specific parameters like Bloom filters for search are prefixed `theseus_`.
 
 Arguments: `{"advertise": {"sender_key_one": "sender_value_one", ...}, "keys": ["key_one", "key_two", ..., "key_n"]}`
 
