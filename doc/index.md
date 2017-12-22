@@ -169,7 +169,8 @@ So far, the following error codes are defined:
   - `202: Method not recognized`
   - `203: Tag not recognized`
 - `3xx` level:
-  - `300: Rate-limiting active`
+  - `300: Generic error`
+  - `301: Rate-limiting active`
 
 # Discussion
 
