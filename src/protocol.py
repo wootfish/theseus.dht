@@ -28,11 +28,12 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             b'info': self.onInfo,
             })
 
-        # info_updaters needs to be OrderedDict because it gets iterated over
-        #self.info_updaters = OrderedDict((
-        #    (b'listen_port', self.iListenPort),
-        #    (b'id', self.iId),
-        #    ))
+    # the dispatcher populates find, onFind, get, put, onGet, info, and onInfo
+    # whenever it builds a protocol.
+
+    # find and onFind callbacks go to the routing table
+    # get, put, and onGet callbacks go to the data store
+    # info and onInfo callbacks go to the dispatcher
 
     def connectionMade(self):
         self.setTimeout(self.idle_timeout)
@@ -55,7 +56,3 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     def onQuery(self, txn_id, query_name, args):
         self.log.info("Query from {node} (txn {txn}): {name} {args}",
                       node=self.remote_state, name=query_name, txn=txn_id, args=args)
-
-    # find and onFind callbacks are populated from the routing table
-    # get, put, and onGet callbacks are populated from the data store
-    # info and onInfo callbacks are populated by the dispatcher
