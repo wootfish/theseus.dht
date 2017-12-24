@@ -28,12 +28,8 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             b'info': self.onInfo,
             })
 
-    # the dispatcher populates find, onFind, get, put, onGet, info, and onInfo
-    # whenever it builds a protocol.
-
-    # find and onFind callbacks go to the routing table
-    # get, put, and onGet callbacks go to the data store
-    # info and onInfo callbacks go to the dispatcher
+    # the dispatcher populates the protocol's find, onFind, get, put, onGet,
+    # info, and onInfo callbacks during buildProtocol
 
     def connectionMade(self):
         self.setTimeout(self.idle_timeout)
