@@ -68,7 +68,7 @@ If for some reason two peers don't want to use a PSK, i.e. if they want to resta
 
 Every encrypted Theseus protocol message is preceded by an encrypted declaration of the protocol message's size. Whenever a plaintext is ready to send, the plaintext bytestring's length is encoded as a big-endian 32-bit integer and encrypted, yielding a 20-byte ciphertext (4 message bytes + 16 AE tag bytes). This is sent, then the plaintext is encrypted and sent. This scheme allows the size of every ciphertext to be known in advance, which in turn allows arbitrary message chunking without risk of ambiguity regarding message boundaries. Thus, individual packets sent across the wire can be arbitrarily sized, and can thus mimic essentially any traffic pattern.
 
-It's worth noting that this scheme creates a theoretical limit on the size of Theseus protocol messages: 2<sup>32</sup> - 1 = 4,294,967,295 bytes. That's 4 GiB, so any application running up against this limit has probably made some big mistakes along the way, to the point where the size limit is almost certainly the least of their concerns.
+It's probably worth noting that this scheme creates a theoretical limit on the size of Theseus protocol messages: 2<sup>32</sup> - 1 = 4,294,967,295 bytes. That's 4 GiB, so any application running up against this limit has probably made some big mistakes along the way, to the point where the size limit is the least of their concerns.
 
 In environments which aren't likely to have 4 GiB of RAM to spare at any given moment, applications are encouraged to set smaller internal limits on message size -- maybe 2<sup>20</sup> bytes or so. This suggestion, while much smaller, is still conservatively large as a sort of future-proofing. Theseus traffic will probably never even come close to this limit, except perhaps when exchanging uncompressed Bloom filters, and even then messages should fall comfortably short of the max size. Individual Noise protocol messages are capped at 65535 bytes of ciphertext, so Theseus protocol messages exceeding 65535 - 16 = 65519 bytes of plaintext will of course need to be sent in parts.
 
@@ -86,7 +86,7 @@ In order to provide both the flexibility that comes from allowing arbitrary data
 
 ### Tags
 
-Tags are specified via a `tags` argument within individual RPCs. Nodes should implement all specified tags, and if asked to populate tags they don't recognize should respond with error 203.
+Tags are specified via a `tags` argument within individual RPCs. Nodes should implement all specified tags. If a node receives a request to populate tags it doesn't recognize, the node should respond with error 203 [as specified below](#errors).
 
 The only specified tags at this time are `ip` and `port`. The topic of adding additional tags is discussed at some length below.
 
@@ -101,6 +101,16 @@ The protocol is conceptualized as a set of bencoded RPC messages following the K
 Note that we follow the MLDHT KRPC protocol as regards message _format_, but not as regards message _transport_.
 
 We define the following queries: `find`, `get`, `put`, and `info`. These deal with looking up nodes, storing data on nodes, retrieving data from nodes, and exchanging node metadata, respectively.
+
+### Contact Format
+
+(TODO: decide whether to use keys or key fingerprints? how much do we care about the amt of traffic we're sending over the wire? how big a difference does this choice make? being able to auth w/ a public key from the very start would be nice tho that might require reworking the bit on handshakes above)
+
+In BEP-5 it's like:
+
+> Contact information for nodes is encoded as a 26-byte string. Also known as "Compact node info" the 20-byte Node ID in network byte order has the compact IP-address/port info concatenated to the end.
+
+We want to do that too but also to have keys or key fingerprints in there. Ed25519 public keys are 256 bits.
 
 ### Queries
 
