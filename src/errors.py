@@ -9,7 +9,7 @@ def errcode(cls):
 class TheseusProtocolError(Exception):
     """
     Generic error superclass for protocol errors.
-    Defaults to error 300 ("Generic error").
+    Defaults to error 300.
     """
     errcode = 300
     error_name = "Generic error"
@@ -60,6 +60,10 @@ class Error300(TheseusProtocolError):
 class Error301(TheseusProtocolError):
     errcode = 301
     error_name = "Rate-limiting active"
+
+
+class KRPCError(Exception):
+    pass
 
 
 class BencodeError(Exception):
