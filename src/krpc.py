@@ -95,9 +95,9 @@ class KRPCProtocol(NetstringReceiver):
             self.log.debug("Traceback: {tb}", tb=traceback.format_exc())
             return
 
+        self.log.debug("Attempting to generate response to query (txn {txn}): {query_name} {args}",
+                       txn=txn_id, query_name=query_name, args=args)
         try:
-            self.log.debug("Attempting to generate response to query (txn {txn}): {query_name} {args}",
-                           txn=txn_id, query_name=query_name, args=args)
             result = self.query_handlers[query_name](args)
             assert type(result) in (dict, Deferred)
 
