@@ -160,7 +160,7 @@ A node may have as many info fields as it wants. It should at the very minimum p
 
 Applications using the Theseus DHT may feel free to add their own metadata keys, and are encouraged to use a uniform and unusual prefix for these keys to avoid naming conflicts. For instance, Theseus-specific parameters like Bloom filters for search are prefixed `theseus_`.
 
-Arguments: `{"advertise": {"sender_key_one": "sender_value_one", ...}, "keys": ["key_one", "key_two", ..., "key_n"]}`
+Arguments: `{"info": {"sender_key_one": "sender_value_one", ...}, "keys": ["key_one", "key_two", ..., "key_n"]}`
 
 Response: `{"info": {"key_one": "value_one", "key_two": "value_two", ... , "key_n": "value_n"}}`
 
