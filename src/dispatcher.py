@@ -60,8 +60,8 @@ class Dispatcher(Factory):
             return  # aborts the cnxn
 
         p = TheseusProtocol()
-        p.find, p.onFind = self.routing_table.getCallbacks(addr)  # TODO figure out whether we need to pass addr here -- would be nice if not
-        p.get, p.put, p.onGet = self.data_store.getCallbacks(addr)
+        p.find, p.onFind = self.routing_table.getCallbacks()
+        p.get, p.put, p.onGet = self.data_store.getCallbacks()
         p.info, p.onInfo = self.getCallbacks(addr)
 
         if addr not in self.states:
