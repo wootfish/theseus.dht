@@ -16,3 +16,8 @@ DISCONNECTED, CONNECTING, CONNECTED = (NodeCnxnStates.DISCONNECTED,
 NodeInfoKeys = Enum("NodeInfoKeys", "ID LISTEN_PORT MAX_VERSION")
 ID, LISTEN_PORT, MAX_VERSION = (NodeInfoKeys.ID, NodeInfoKeys.LISTEN_PORT,
         NodeInfoKeys.MAX_VERSION)
+
+IDCheckPriorities = Enum("IDCheckPriorities", "UNSET LOW MEDIUM HIGH CRITICAL")
+UNSET, LOW, MEDIUM, HIGH, CRITICAL = (IDCheckPriorities.UNSET,
+        IDCheckPriorities.LOW, IDCheckPriorities.MEDIUM,
+        IDCheckPriorities.HIGH, IDCheckPriorities.CRITICAL)
