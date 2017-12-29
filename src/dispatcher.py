@@ -9,12 +9,17 @@ from twisted.internet.defer import Deferred, fail, succeed
 from twisted.internet.error import TimeoutError
 from twisted.internet.address import IPv4Address
 from twisted.internet.protocol import Factory
+from twisted.internet.endpoints import TCP4ClientEndpoint
 
-from .enums import ROLE, STATE, LAST_ACTIVE, INFO
+from .enums import ROLE, STATE, LAST_ACTIVE, INFO, CNXN
 from .enums import INITIATOR, RESPONDER
-from .enums import DISCONNECTED, CONNECTING, CONNECTED
+from .enums import DISCONNECTED, CONNECTING
 from .enums import ID, LISTEN_PORT, MAX_VERSION
+
 from .noisewrapper import NoiseFactory
+from .protocol import DHTProtocol
+from .errors import TheseusConnectionError
+from .config import config
 
 
 class Dispatcher(Factory):
@@ -59,7 +64,7 @@ class Dispatcher(Factory):
             self.log.warn("Tried to build redundant cnxn protocol for address {addr}", addr=addr)
             return  # aborts the cnxn
 
-        p = TheseusProtocol()
+        p = DHTProtocol()
         p.find, p.onFind = self.routing_table.getCallbacks()
         p.get, p.put, p.onGet = self.data_store.getCallbacks()
         p.info, p.onInfo = self.getCallbacks(addr)
@@ -88,7 +93,7 @@ class Dispatcher(Factory):
             info = args.get(b'info', {})
             for str_key, enum_key in data_names.items():
                 if str_key in info:
-                    self.info_updaters[enum_key](addr, info[name])
+                    self.info_updaters[enum_key](addr, info[str_key])
 
         def info_query_callback(args):
             info_response_callback(args)
@@ -107,9 +112,9 @@ class Dispatcher(Factory):
             self.log.debug("Tried to connect to a blacklisted address: {addr}", addr=addr)
             return fail(TheseusConnectionError("Address blacklisted"))
 
-        if addr in self.states and self.states[addr][IS_LIVE]:
+        if addr in self.states and self.states[addr][STATE] is not DISCONNECTED:
             self.log.warn("Tried to add a redundant cnxn to address: {addr}", addr=addr)
-            return fail(TheseusConnectionError("Redundant cnxn"))  # or should we succeed with the existing connection?
+            return fail(TheseusConnectionError("Redundant cnxn"))  # or should we 'fail gently' by returning succeed(self.states[CNXN])?  TODO: decide
 
         if addr[1] in set(node.listen_port for node in self.parent.siblings()):
             self.log.debug("Aborting cnxn to {addr} due to shared listen port", addr=addr)
@@ -188,7 +193,7 @@ class Dispatcher(Factory):
         self.states[new_addr] = state
 
         # update callbacks for new address
-        p.info, p.onInfo = self.getCallbacks(new_addr)
+        state[CNXN].info, state[CNXN].onInfo = self.getCallbacks(new_addr)
 
     def maybeUpdateNodeID(self, addr, new_id):
         for node_addr, node_state in chain(self.states.items(), self.unbound_states.items()):

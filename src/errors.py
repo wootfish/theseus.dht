@@ -68,3 +68,7 @@ class KRPCError(Exception):
 
 class BencodeError(Exception):
     pass
+
+
+class TheseusConnectionError(Exception):
+    pass
