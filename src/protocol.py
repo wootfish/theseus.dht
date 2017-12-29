@@ -32,6 +32,8 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     # info, and onInfo callbacks during buildProtocol
 
     def connectionMade(self):
+        super().connectionMade()
+
         self.setTimeout(self.idle_timeout)
 
     def connectionLost(self, reason):
