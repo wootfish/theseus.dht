@@ -24,9 +24,6 @@ from twisted.logger import Logger
 import os
 import json
 
-from .util import dict_merge
-
-
 
 class Config:
     log = Logger()
@@ -93,7 +90,7 @@ class Config:
             except:
                 self.log.warn("Bad config file at {path}", path=self.config_file)
             else:
-                self._config = dict_merge(
+                self._config = self.dict_merge(
                         self.config_defaults,
                         json_contents,
                         )
