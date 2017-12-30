@@ -1,8 +1,9 @@
 from twisted.protocols.policies import ProtocolWrapper, WrappingFactory
+from twisted.internet.protocol import Protocol
 
 from noise.connection import NoiseConnection
 
-from .enums import INITIATOR, RESPONDER
+from .enums import INITIATOR
 
 
 class NoiseProtocol(ProtocolWrapper):
@@ -43,7 +44,7 @@ class NoiseProtocol(ProtocolWrapper):
             self._handleHandshake(data)
 
     def _handleHandshake(self, data):
-        proto.read_message(data)  # discard any payload
+        self._noise.read_message(data)  # discard any payload
 
         if not self._noise.handshake_finished:
             self.transport.write(self._noise.write_message())
@@ -56,7 +57,7 @@ class NoiseProtocol(ProtocolWrapper):
             while self._pending_writes:
                 self.write(self._pending_writes.pop(0))
 
-            super().makeConnection(self, transport)
+            super().makeConnection(self.transport)
 
     def _handleCiphertext(self, data):
         # do we have a full message?

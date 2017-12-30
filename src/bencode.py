@@ -103,17 +103,17 @@ def _bdecode_int(data):
 
 
 def _bdecode_list(data):
-    l = []
+    result = []
     ind = 1
     try:
         while data[ind] != ord('e'):
             datum, offset = _bdecode(data[ind:])
             ind += offset
-            l.append(datum)
+            result.append(datum)
     except IndexError:
         log.debug("Error bdecoding data {data}", data=data)
         raise BencodeError("Improperly formatted bencoded list field")
-    return (l, ind+1)
+    return (result, ind+1)
 
 
 def _bdecode_dict(data):

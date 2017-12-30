@@ -64,7 +64,7 @@ class KRPCProtocol(NetstringReceiver):
                 assert type(errcode) is int
                 assert type(errinfo) is bytes
                 errinfo = errinfo.decode("UTF-8")
-            except:
+            except TypeError, AssertionError:
                 errcode, errinfo = None, None
 
             self.log.info("Error response on txn {txn}. code: {code}, info: {info}",
