@@ -49,7 +49,7 @@ class Dispatcher(Factory):
         self.info_getters = {
             MAX_VERSION: (lambda: config["listen_port"]),
             LISTEN_PORT: (lambda: self.parent_node.listen_port),
-            ID: (lambda: self.parent_node.ID),
+            ID: (lambda: self.parent_node.node_id),
             }
         self.info_updaters = {
             MAX_VERSION: None,  # TODO
@@ -116,7 +116,7 @@ class Dispatcher(Factory):
             self.log.warn("Tried to add a redundant cnxn to address: {addr}", addr=addr)
             return fail(TheseusConnectionError("Redundant cnxn"))  # or should we 'fail gently' by returning succeed(self.states[CNXN])?  TODO: decide
 
-        if addr[1] in set(node.listen_port for node in self.parent.siblings()):
+        if addr[1] in set(node.listen_port for node in self.parent_node.manager):
             self.log.debug("Aborting cnxn to {addr} due to shared listen port", addr=addr)
             return fail(TheseusConnectionError("Shared listen port"))
 

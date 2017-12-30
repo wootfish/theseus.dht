@@ -4,13 +4,17 @@ from .enums import UNSET, LOW, MEDIUM, HIGH, CRITICAL
 
 
 class NodeID:
-    def __init__(self, node_id, verify=True, priority=UNSET):
-        # pass node_id=None to generate a random ID with a current timestamp.
-        # priority defaults to CRITICAL if node_id is None, unless a value
-        # other than UNSET is passed in.
+    def __init__(self, node_id=None, verify=True, priority=UNSET):
+        # node_id=None generates a random ID with a current timestamp. If
+        # node_id is None and priority is UNSET, priority is automatically
+        # upgraded to CRITICAL.
 
         self.node_id = node_id
-        self.priority = priority
+
+        if node_id is None and priority is UNSET:
+            self.priority = CRITICAL
+        else:
+            self.priority = priority
 
         self.addr_check_retval = None
         self.on_check = Deferred()
