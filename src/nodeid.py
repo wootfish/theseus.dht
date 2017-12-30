@@ -12,19 +12,17 @@ class NodeID:
         self.node_id = node_id
         self.priority = priority
 
-        try:
-            self.address = node_id[0]
-            self.preimage = node_id[1]
-        except:
-            self.address = None
-            self.preimage = None
-
         self.addr_check_retval = None
         self.on_check = Deferred()
 
         if node_id is None:
+            self.address = None
+            self.preimage = None
             self.generate_address()
+
         elif verify:
+            self.address = node_id[0]
+            self.preimage = node_id[1]
             self.verify_address()
 
     def __repr__(self):
