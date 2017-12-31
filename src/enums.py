@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, IntEnum
 
 
 NodeStateKeys = Enum("NodeStateKeys", "ROLE STATE LAST_ACTIVE INFO CNXN")
@@ -17,7 +17,9 @@ NodeInfoKeys = Enum("NodeInfoKeys", "ID LISTEN_PORT MAX_VERSION")
 ID, LISTEN_PORT, MAX_VERSION = (NodeInfoKeys.ID, NodeInfoKeys.LISTEN_PORT,
         NodeInfoKeys.MAX_VERSION)
 
-IDCheckPriorities = Enum("IDCheckPriorities", "UNSET LOW MEDIUM HIGH CRITICAL")
-UNSET, LOW, MEDIUM, HIGH, CRITICAL = (IDCheckPriorities.UNSET,
-        IDCheckPriorities.LOW, IDCheckPriorities.MEDIUM,
-        IDCheckPriorities.HIGH, IDCheckPriorities.CRITICAL)
+# IDCheckPriorities is IntEnum so that the priorities can be compared & thus
+# used directly in the hasher's priority queue heap
+IDCheckPriorities = IntEnum("IDCheckPriorities", "CRITICAL HIGH MEDIUM LOW UNSET")
+CRITICAL, HIGH, MEDIUM, LOW, UNSET = (IDCheckPriorities.CRITICAL,
+        IDCheckPriorities.HIGH, IDCheckPriorities.MEDIUM,
+        IDCheckPriorities.LOW, IDCheckPriorities.UNSET)
