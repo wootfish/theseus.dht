@@ -118,7 +118,7 @@ We want to do that too but also to have keys or key fingerprints in there. Ed255
 
 This is essentially analogous to Kademlia's `find_node` query. Takes a target DHT address as an argument. The queried node returns the closest nodes to that target in its routing table.
 
-Arguments: `{"target": "<160-bit address>"}`
+Arguments: `{"addr": "<160-bit address>"}`
 
 Response: `{"nodes": "<compact node info>"}`
 
@@ -138,9 +138,11 @@ Response:
 
 For this query we specify an optional key, `sybil`, which keys to an integer value of 1 or 0 depending on whether the sending node believes a vertical Sybil attack is taking place at the write address. If `sybil` is present and nonzero, the receiving node may attempt to verify the claim and subsequently increase its timeout for stored data. The `sybil` key may be omitted, but this should only be done if the sending node doesn't have enough info to determine whether a Sybil attack is underway. Methodology for detecting vertical Sybil attacks is described below.
 
+The putter may request that certain tags be applied to the data via the `tags` argument.
+
 The response is an empty dictionary. This should of course still be sent, in order to acknowledge query receipt.
 
-Arguments: `{"type": "<data type>", "data": <arbitrary data type>}`
+Arguments: `{"addr": "<160-bit address>", "data": <arbitrary data>, "tags": [], "sybil": <0 or 1>}`
 
 Response: `{}`
 

@@ -66,7 +66,7 @@ class Dispatcher(Factory):
 
         p = DHTProtocol()
         p.find, p.onFind = self.routing_table.getCallbacks()
-        p.get, p.put, p.onGet = self.data_store.getCallbacks()
+        p.maybeGet, p.put = self.data_store.getCallbacks()
         p.info, p.onInfo = self.getCallbacks(addr)
 
         if addr not in self.states:

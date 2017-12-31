@@ -121,7 +121,7 @@ class RoutingTable:
 
     def getCallbacks(self, addr):
         def on_find_query(args):
-            target_addr = args.get(b"target")
+            target_addr = args.get(b"addr")
             assert type(target_addr) is bytes
             assert len(target_addr) == 20
             return {"nodes": self.query(target_addr)}
