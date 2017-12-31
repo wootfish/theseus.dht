@@ -16,15 +16,15 @@ class NodeService(Service):
         self.updateID()
         self.startListening()
 
-        self.dispatcher = Dispatcher(...)
+        self.dispatcher = Dispatcher(...)  # TODO
 
     def startListening(self):
         """
         Starts listening on a reasonable port. Sets self.listen_port to the
         port chosen.
-
-        (TODO: optionally take user-specified port, exit if port's unavailable)
         """
+
+        # TODO: optionally take user-specified port, exit cleanly if port unavailable
 
         listen_port_range = config["listen_port_range"]
         ports_to_avoid = config["ports_to_avoid"]
