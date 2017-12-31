@@ -53,8 +53,8 @@ class Dispatcher(Factory):
             }
         self.info_updaters = {
             MAX_VERSION: None,  # TODO
-            LISTEN_PORT: self.maybeUpdateListenPort,  # TODO
-            ID: self.maybeUpdateNodeID,  # TODO
+            LISTEN_PORT: self.maybeUpdateListenPort,
+            ID: self.maybeUpdateNodeID,
             }
 
     def buildProtocol(self, remote):
@@ -207,7 +207,9 @@ class Dispatcher(Factory):
                 raise Exception("Node ID already claimed")
 
         self.states.get(addr, self.unbound_states.get(addr))[INFO][ID] = new_id
-        # TODO inform routing table of this change (once we have a routing table implemented)
+
+        self.routing_table.remove(addr)
+        self.routing_table.insert(addr, new_id)
 
     def getNodeInfo(self, addr, info_key, defer=True):
         if defer:
