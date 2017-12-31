@@ -1,6 +1,8 @@
-from twisted.internet.defer import Deferred
+from .enums import CRITICAL, UNSET
+from .hasher import hasher
 
-from .enums import UNSET, LOW, MEDIUM, HIGH, CRITICAL
+from os import urandom
+from time import time
 
 
 class NodeID:
@@ -10,14 +12,14 @@ class NodeID:
         # upgraded to CRITICAL.
 
         self.node_id = node_id
+        self.will_verify = verify
 
         if node_id is None and priority is UNSET:
             self.priority = CRITICAL
         else:
             self.priority = priority
 
-        self.addr_check_retval = None
-        self.on_check = Deferred()
+        self.on_id_hash = None
 
         if node_id is None:
             self.address = None
@@ -34,14 +36,37 @@ class NodeID:
 
     def set_priority(self, new_priority):
         if new_priority.value > self.priority.value:
-            ...  # TODO
+            self.priority = new_priority
+
+            # re-submit the job w/ the new priority
+            if self.node_id is None:
+                self.generate_address()
+            elif self.will_verify:
+                self.verify_address()
 
     def generate_address(self):
-        ...  # TODO
+        self.preimage = self.getHashInput()
+
+        def callback(node_id):
+            self.address = node_id
+            return node_id
+
+        self.on_id_hash = hasher.getNodeID(self.preimage, self.priority)
+        self.on_id_hash.addCallback(callback)
 
     def verify_address(self):
-        ...  # TODO
+        self.on_id_hash = hasher.checkNodeID(self.address, self.preimage, self.priority)
 
     @staticmethod
-    def _getHash(input_bytes, work_factor):
-        ...  # TODO
+    def timestampIntToBytes(t):
+        bytestring = b''
+        while t > 0:
+            bytestring = bytes([t & 0xFF]) + bytestring
+            t >>= 8
+        return bytestring
+
+    @staticmethod
+    def getHashInput():
+        timestamp = NodeID.timestampIntToBytes(time())
+        bytestring = urandom(6)
+        return timestamp + bytestring
