@@ -6,7 +6,7 @@ It is derived in large part from Kademlia, an efficient distributed hash table a
 
 The Theseus DHT protocol addresses these and other concerns, mitigating Sybil attacks through a combination of several novel strategies. It also adds features like strong encryption, optional authentication, optional perfect forward secrecy, and more. The network's Sybil resistance also increases as the network itself grows.
 
-To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. Even message lengths can be made to follow arbitrary patterns or no pattern. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout, and the specific ciphersuites used are configurable.
+To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. Even message lengths can be made to follow arbitrary patterns or no pattern at all. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout.
 
 The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resistance to Sybil attacks increases as the network itself grows, the DHT is being developed as a stand-alone library which can be used by any program that wants to be able to use a simple, secure distributed hash table.
 
@@ -26,6 +26,7 @@ The larger the network gets, the more secure and reliable it is for everyone.
     - [Plaintext Format](#plaintext-format)
   - [Storing Data](#storing-data)
     - [Tags](#tags)
+  - [Node Addressing and Routing](#node-addressing-and-routing)
   - [KRPC](#krpc)
     - [Definitions](#definitions)
     - [Queries](#queries)
@@ -34,9 +35,12 @@ The larger the network gets, the more secure and reliable it is for everyone.
       - [`put`](#put)
       - [`info`](#info)
     - [Errors](#errors)
+- [Terminology Reference](#terminology-reference)
 - [Discussion](#discussion)
   - [Design Decisions](#design-decisions)
+    - [Using TCP](#using-tcp)
   - [Extending the Protocol](#extending-the-protocol)
+    - [Adding New Data Tags](#adding-new-data-tags)
   - [Next Steps](#next-steps)
 
 
@@ -44,15 +48,21 @@ The larger the network gets, the more secure and reliable it is for everyone.
 
 ## Transport
 
-We deviate from Kademlia by using TCP rather than UDP at the transport layer. The move to a stateful, connection-based protocol adds some overhead but makes the cryptography much easier by providing reliability and ordered delivery.
+We deviate from Kademlia by using TCP rather than UDP at the transport layer. The move to a stateful, connection-based protocol adds some overhead but makes the cryptography much easier by providing reliability and ordered delivery. This decision, which is nontrivial and impacts several aspects of the protocol, is discussed in the *Discussion* section below.
 
 ## Encryption
 
+### High-Level Overview
+
+Encryption of Theseus protocol messages is handled through the Noise Protocol Framework. The authoritative documentation for Noise can be found [here](https://noiseprotocol.org/noise.html), and the Python library we use is [here](https://github.com/plizonczyk/noiseprotocol).
+
+All traffic is encrypted, and all encrypted messages are indistinguishable from random noise. Messages may be chunked to arbitrary sizes, and plaintexts may optionally be padded before encryption, further reducing fingerprintability.
+
 ### Initial Handshake
 
-Encryption is handled through the Noise Protocol Framework. The authoritative documentation for Noise can be found [here](https://noiseprotocol.org/noise.html), and the Python library we will use is [here](https://github.com/plizonczyk/noiseprotocol). In order to avoid any (fingerprintable) protocol preamble, we will specify a default handshake and ciphersuite: `Noise_NN_448_ChaChaPoly_SHA512`. The `NN` pattern here provides for an exchange of ephemeral public keys to establish an encrypted channel. The public keys should be Ellegator-encoded to keep them from being trivially fingerprintable.
+In order to avoid any fingerprintable protocol preamble, we will specify a default handshake pattern and ciphersuite: `Noise_NK_25519_ChaChaPoly_SHA512`. The `NK` pattern here provides for an exchange of ephemeral public keys to establish an encrypted channel, and for authentication of the responder (using their node key). The initial ephemeral key must be encoded with [Elligator](https://elligator.cr.yp.to/) to keep it from being trivially fingerprintable.
 
-    (TODO: make doubly sure using Elligator here is viable)
+    (TODO: figure out how to get Elligator support with the Python Noise library we're using)
 
 ### Subsequent Handshakes
 
@@ -66,23 +76,37 @@ If for some reason two peers don't want to use a PSK, i.e. if they want to resta
 
 ### Message Sizes
 
-Every encrypted Theseus protocol message is preceded by an encrypted declaration of the protocol message's size. Whenever a plaintext is ready to send, the plaintext bytestring's length is encoded as a big-endian 32-bit integer and encrypted, yielding a 20-byte ciphertext (4 message bytes + 16 AE tag bytes). This is sent, then the plaintext is encrypted and sent. This scheme allows the size of every ciphertext to be known in advance, which in turn allows arbitrary message chunking without risk of ambiguity regarding message boundaries. Thus, individual packets sent across the wire can be arbitrarily sized, and can thus mimic essentially any traffic pattern.
+Every encrypted Theseus protocol message is preceded by an encrypted declaration of the protocol message's size. Whenever a plaintext is ready to send, the plaintext bytestring's length is calculated, encoded as a big-endian 32-bit integer, and encrypted, yielding a 20-byte ciphertext (4 message bytes + 16 AE tag bytes). This encrypted length announcement is sent, then the plaintext is encrypted and sent.
+
+The process for receiving messages is therefore essentially this:
+
+1. Read bytes off the wire until we've received 20 bytes total.
+2. Decrypt these 20 bytes and treat the resulting four bytes as a big-endian 32-bit integer N.
+3. Read bytes off the wire until we've received N + 16 more bytes total.
+4. Decrypt thes N + 16 bytes. This is the protocol message.
+5. Repeat.
+
+This scheme allows the size of every ciphertext to be known in advance, which in turn allows arbitrary message chunking without risk of ambiguity regarding message boundaries. Thus, individual packets sent across the wire can be arbitrarily sized, and thus the protocol can assume essentially any traffic pattern.
 
 It's probably worth noting that this scheme creates a theoretical limit on the size of Theseus protocol messages: 2<sup>32</sup> - 1 = 4,294,967,295 bytes. That's 4 GiB, so any application running up against this limit has probably made some big mistakes along the way, to the point where the size limit is the least of their concerns.
 
-In environments which aren't likely to have 4 GiB of RAM to spare at any given moment, applications are encouraged to set smaller internal limits on message size -- maybe 2<sup>20</sup> bytes or so. This suggestion, while much smaller, is still conservatively large as a sort of future-proofing. Theseus traffic will probably never even come close to this limit, except perhaps when exchanging uncompressed Bloom filters, and even then messages should fall comfortably short of the max size. Individual Noise protocol messages are capped at 65535 bytes of ciphertext, so Theseus protocol messages exceeding 65535 - 16 = 65519 bytes of plaintext will of course need to be sent in parts.
+In environments which aren't likely to have 4 GiB of RAM to spare at any given moment, applications are encouraged to set smaller internal limits on message size -- maybe 2<sup>20</sup> bytes or so. This suggestion, while much smaller, is still conservatively large as a sort of future-proofing. Theseus DHT protocol traffic will probably never even come close to this limit. Individual Noise protocol messages are capped at 65535=2<sup>16</sup>-1 bytes of ciphertext, so protocol messages exceeding 65535 - 16 = 65519 bytes of plaintext will of course need to be sent in chunks.
 
 ### Plaintext Format
 
-To aid with traffic masking, any message may contain arbitrary amounts of padding (or no padding at all). Each message starts with the RPC embedded in a netstring. Anything after the end of the netstring is discarded. Padding must be included when calculating the length of the plaintext,
+Each message starts with the RPC embedded in a netstring. Anything after the end of the netstring is discarded. Thus any message may contain arbitrary amounts of padding, or no padding at all.
 
 ## Storing Data
 
 The DHT is capable of storing arbitrary data at arbitrary 160-bit (20-byte) addresses. Stored data will be returned to queriers as a bencoded list of entries. Users wishing to store raw binary data may do so by encapsulating their data within a bencoded bytestring.
 
-In some DHTs, users are given less freedom than this. For instance, Mainline DHT's `announce_peer` query includes a `port` field but not an IP address field. The reasoning is that the receiving node already has this information -- it's right there in the query packet header -- and so sending it again would be redundant. There's a side benefit here, in that nodes have a much harder time signing up anyone other than themselves. This cuts down on garbage data and makes it less viable to abuse Mainline DHT for traffic amplification.
+Some DHTs give their users less flexibility than this. For instance, Mainline DHT's `announce_peer` query includes a `port` field but not an IP address field. The IP address is auto-populated by the query recipient.
 
-In order to provide both the flexibility that comes from allowing arbitrary data storage and the emergent benefits of more restrictive models like Mainline DHT's, the Theseus DHT provides the option to request "tags" on submitted data. These tags are populated by the storing node based on public information available to it. So for instance you could submit a datum indicating a port you're listening on, and request that it be tagged with your public IP. Or you could submit an empty datum and have the remote node tag it with both your IP and port.
+There are two main reasons for this: First, the receiving node already has this information -- it's right there in the query packet header -- and so including it in the RPC would be redundant. Preventing querying nodes from providing the IP address information also means that nodes have a much harder time submitting an `announce_peer` query for anyone other than themselves. This cuts down on garbage data and makes it more difficult to abuse Mainline DHT for e.g. traffic amplification.
+
+In order to provide both the flexibility of arbitrary data storage and the benefits of more restrictive protocols like Mainline DHT, the Theseus DHT provides the option to request "tags" on submitted data, and to request only data matching a given tag. These tags are populated by the storing node based on public information available to it.
+
+So, for instance, to duplicate Mainline DHT's `announce_peer` functionality you could submit a datum indicating a port you're listening on, and request that it be tagged with your public IP. Or you could submit an empty datum and have the remote node tag it with both your IP and port.
 
 ### Tags
 
@@ -90,27 +114,38 @@ Tags are specified via a `tags` argument within individual RPCs. Nodes should im
 
 The only specified tags at this time are `ip` and `port`. The topic of adding additional tags is discussed at some length below.
 
+    (TODO: fill out the actual section discussing this)
+
+## Node Addressing and Routing
+
+Every node has an address in the DHT network. Addresses are 20 bytes long. The "distance" between two nodes is the integer result of the XOR of their addresses. This all is as in Kademlia.
+
+The proper operation of the DHT relies on addresses being uniformly distributed and nodes being unable to choose their own addresses. To achieve this, we allow nodes to choose their *ID preimage*, and derive their actual node IDs from a cryptographic hash of this preimage.
+
+The hash function used is Argon2id. This is a state-of-the-art memory-hard hash function usually used for hashing passwords. It is designed to make parallelized brute-force search of the input space as difficult as possible. The work parameters we will use are memlimit=2<sup>28</sup> and opslimit=3 (these are the values of the PyNaCl library constants MEMLIMIT\_MODERATE and OPSLIMIT\_MODERATE, respectively).
+
+Nodes should maintain a routing table operating as defined in Kademlia and BEP-5. If one peer is running multiple nodes, it may share a routing table between them. This would reduce overhead and also likely improve the quality of routing table query results. If a routing table is shared between multiple nodes, it should perform bucket splits when *any* of nodes' IDs fall into a given bucket, rather than performing them only when the inserting node's ID does.
+
 ## KRPC
 
 ### Definitions
 
-The protocol is conceptualized as a set of bencoded RPC messages following the KRPC protocol format as described by the Mainline DHT implementation of Kademlia. with a somewhat different set of RPCs. BEP-05 defines the KRPC format as follows:
+The protocol is realized through a set of bencoded RPC messages following the KRPC format, as described by the Mainline DHT implementation of Kademlia. BEP-05 defines the KRPC format as follows:
 
 > There are three message types: query, response, and error. ... A KRPC message is a single dictionary with two keys common to every message and additional keys depending on the type of message. Every message has a key "t" with a string value representing a transaction ID. This transaction ID is generated by the querying node and is echoed in the response, so responses may be correlated with multiple queries to the same node. The transaction ID should be encoded as a short string of binary numbers, typically 2 characters are enough as they cover 2^16 outstanding queries. The other key contained in every KRPC message is "y" with a single character value describing the type of message. The value of the "y" key is one of "q" for query, "r" for response, or "e" for error. 
-
-Note that we follow the MLDHT KRPC protocol as regards message _format_, but not as regards message _transport_.
 
 We define the following queries: `find`, `get`, `put`, and `info`. These deal with looking up nodes, storing data on nodes, retrieving data from nodes, and exchanging node metadata, respectively.
 
 ### Contact Format
 
-(TODO: decide whether to use keys or key fingerprints? how much do we care about the amt of traffic we're sending over the wire? how big a difference does this choice make? being able to auth w/ a public key from the very start would be nice tho that might require reworking the bit on handshakes above)
+A node's contact information may be encoded as a bytestring of length 58. This is the concatenation, in order, of:
 
-In BEP-5 it's like:
+- The node's ID (20 bytes)
+- The node's IP address (4 bytes)
+- The node's port (2 bytes)
+- The node's Ed25519 'node key' (32 bytes)
 
-> Contact information for nodes is encoded as a 26-byte string. Also known as "Compact node info" the 20-byte Node ID in network byte order has the compact IP-address/port info concatenated to the end.
-
-We want to do that too but also to have keys or key fingerprints in there. Ed25519 public keys are 256 bits.
+Network byte order should be used for all fields. Sharing contact info for multiple nodes is as simple as concatenating the contact info of each individual node, producing a bytestring whose length is a multiple of 58.
 
 ### Queries
 
@@ -184,16 +219,37 @@ So far, the following error codes are defined:
   - `300: Generic error`
   - `301: Rate-limiting active`
 
+# Terminology Reference
+
+- `Distributed hash table`: A key-value store collectively maintained by a group of networked computers. The data structure persists even as individual users join or leave the network. Usually shortened to `DHT`.
+- `Kademlia`: An efficient distributed hash table protocol which operates over UDP. Used by Mainline DHT and many others. Simple, powerful, and exceptionally amenable to mathematical analysis. Vulnerable to Sybil attacks. More info [here](https://en.wikipedia.org/wiki/Kademlia). The Theseus DHT protocol is derived in part from Kademlia.
+- `Node`: An individual entity on the DHT network. A user may operate as many nodes as they like. The more nodes there are in the network, the more resilient it is to several categories of attack, including Sybil attacks.
+- `Peer`: A user, who may be operating one or more nodes on the network, and who may be running other network-facing software as well (such as e.g. a torrent client). Alternately, the sum total of the network-facing software on a given system.
+- `Ephemeral key`: A public key generated and transmitted at the start of a connection. Conveys no identity data whatsoever.
+- `Node key`: A public key generated at node startup and transmitted along with a node's contact info. This key should persist for as long as a node is listening on the associated address and port. Used to provide some resistance against man-in-the-middle attacks. More info [here](http://sohliloquies.blogspot.fr/2017/06/transient-public-keys-for-resisting.html).
+- `Noise protocol framework`: A modern, flexible, well-documented framework for crypto protocols. More info [here](http://noiseprotocol.org/noise.html).
+- `Elligator`: An encoding system which renders elliptic curve points indistinguishable from uniform random strings. The handshakes used by the Theseus DHT protocol begin with ephemeral public keys; under normal circumstances these keys are trivial for a passive observer to identify, but with an encoding scheme like Elligator they share the rest of the traffic's indistinguishability from random noise.
+- `BEP-5`: "BitTorrent Enhancement Proposal 5", the specification document for Mainline DHT. See [here](http://www.bittorrent.org/beps/bep_0005.html).
+
 # Discussion
 
 ## Design Decisions
 
-...
+### Using TCP
+
+    (TODO)
 
 ## Extending the Protocol
 
-...
+Let's just use GitHub issues for now to discuss potential protocol extensions. We'll probably want to come up with something better down the road, but we'll worry about that then.
+
+If you want to discuss something privately, you can reach me (Eli) a few ways:
+- email: {my first and last name, no punctuation} at gmail.
+- [twitter](#https://twitter.com/elisohl): my DMs are open.
 
 ## Next Steps
 
-...
+- The Noise Protocol Framework has the concept of a "fallback pattern", which allows graceful handling of situations where one party is not able to complete a handshake as desired by the other. It would be worth looking into whether we can integrate these patterns into the Theseus DHT protocol.
+  - This is easier said than done. We have to be careful to avoid unnecessarily weakening the protocol against MitM attacks in the case of fallback protocols involving node keys. There will probably turn out to be a trade-off here, and it will have to be carefully considered.
+  - Remember that a MitM attacker could trivially force a fallback handshake by just corrupting some transmitted data.
+  - On the other hand, the benefits for people running long-lived nodes at static addresses would probably be significant, because supporting fallback could allow them to periodically rotate node keys and/or recover from key compromise without remote peers having to update their contact info for the nodes.
