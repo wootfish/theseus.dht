@@ -41,6 +41,7 @@ The larger the network gets, the more secure and reliable it is for everyone.
 - [Discussion](#discussion)
   - [Design Decisions](#design-decisions)
     - [Using TCP](#using-tcp)
+    - [Choice of Ciphersuite](#choice-of-ciphersuite)
   - [Extending the Protocol](#extending-the-protocol)
     - [Adding New Data Tags](#adding-new-data-tags)
   - [Next Steps](#next-steps)
@@ -62,17 +63,17 @@ All traffic is encrypted, and all encrypted messages are indistinguishable from 
 
 ### Initial Handshake
 
-In order to avoid any fingerprintable protocol preamble, we will specify a default handshake pattern and ciphersuite: `Noise_NK_25519_ChaChaPoly_SHA512`. The `NK` pattern here provides for an exchange of ephemeral public keys to establish an encrypted channel, and for authentication of the responder (using their node key). The initial ephemeral key must be encoded with [Elligator](https://elligator.cr.yp.to/) to keep it from being trivially fingerprintable.
+In order to avoid any fingerprintable protocol preamble, we will specify a default handshake pattern and ciphersuite: `Noise_NK_25519_ChaChaPoly_BLAKE2b`. The `NK` pattern here provides for an exchange of ephemeral public keys to establish an encrypted channel, and for authentication of the responder (using their node key). The initial ephemeral key must be encoded with [Elligator](https://elligator.cr.yp.to/) to keep it from being trivially fingerprintable.
 
     (TODO: figure out how to get Elligator support with the Python Noise library we're using)
 
 ### Subsequent Handshakes
 
-After the initial handshake and establishment of the encrypted channel, additional handshakes may be performed. These are negotiated through RPC queries and responses. Once the peers agree on parameters like the handshake pattern and the public keys to be used for authentication, they may discard their current `CipherState` objects and, within the same TCP connection, start from scratch executing a new handshake. In order for the new handshake's session to inherit the security properties of the old session, a PSK must be negotiated within the old session and included in the new handshake via the `psk0` modifier. Either or both parties may suggest a PSK. If multiple keys are chosen, the actual PSK used should be the result of XORing the keys' `SHA256` hashes.
+After the initial handshake and establishment of the encrypted channel, additional handshakes may be performed. These are negotiated through RPC queries and responses. Once the peers agree on parameters like the handshake pattern and the public keys to be used for authentication, they may discard their current `CipherState` objects and, within the same TCP connection, start from scratch executing a new handshake. In order for the new handshake's session to inherit the security properties of the old session, a PSK must be negotiated within the old session and included in the new handshake via the `psk0` modifier. Specifics for that process are given in [the specification for the `handshake_request` RPC below](#handshake-request).
 
 The handshake patterns which may be used are `NNpsk0`, `KNpsk0`, `NKpsk0`, `KKpsk0`.
 
-The pattern may use any supported curve, cipher, or hash function. Wherever possible, the default choices of `Curve448`, `ChaChaPoly`, and `SHA512` should be favored. These defaults may change if cryptographic weaknesses in any of the aforementioned primitives are discovered.
+The pattern may use any supported curve, cipher, or hash function. Wherever possible, the default choices of `Curve25519`, `ChaChaPoly`, and `BLAKE2b` should be favored. These defaults may change, though this will probably only happen if cryptographic weaknesses in any of them are discovered.
 
 If for some reason two peers don't want to use a PSK, i.e. if they want to restart their Noise session from scratch, then rather than re-hanshaking they should just close and re-open their connection.
 
@@ -217,7 +218,7 @@ If the Noise handshake pattern is `KNpsk0` or `KKpsk0`, then the `initiator_s` a
 
 If the Noise handshake pattern is `NKpsk0` or `KKpsk0`, then the `responder_s` argument should be present and should map to a static public key to be used by the responder.
 
-Arguments: `{"initiator": 1, "handshake": "Noise_KK_25519_ChaChaPoly_SHA512", "initiator_s": "<32-byte Curve25519 public key>", "responder_s": "<32-byte Curve25519 public key>"}`
+Arguments: `{"initiator": 1, "handshake": "Noise_KK_25519_ChaChaPoly_BLAKE2b", "initiator_s": "<32-byte Curve25519 public key>", "responder_s": "<32-byte Curve25519 public key>"}`
 
 Response: `{}`
 
@@ -233,7 +234,7 @@ The argument `psk` should be included in both the query and response. In each ca
 
 The values of both the query and response's `psk` arguments are to be hashed using the `handshake` argument's specified hash function. Their hashes are then to be XORed and the resulting value used as a PSK for the new handshake (applied via the psk0 Noise protocol modifier).
 
-Arguments: `{"initiator": 1, "handshake": "Noise_KK_25519_ChaChaPoly_SHA512", "initiator_s": "<32-byte Curve25519 public key>", "responder_s": "<32-byte Curve25519 public key>", "psk": "<bytestring>"}`
+Arguments: `{"initiator": 1, "handshake": "Noise_KK_25519_ChaChaPoly_BLAKE2b", "initiator_s": "<32-byte Curve25519 public key>", "responder_s": "<32-byte Curve25519 public key>", "psk": "<bytestring>"}`
 
 Response: `{"psk": "<bytestring>"}`
 
@@ -274,6 +275,16 @@ So far, the following error codes are defined:
 ### Using TCP
 
     (TODO)
+
+### Choice of Ciphersuite
+
+    (TODO)
+
+The default algorithm choices specified above were selected to provide as conservative and robust of a default configuration as possible. The only arguable exception is Curve25519, which, while still a fairly conservative choice, is still less so than Curve448. The deciding factor in this case was that the crypto libraries we're using provide good implementations of Curve25519, whereas Curve448 support comes from some native Python which is pretty much guaranteed not to be as well hardened against say side-channel or timing attacks. I'm totally willing to revisit this if we can get nice Curve448 bindings, maybe via OpenSSL or something.
+
+Argon2id was chosen over my earlier favored algorithm, bcrypt, due to its state-of-the-art design and memory-hardness. Bcrypt is a great piece of work which has stood the test of time exceptionally well, but by nature of being CPU-hard rather than memory-hard it is less costly to mount massively parallel attacks on bcrypt using e.g. FPGAs. The memory overhead required for background verification of Argon2id hashes on a user's machine is also less likely to be noticed than the CPU overhead required for verifying bcrypt hashes of comparable hardness.
+
+BLAKE2b is favored over SHA512 because it is faster, based on a more modern and robust construction (no length-extension attacks!), and doesn't suffer from any ominous reduced-round preimage resistance breaks like the SHA-2 family has. SHA512 still seems secure enough for the time being, of course, but if I had to bet on which algorithm I think'll be looking better 5 or 10 years from now, I'd bet on BLAKE2b.
 
 ## Extending the Protocol
 
