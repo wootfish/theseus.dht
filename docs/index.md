@@ -2,7 +2,7 @@
 
 The Theseus DHT is a distributed hash table with unusually strong security properties.
 
-It is derived in large part from Kademlia, an efficient distributed hash table algorithm which is good at handling benign failures but bad at handling malicious interference. In particular, Kademlia is very vulnerable to Sybil attacks, which can result in the modification or erasure of arbitrary data in the network.
+It is derived in large part from Kademlia, an efficient distributed hash table algorithm which is good at handling benign failures but bad at handling malicious interference. In particular, Kademlia is very vulnerable to Sybil attacks, which can result in the modification or erasure of any data in the network.
 
 The Theseus DHT protocol addresses these and other concerns, mitigating Sybil attacks through a combination of several novel strategies. It also adds features like strong encryption, optional authentication, optional perfect forward secrecy, and more. The network's Sybil resistance also increases as the network itself grows.
 
@@ -51,7 +51,7 @@ The larger the network gets, the more secure and reliable it is for everyone.
 
 ## Transport
 
-We deviate from Kademlia by using TCP rather than UDP at the transport layer. The move to a stateful, connection-based protocol adds some overhead but makes the cryptography much easier by providing reliability and ordered delivery. This decision, which is nontrivial and impacts several aspects of the protocol, is discussed in the *Discussion* section below.
+The Theseus DHT protocol uses TCP at the transport layer. This is one of the most significant ways in which we deviate from Kademlia, which specifies UDP. The move to a stateful, connection-based protocol adds some overhead but makes the cryptography much easier by providing reliability and ordered delivery. Some of the motivations for this decision are discussed [here](#using-tcp).
 
 ## Encryption
 
@@ -65,7 +65,7 @@ All traffic is encrypted, and all encrypted messages are indistinguishable from 
 
 In order to avoid any fingerprintable protocol preamble, we will specify a default handshake pattern and ciphersuite: `Noise_NK_25519_ChaChaPoly_BLAKE2b`. The `NK` pattern here provides for an exchange of ephemeral public keys to establish an encrypted channel, and for authentication of the responder (using their node key). The initial ephemeral key must be encoded with [Elligator](https://elligator.cr.yp.to/) to keep it from being trivially fingerprintable.
 
-    (TODO: figure out how to get Elligator support with the Python Noise library we're using)
+    (TODO: figure out how to get Elligator support with the Python Noise library we're using -- might have to roll our own and shim it in at the protocol object level)
 
 ### Subsequent Handshakes
 
@@ -86,7 +86,7 @@ The process for receiving messages is therefore essentially this:
 1. Read bytes off the wire until we've received 20 bytes total.
 2. Decrypt these 20 bytes and treat the resulting four bytes as a big-endian 32-bit integer N.
 3. Read bytes off the wire until we've received N + 16 more bytes total.
-4. Decrypt thes N + 16 bytes. This is the protocol message.
+4. Decrypt these N + 16 bytes. This is the protocol message.
 5. Repeat.
 
 This scheme allows the size of every ciphertext to be known in advance, which in turn allows arbitrary message chunking without risk of ambiguity regarding message boundaries. Thus, individual packets sent across the wire can be arbitrarily sized, and thus the protocol can assume essentially any traffic pattern.
@@ -274,29 +274,35 @@ So far, the following error codes are defined:
 
 ### Using TCP
 
-    (TODO)
+The choice to use TCP rather than UDP is a significant one and is not taken lightly. The essential motivation is that it simplifies the cryptography. For an idea of why, see [here](https://noiseprotocol.org/noise.html#out-of-order-transport-messages). Note in particular that including plaintext nonce values with messages would break our requirement that *all* protocol traffic be indistinguishable from random noise. Persistent connections also provide a convenient abstraction within which to perform multiple consecutive handshakes.
+
+One complication: A TCP connection to a specific port will originate from an arbitrary 'ephemeral' port on the part of the connector. UDP can operate this way but doesn't have to, because it's connectionless. Thus protocols like Kademlia which operate over UDP can and do use their packets' source port to advertise the port they're listening for messages on -- a trick we can't use if our connections have to originate from ephemeral ports. Compensating for this requires provisions at the protocol level for communicating the port we're listening for connections on. This is why `listen_port` is a required datum in the `info` query.
+
+A big issue here that we'll want to spend some time looking hard at once the reference implementation is otherwise mature and stable: NAT traversal. We may be able to work out a scheme for reachable nodes to perform some sort of hole punching to help NATed hosts to reach each other.
+
+If hole punching doesn't pan out, another interesting possibility (which was touched on briefly in some of the Theseus blog posts back on Sohliloquies) would be to see if the network can support an onion routing overlay, and if so, whether it'd be viable for NATed hosts to make themselves available as "hidden services" served from other, publicly accessible hosts. This would also have other benefits for users willing or needing to trade performance for privacy -- but that's a story for another day.
 
 ### Choice of Ciphersuite
 
-    (TODO)
-
 The default algorithm choices specified above were selected to provide as conservative and robust of a default configuration as possible. The only arguable exception is Curve25519, which, while still a fairly conservative choice, is still less so than Curve448. The deciding factor in this case was that the crypto libraries we're using provide good implementations of Curve25519, whereas Curve448 support comes from some native Python which is pretty much guaranteed not to be as well hardened against say side-channel or timing attacks. I'm totally willing to revisit this if we can get nice Curve448 bindings, maybe via OpenSSL or something.
 
-Argon2id was chosen over my earlier favored algorithm, bcrypt, due to its state-of-the-art design and memory-hardness. Bcrypt is a great piece of work which has stood the test of time exceptionally well, but by nature of being CPU-hard rather than memory-hard it is less costly to mount massively parallel attacks on bcrypt using e.g. FPGAs. The memory overhead required for background verification of Argon2id hashes on a user's machine is also less likely to be noticed than the CPU overhead required for verifying bcrypt hashes of comparable hardness.
+Argon2id was chosen over my earlier favored algorithm, bcrypt, due to its state-of-the-art design and memory-hardness. Bcrypt is a great piece of work which has stood the test of time exceptionally well, but by nature of being CPU-hard rather than memory-hard it is less costly to mount massively parallel attacks on bcrypt using e.g. FPGAs. The memory overhead required for background verification of Argon2id hashes on a user's machine is also likely to be less impactful on performance than the CPU overhead required to verify bcrypt hashes of comparable hardness.
 
 BLAKE2b is favored over SHA512 because it is faster, based on a more modern and robust construction (no length-extension attacks!), and doesn't suffer from any ominous reduced-round preimage resistance breaks like the SHA-2 family has. SHA512 still seems secure enough for the time being, of course, but if I had to bet on which algorithm I think'll be looking better 5 or 10 years from now, I'd bet on BLAKE2b.
 
 ## Extending the Protocol
 
-Let's just use GitHub issues for now to discuss potential protocol extensions. We'll probably want to come up with something better down the road, but we'll worry about that then.
+For now, let's just use GitHub issues for discussing potential protocol extensions. We'll probably want to come up with something better down the road, but we can worry about that then.
 
-If you want to discuss something privately, you can reach me (Eli) a few ways:
-- email: {my first and last name, no punctuation} at gmail.
-- [twitter](#https://twitter.com/elisohl): my DMs are open.
+If you want to discuss anything privately, you can reach me (Eli) a couple different ways:
+- Email: {my first and last name, no punctuation} at gmail.
+- [Twitter](#https://twitter.com/elisohl): my DMs are open.
 
 ## Next Steps
 
-- The Noise Protocol Framework has the concept of a "fallback pattern", which allows graceful handling of situations where one party is not able to complete a handshake as desired by the other. It would be worth looking into whether we can integrate these patterns into the Theseus DHT protocol.
+- Implementation!
+
+- Interesting question: The Noise Protocol Framework has the concept of a "fallback pattern", which allows graceful handling of situations where one party is not able to complete a handshake as desired by the other. It would be worth looking into whether we can securely integrate these patterns into the Theseus DHT protocol.
   - This is easier said than done. We have to be careful to avoid unnecessarily weakening the protocol against MitM attacks in the case of fallback protocols involving node keys. There will probably turn out to be a trade-off here, and it will have to be carefully considered.
   - Remember that a MitM attacker could trivially force a fallback handshake by just corrupting some transmitted data.
-  - On the other hand, the benefits for people running long-lived nodes at static addresses would probably be significant, because supporting fallback could allow them to periodically rotate node keys and/or recover from key compromise without remote peers having to update their contact info for the nodes.
+  - On the other hand, the benefits for people running long-lived nodes at static addresses also need to be considered. Supporting fallback could allow them to periodically rotate node keys and/or recover from key compromise without remote peers having to update their contact info for the nodes.
