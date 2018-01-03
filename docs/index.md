@@ -35,7 +35,7 @@ The larger the network gets, the more secure and reliable it is for everyone.
       - [`put`](#put)
       - [`info`](#info)
       - [`handshake_suggest`](#handshake-suggest)
-      - [`handshake_accept`](#handshake-accept)
+      - [`handshake_request`](#handshake-request)
     - [Errors](#errors)
 - [Terminology Reference](#terminology-reference)
 - [Discussion](#discussion)
