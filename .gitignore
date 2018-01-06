@@ -2,3 +2,5 @@
 *.swo
 __pycache__
 venv
+theseus.dht.egg-info
+_trial_temp
