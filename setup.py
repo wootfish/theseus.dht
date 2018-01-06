@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name="theseus.dht",
@@ -8,7 +8,7 @@ setup(
     url="https://github.com/wootfish/theseus.dht",
     author="Eli Sohl",
     license="GPLv3",
-    packages=find_packages(exclude=["test", "docs", "venv"]),
+    packages=['theseus', 'theseus.test'],
     install_requires=["noiseprotocol", "twisted"],
     python_requires=">=3.5",
 )
