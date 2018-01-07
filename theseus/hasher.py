@@ -97,6 +97,4 @@ class Hasher:
         return n
 
 
-# we only really need one instance of Hasher, so let's just provide that here
-
 hasher = Hasher()
