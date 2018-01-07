@@ -6,6 +6,9 @@ from twisted.logger import Logger
 from .nodeid import NodeID
 from .config import config
 
+from random import randrange
+
+
 class NodeService(Service):
     log = Logger()
 
@@ -30,7 +33,7 @@ class NodeService(Service):
         ports_to_avoid = config["ports_to_avoid"]
 
         while True:
-            listen_port = random.randrange(listen_port_range)
+            listen_port = randrange(listen_port_range)
 
             if listen_port in ports_to_avoid:
                 continue
