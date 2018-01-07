@@ -50,21 +50,23 @@ class KRPCProtocol(NetstringReceiver):
 
         elif msg_type == b'r':
             deferred = self.open_queries.pop(txn_id, None)
-            if deferred is None or b'r' not in args:
+            args = krpc.get(b'r')
+
+            if deferred is None or args is None:
                 # probably best to give this node a healthy bit of distance
                 self.transport.loseConnection()
                 return
 
-            self.log.info("Query response (txn {txn}): {args}", txn=txn_id, args=krpc[b'r'])
+            self.log.info("Query response (txn {txn}): {args}", txn=txn_id, args=args)
             deferred.callback(args)
 
         elif msg_type == b'e':
             try:
                 errcode, errinfo = krpc[b'e']
-                assert type(errcode) is int
-                assert type(errinfo) is bytes
+                if type(errcode) is not int or type(errinfo) is not bytes:
+                    raise Exception
                 errinfo = errinfo.decode("UTF-8")
-            except (TypeError, AssertionError):
+            except:
                 errcode, errinfo = None, None
 
             self.log.info("Error response on txn {txn}. code: {code}, info: {info}",

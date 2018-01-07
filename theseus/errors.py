@@ -30,7 +30,7 @@ class Error101(TheseusProtocolError):
 @errcode
 class Error200(TheseusProtocolError):
     errcode = 200
-    error_name = "Invalid DHT message"
+    error_name = "Invalid DHT protocol message"
 
 
 @errcode

@@ -198,7 +198,7 @@ class KRPCTests(unittest.TestCase):
         self.proto.onQuery = oh_no
         self._test_query(
                 {"t": "17", "y": "q", "q": "echo", "a": {"arg1": 1, "arg2": 2}},
-                {"t": "17", "y": "e", "e": (201, "oh no!")}
+                {"t": "17", "y": "e", "e": (300, "oh no!")}
                 )
 
     def test_internal_error_in_query_handler(self):
