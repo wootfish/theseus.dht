@@ -36,11 +36,13 @@ class NodeID:
 
         else:
             self.address = node_id[0]
-            self.preimage = None  # verify=False so we might as well discard the preimage entirely
+            self.preimage = None  # verify=False, so we might as well discard the preimage entirely
             self.on_id_hash.callback(True)
 
     def __repr__(self):
-        return "NodeID(({}, {}))".format(self.address, self.preimage)
+        address = None if self.address is None else hex(self.address)
+        preimage = None if self.preimage is None else hex(self.preimage)
+        return "NodeID(({}, {}))".format(address, preimage)
 
     def set_priority(self, new_priority):
         if new_priority.value > self.priority.value:
