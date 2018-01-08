@@ -17,6 +17,7 @@ class NodeService(Service):
 
     def __init__(self, manager, node_id=None):
         self.manager = manager
+        self.node_id = node_id
 
     def startService(self):
         #self.dispatcher = Dispatcher(...)  # TODO
@@ -52,7 +53,7 @@ class NodeService(Service):
         return listen_port
 
     def updateID():
-        raise NotImplementedError
+        self.node_id = NodeID()
 
     def _listen(self, port):
         self._listener = reactor.listenTCP(port, self.dispatcher)

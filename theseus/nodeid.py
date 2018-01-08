@@ -1,3 +1,5 @@
+from twisted.internet.defer import Deferred
+
 from .enums import CRITICAL, UNSET
 from .hasher import hasher
 
@@ -13,13 +15,14 @@ class NodeID:
 
         self.node_id = node_id
         self.will_verify = verify
+        self.on_id_hash = Deferred()
 
         if node_id is None and priority is UNSET:
             self.priority = CRITICAL
         else:
             self.priority = priority
 
-        self.on_id_hash = None
+        self.on_id_hash = Deferred()
 
         if node_id is None:
             self.address = None
@@ -46,16 +49,16 @@ class NodeID:
 
     def generate_address(self):
         self.preimage = self.getHashInput()
+        hasher.getNodeID(self.preimage, self.priority).chainDeferred(self.on_id_hash)
 
         def callback(node_id):
             self.address = node_id
             return node_id
 
-        self.on_id_hash = hasher.getNodeID(self.preimage, self.priority)
         self.on_id_hash.addCallback(callback)
 
     def verify_address(self):
-        self.on_id_hash = hasher.checkNodeID(self.address, self.preimage, self.priority)
+        hasher.checkNodeID(self.address, self.preimage, self.priority).chainDeferred(self.on_id_hash)
 
     @staticmethod
     def timestampIntToBytes(t):
