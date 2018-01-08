@@ -9,6 +9,6 @@ setup(
     author="Eli Sohl",
     license="GPLv3",
     packages=['theseus', 'theseus.test'],
-    install_requires=["noiseprotocol", "twisted"],
+    install_requires=["noiseprotocol", "twisted", "PyNaCl"],
     python_requires=">=3.5",
 )
