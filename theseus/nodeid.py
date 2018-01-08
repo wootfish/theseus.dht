@@ -34,6 +34,11 @@ class NodeID:
             self.preimage = node_id[1]
             self.verify_address()
 
+        else:
+            self.address = node_id[0]
+            self.preimage = None  # verify=False so we might as well discard the preimage entirely
+            self.on_id_hash.callback(True)
+
     def __repr__(self):
         return "NodeID(({}, {}))".format(self.address, self.preimage)
 
