@@ -50,11 +50,11 @@ class RoutingTable:
             self.log.warn("Fail: Tried to insert node with node_id=None (addr: {addr})", addr=listen_addr)
             return False
 
-        if node_id.addr_check_retval is not True:
+        if not node_id.on_id_hash.called or not node_id.on_id_hash.result:
             self.log.debug("Fail: Tried to insert node into routing table without successful ID check. (addr: {addr}, ID: {node_id})", addr=listen_addr, node_id=node_id)
             return False
 
-        bucket = self._bucketLookup(self, node_id.address)
+        bucket = self._bucketLookup(node_id.address)
 
         if listen_addr in self.buckets[bucket]:
             self.log.debug("Insert 'successful' ({addr} already in routing table)", addr=listen_addr)
@@ -76,7 +76,7 @@ class RoutingTable:
         return result
 
     def _insert(self, listen_addr, node_id):
-        bucket = self._bucketLookup(self, node_id.address)
+        bucket = self._bucketLookup(node_id.address)
 
         # is there room?
         if len(self.buckets[bucket]) < self.k:
@@ -98,10 +98,15 @@ class RoutingTable:
             return False
 
     def remove(self, addr):
+        """
+        Returns True if the address was removed.
+        Returns False if the address was not found in the routing table.
+        """
         for bucket_dict in self.buckets.values():
             if addr in bucket_dict:
                 del bucket_dict[addr]
-                return
+                return True
+        return False
 
     def query(self, target_addr, k=None):
         # if this turns out to be slow it could probably be sped up by heapq
