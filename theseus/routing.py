@@ -30,13 +30,15 @@ class RoutingTable:
             return False
 
         bisector = (bucket[0] + bucket[1]) // 2
-        self.buckets[bucket[0], bisector] = set()
-        self.buckets[bisector+1, bucket[1]] = set()
+        lower = bucket[0], bisector
+        upper = bisector+1, bucket[1]
+        self.buckets[lower] = {}
+        self.buckets[upper] = {}
 
         for listen_addr, node_id in self.buckets.pop(bucket).items():
             self._insert(listen_addr, node_id)
 
-        self.log.info("Routing table bucket {bucket} split.", bucket=self._getPrintableBucket(bucket))
+        self.log.info("Routing table bucket {bucket} split into {lower}, {upper}.", bucket=bucket, lower=lower, upper=upper)
         return True
 
     def insert(self, listen_addr, node_id):
