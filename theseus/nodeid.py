@@ -50,9 +50,9 @@ class NodeID:
             self.on_id_hash.callback(True)
 
     def __repr__(self):
-        address = None if self.address is None else hex(self.address)
-        preimage = None if self.preimage is None else hex(self.preimage)
-        return "NodeID(({}, {}))".format(address, preimage)
+        #address = None if self.address is None else hex(self.address)
+        #preimage = None if self.preimage is None else hex(self.preimage)
+        return "NodeID(({}, {}))".format(self.address, self.preimage)
 
     def set_priority(self, new_priority):
         if new_priority.value > self.priority.value:
