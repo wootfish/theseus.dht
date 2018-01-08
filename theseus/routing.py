@@ -33,8 +33,8 @@ class RoutingTable:
         self.buckets[bucket[0], bisector] = set()
         self.buckets[bisector+1, bucket[1]] = set()
 
-        for node in self.buckets.pop(bucket):
-            self.insert(node, take_logs=False)
+        for listen_addr, node_id in self.buckets.pop(bucket).items():
+            self._insert(listen_addr, node_id)
 
         self.log.info("Routing table bucket {bucket} split.", bucket=self._getPrintableBucket(bucket))
         return True
@@ -44,7 +44,7 @@ class RoutingTable:
         # False if the insert failed (e.g. bcause there wasn't room, or because
         # of an ID collision)
 
-        self.log.debug("Attempting to insert {addr} into routing table. (ID: {node_id})", node=listen_addr, node_id=node_id)
+        self.log.debug("Attempting to insert {addr} into routing table. (ID: {node_id})", addr=listen_addr, node_id=node_id)
 
         if node_id is None:
             self.log.warn("Fail: Tried to insert node with node_id=None (addr: {addr})", addr=listen_addr)
