@@ -8,7 +8,7 @@ from time import time
 from heapq import heappush, heappop
 from functools import lru_cache
 
-from .enum import UNSET
+from .enums import UNSET
 
 
 class Hasher:
@@ -83,8 +83,8 @@ class Hasher:
             d_thread.chainDeferred(d_job)
             self.curr_jobs.append(job)
 
-    @lru_cache(maxsize=LRU_CACHE_SIZE)
     @staticmethod
+    @lru_cache(maxsize=LRU_CACHE_SIZE)
     def _kdf(input_data, salt):
         return pwhash.argon2id.kdf(20, input_data, salt, opslimit=Hasher.OPSLIMIT, memlimit=Hasher.MEMLIMIT)
 
