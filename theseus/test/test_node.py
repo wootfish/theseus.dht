@@ -15,8 +15,8 @@ class NodeTests(unittest.TestCase):
     seed = 17
 
     def setUp(self):
-        self.test_rng = random.Random(x=self.seed)
-        self.mirror_rng = random.Random(x=self.seed)
+        self.test_rng = random.Random(x=NodeTests.seed)
+        self.mirror_rng = random.Random(x=NodeTests.seed)
 
         # functions to swap out: node.randrange, NodeService._listen, NodeService.updateID
 
