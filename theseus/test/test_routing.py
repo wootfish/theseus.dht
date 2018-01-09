@@ -35,19 +35,44 @@ class SingleNodeRoutingTableTests(unittest.TestCase):
                 IPv4Address("TCP", "127.0.0.1", 2050),
                 NodeID(b'\x02' * 20, verify=False)
                 ))
+        self.assertTrue(self.table.insert(  # redundant insert
+                IPv4Address("TCP", "127.0.0.1", 2050),
+                NodeID(b'\x02' * 20, verify=False)
+                ))
 
         self.assertIn(IPv4Address("TCP", "127.0.0.1", 2048), self.table)
         self.assertIn(IPv4Address("TCP", "127.0.0.1", 2049), self.table)
         self.assertIn(IPv4Address("TCP", "127.0.0.1", 2050), self.table)
 
+    def test_routing_query(self):
+        self.test_insert()
+        self.assertEqual(
+                self.table.query(b'\x00'*20),
+                [
+                    IPv4Address("TCP", "127.0.0.1", 2048),
+                    IPv4Address("TCP", "127.0.0.1", 2049),
+                    IPv4Address("TCP", "127.0.0.1", 2050),
+                ])
+
     def test_remove(self):
         self.test_insert()
 
         self.assertTrue(self.table.remove(IPv4Address("TCP", "127.0.0.1", 2049)))
+        self.assertFalse(self.table.remove(IPv4Address("TCP", "127.0.0.1", 2051)))  # not in table
 
         self.assertIn(IPv4Address("TCP", "127.0.0.1", 2048), self.table)
         self.assertNotIn(IPv4Address("TCP", "127.0.0.1", 2049), self.table)
         self.assertIn(IPv4Address("TCP", "127.0.0.1", 2050), self.table)
+
+    def test_duplicate_id_insert(self):
+        self.assertTrue(self.table.insert(
+                IPv4Address("TCP", "127.0.0.1", 2048),
+                NodeID(b'\x00' * 20, verify=False)
+                ))
+        self.assertFalse(self.table.insert(
+                IPv4Address("TCP", "127.0.0.1", 4096),
+                NodeID(b'\x00' * 20, verify=False)
+                ))
 
     def test_split(self):
         for i in range(self.table.k):
