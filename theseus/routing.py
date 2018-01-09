@@ -118,9 +118,9 @@ class RoutingTable:
             k = self.k
 
         entries = [
-                (self.xor(node_addr, target_addr), listen_addr)
+                (self.xor(node_id.address, target_addr), listen_addr)
                 for bucket in self.buckets
-                for listen_addr, node_addr in bucket.items()
+                for listen_addr, node_id in self.buckets[bucket].items()
                 ]
         entries.sort()
 
@@ -148,4 +148,6 @@ class RoutingTable:
 
     @staticmethod
     def xor(bytes_1, bytes_2):
+        if bytes_1 is None or bytes_2 is None:
+            return float('inf')
         return RoutingTable.addrToInt(bytes_1) ^ RoutingTable.addrToInt(bytes_2)
