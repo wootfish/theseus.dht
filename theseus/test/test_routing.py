@@ -174,3 +174,45 @@ class MultiNodeRoutingTableTests(unittest.TestCase):
             IPv4Address("TCP", "127.0.0.1", 6000+i),
             NodeID(b'\xCC' + b'\xFF'*18 + bytes([i]), verify=False)
             ))
+
+        # 0xCC00... IDs  (only k/2 of them tho)
+        for i in range(self.table.k//2):
+            self.assertTrue(self.table.insert(
+                IPv4Address("TCP", "127.0.0.1", 7000+i),
+                NodeID(b'\xCC' + b'\x00'*18 + bytes([i]), verify=False)
+                ))
+
+    def test_hard_routing_queries(self):
+        self.test_splits()
+
+        self.assertEqual(
+                self.table.query(b'\x00'*20),
+                [
+                    IPv4Address("TCP", "127.0.0.1", 2000+i)
+                    for i in range(self.table.k)
+                ])
+
+        self.assertEqual(
+                self.table.query(b'\x17' + b'\x00'*19),
+                [
+                    IPv4Address("TCP", "127.0.0.1", 4000+i)
+                    for i in range(self.table.k)
+                ])
+
+        self.assertEqual(
+                self.table.query(b'\xCC' + b'\x00'*19),
+                [
+                    IPv4Address("TCP", "127.0.0.1", 7000+i)
+                    for i in range(self.table.k//2)
+                ] + [
+                    IPv4Address("TCP", "127.0.0.1", 6000+i)
+                    for i in range(self.table.k//2)
+                ])
+
+        self.assertEqual(
+                self.table.query(b'\xCC' + b'\xFF'*19),
+                [
+                    IPv4Address("TCP", "127.0.0.1", 6000+i)
+                    for i in range(self.table.k)
+                ][::-1]
+                )
