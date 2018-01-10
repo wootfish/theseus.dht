@@ -38,7 +38,7 @@ class RoutingTable:
         for listen_addr, node_id in self.buckets.pop(bucket).items():
             self._insert(listen_addr, node_id)
 
-        self.log.info("Routing table bucket {bucket} split into {lower}, {upper}.", bucket=bucket, lower=lower, upper=upper)
+        self.log.info("Routing table bucket {bucket} split. Current table state: {pretty}", bucket=(hex(bucket[0]), hex(bucket[1])), pretty=RoutingTable.pretty(self))
         return True
 
     def insert(self, listen_addr, node_id):
@@ -72,7 +72,7 @@ class RoutingTable:
         # ok now it's off to the races
         result = self._insert(listen_addr, node_id)
         if result:
-            self.log.debug("Insert for {addr} successful. Current routing table: {buckets}", addr=listen_addr, buckets=self.buckets)
+            self.log.debug("Insert for {addr} successful. Current routing table: {pretty}", addr=listen_addr, pretty=RoutingTable.pretty(self))
         else:
             self.log.debug("Fail: Bucket for {addr} is full & can't be split.", addr=listen_addr)
         return result
@@ -151,3 +151,28 @@ class RoutingTable:
         if bytes_1 is None or bytes_2 is None:
             return float('inf')
         return RoutingTable.addrToInt(bytes_1) ^ RoutingTable.addrToInt(bytes_2)
+
+    @staticmethod
+    def pretty(table):
+        """
+        Returns a prettyprintable representation of the given table's state.
+        This mostly means converting things to hex where appropriate and
+        boiling off some boilerplate.
+        """
+
+        pretty = {}
+        for bucket in table.buckets:
+            lower_padded = "0x" + hex(bucket[0])[2:].rjust(40, '0')
+            upper_padded = "0x" + hex(bucket[1])[2:].rjust(40, '0')
+
+            key = "{}~{}".format(lower_padded, upper_padded)
+            pretty[key] = []
+
+            for node_addr, node_id in table.buckets[bucket].items():
+                pretty_nodeid = "0x" + node_id.address.hex()
+                pretty_ipaddr = node_addr.host + ":" + str(node_addr.port)
+                pretty[key].append((pretty_nodeid, pretty_ipaddr))
+
+            pretty[key].sort()  # lex ordering naturally sorts addrs ascending
+
+        return pretty
