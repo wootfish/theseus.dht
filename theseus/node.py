@@ -52,7 +52,7 @@ class NodeService(Service):
 
         return listen_port
 
-    def updateID():
+    def updateID(self):
         self.node_id = NodeID()
 
     def _listen(self, port):
