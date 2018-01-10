@@ -110,6 +110,19 @@ class RoutingTable:
                 return True
         return False
 
+    def refresh(self):
+        """
+        Resets the routing table to a clean slate and re-inserts every node,
+        one by one. Really only useful when a local node changes ID.
+        """
+        old_buckets = self.buckets
+        self.buckets = {(0, 2**160-1): {}}
+
+        for bucket in old_buckets.values():
+            sorted_items = sorted(bucket.items(), key=lambda t: t[1])
+            for listen_addr, node_id in sorted_items:
+                self.insert(listen_addr, node_id)
+
     def query(self, target_addr, k=None):
         # if this turns out to be slow it could probably be sped up by heapq
         # or by being lazy and just pulling contents of an addr's bucket (at cost of sometimes returning < k results)

@@ -55,5 +55,11 @@ class NodeService(Service):
     def updateID(self):
         self.node_id = NodeID()
 
+        def callback(node_id):
+            self.manager.table.refresh()
+            return node_id
+
+        self.node_id.on_id_hash.addCallback(callback)
+
     def _listen(self, port):
         self._listener = reactor.listenTCP(port, self.dispatcher)

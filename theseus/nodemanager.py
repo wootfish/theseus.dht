@@ -2,6 +2,7 @@ from twisted.application.service import MultiService
 from twisted.logger import Logger
 
 from .node import NodeService
+from .routing import RoutingTable
 
 
 class NodeManagerService(MultiService):
@@ -25,3 +26,5 @@ class NodeManagerService(MultiService):
 
             for node_id in node_ids:
                 self.addService(NodeService(self, node_id))
+
+        self.table = RoutingTable(self)

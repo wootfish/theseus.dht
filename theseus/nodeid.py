@@ -66,13 +66,13 @@ class NodeID:
 
     def generate_address(self, preimage=None):
         self.preimage = self.preimage or self._getHashInput()
-        hasher.getNodeID(self.preimage, self.priority).chainDeferred(self.on_id_hash)
 
         def callback(node_id):
             self.address = node_id
             return node_id
 
         self.on_id_hash.addCallback(callback)
+        hasher.getNodeID(self.preimage, self.priority).chainDeferred(self.on_id_hash)
 
     def verify_address(self):
         hasher.checkNodeID(self.address, self.preimage, self.priority).chainDeferred(self.on_id_hash)
