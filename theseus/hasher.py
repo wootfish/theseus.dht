@@ -53,20 +53,27 @@ class Hasher:
                 continue
 
             if priority > _priority:
+                self.log.debug("Upgrading hash job for {preimage} from priority {old} to {new}", preimage=preimage, old=_priority, new=priority)
                 job[1] = False
                 d = _d
                 break
+        else:
+            self.log.debug("Adding hash job for {preimage}, priority {priority}.", preimage=preimage, priority=priority)
 
         # push our new job onto the heap
-        new_job = [priority, d, True, preimage]
+        new_job = [priority, True, preimage, d]
         heappush(self.priority_queue, new_job)
         self._maybeAddJobs()
 
-    def _kdfCallback(self, result):
+        return d
+
+    def _callback(self, result):
+        self.log.debug("Hash job completed, result: {result}", result=result)
+
         # filter out the completed job
         self.curr_jobs = [job for job in self.curr_jobs if not job[3].called]
 
-        # if we have room for more jobs, then add 'em
+        # if we have room for more jobs, add 'em
         self._maybeAddJobs()
 
         # pass the result on to other callbacks
@@ -75,16 +82,18 @@ class Hasher:
     def _maybeAddJobs(self):
         while (len(self.curr_jobs) < self.MAX_THREADS) and self.priority_queue:
             job = heappop(self.priority_queue)
-            _, d_job, flag, preimage = job
+            _, flag, preimage, d_job = job
 
             if not flag:
                 continue
 
-            self.log.info("Starting ID check job for {node_id}", node_id=node_id)
-            d_thread = deferToThread(self._kdf, node_id, bytes(16))
-            d_thread.addCallback(self._kdfCallback)
+            self.log.info("Starting ID check job for {preimage}", preimage=preimage)
+            d_thread = deferToThread(Hasher._kdf, preimage, bytes(16))
+            d_thread.addCallback(self._callback)
             d_thread.chainDeferred(d_job)
             self.curr_jobs.append(job)
+
+        self.log.info("Job(s) added.")
 
     @staticmethod
     @lru_cache(maxsize=LRU_CACHE_SIZE)
