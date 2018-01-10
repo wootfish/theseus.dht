@@ -34,34 +34,37 @@ class Hasher:
         d.addCallback(lambda result: result == node_id)
         return d
 
-    def getNodeID(self, node_id, priority=UNSET):
+    def getNodeID(self, preimage, priority=UNSET):
         # job[0]: priority
-        # job[1]: KDF input (node_id)
-        # job[2]: Deferred that'll callback when job is done
-        # job[3]: Boolean flag which, if set to False, says to skip this job
+        # job[1]: Boolean flag which, if set to False, says to skip this job
         #         (used when upgrading job priority -- it's cheaper than
         #         popping the old job, which would break the heap invariant)
+        # job[2]: KDF input (node_id)
+        # job[3]: Deferred that'll callback when job is done
 
         d = Deferred()
-        for job in self.priority_queue:
-            _priority, _node_id, _d, _flag = job
 
-            if not _flag or _node_id != node_id:
+        # if there's already a job for this preimage + a lower priority,
+        # deactivate it & steal the associated Deferred
+        for job in self.priority_queue:
+            _priority, _flag, _preimage, _d = job
+
+            if not _flag or _preimage != preimage:
                 continue
 
             if priority > _priority:
-                # deactivate this job and steal its Deferred
-                job[3] = False
+                job[1] = False
                 d = _d
                 break
 
-        new_job = [priority, node_id, d, True]
+        # push our new job onto the heap
+        new_job = [priority, d, True, preimage]
         heappush(self.priority_queue, new_job)
         self._maybeAddJobs()
 
     def _kdfCallback(self, result):
         # filter out the completed job
-        self.curr_jobs = [job for job in self.curr_jobs if not job[2].called]
+        self.curr_jobs = [job for job in self.curr_jobs if not job[3].called]
 
         # if we have room for more jobs, then add 'em
         self._maybeAddJobs()
@@ -72,7 +75,7 @@ class Hasher:
     def _maybeAddJobs(self):
         while (len(self.curr_jobs) < self.MAX_THREADS) and self.priority_queue:
             job = heappop(self.priority_queue)
-            _, node_id, d_job, flag = job
+            _, d_job, flag, preimage = job
 
             if not flag:
                 continue
