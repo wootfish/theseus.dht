@@ -23,14 +23,14 @@ class Hasher:
         self.priority_queue = []
         self.curr_jobs = []
 
-    def checkNodeID(self, node_id, preimage, priority=UNSET):
+    def checkNodeID(self, node_id, preimage, priority=UNSET, check_timestamp=True):
         self.log.debug("Checking node ID {node_id} ({priority})", node_id=node_id, priority=priority)
 
-        if time() - self.timestampBytesToInt(preimage[:4]) > 2**16:
+        if check_timestamp and time() - self.timestampBytesToInt(preimage[:4]) > 2**16:
             self.log.debug("ID check for {node_id} failed: timestamp expired", node_id=node_id)
-            return fail("timestamp expired!")
+            return fail(Exception("timestamp expired!"))
 
-        d = self.getNodeId(preimage, priority)
+        d = self.getNodeID(preimage, priority)
         d.addCallback(lambda result: result == node_id)
         return d
 
