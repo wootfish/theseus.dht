@@ -18,3 +18,4 @@ class HasherTests(unittest.TestCase):
 
         d = hasher.getNodeID(b'')
         d.addCallback(callback)
+        return d
