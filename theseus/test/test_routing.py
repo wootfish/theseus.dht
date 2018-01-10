@@ -98,11 +98,11 @@ class MultiNodeRoutingTableTests(unittest.TestCase):
 
         self.node_manager = NodeManagerService(
             node_ids=[
-                NodeID([b'\x17'*20, None], verify=False),
-                NodeID([b'\x34'*20, None], verify=False),
-                NodeID([b'\x69'*20, None], verify=False),
-                NodeID([b'\xAA'*20, None], verify=False),
-                NodeID([b'\xCC'*20, None], verify=False),
+                NodeID(b'\x17'*20, None, verify=False),
+                NodeID(b'\x34'*20, None, verify=False),
+                NodeID(b'\x69'*20, None, verify=False),
+                NodeID(b'\xAA'*20, None, verify=False),
+                NodeID(b'\xCC'*20, None, verify=False),
             ])
         self.node_manager.startService()
 
@@ -113,3 +113,64 @@ class MultiNodeRoutingTableTests(unittest.TestCase):
 
     test_insert = SingleNodeRoutingTableTests.test_insert
     test_remove = SingleNodeRoutingTableTests.test_remove
+
+    def test_splits(self):
+        # 0x0000... IDs
+        for i in range(self.table.k):
+            self.assertTrue(self.table.insert(
+                IPv4Address("TCP", "127.0.0.1", 2000+i),
+                NodeID(b'\x00'*19 + bytes([i]), verify=False)
+                ))
+        i += 1
+        self.assertFalse(self.table.insert(
+            IPv4Address("TCP", "127.0.0.1", 2000+i),
+            NodeID(b'\x00'*19 + bytes([i]), verify=False)
+            ))
+
+        # 0x1000... IDs
+        for i in range(self.table.k):
+            self.assertTrue(self.table.insert(
+                IPv4Address("TCP", "127.0.0.1", 3000+i),
+                NodeID(b'\x10' + b'\x00'*18 + bytes([i]), verify=False)
+                ))
+        i += 1
+        self.assertFalse(self.table.insert(
+            IPv4Address("TCP", "127.0.0.1", 3000+i),
+            NodeID(b'\x10' + b'\x00'*18 + bytes([i]), verify=False)
+            ))
+
+        # 0x1700... IDs
+        for i in range(self.table.k):
+            self.assertTrue(self.table.insert(
+                IPv4Address("TCP", "127.0.0.1", 4000+i),
+                NodeID(b'\x17' + b'\x00'*18 + bytes([i]), verify=False)
+                ))
+        i += 1
+        self.assertFalse(self.table.insert(
+            IPv4Address("TCP", "127.0.0.1", 4000+i),
+            NodeID(b'\x17' + b'\x00'*18 + bytes([i]), verify=False)
+            ))
+
+        # 0x171700... IDs
+        for i in range(self.table.k):
+            self.assertTrue(self.table.insert(
+                IPv4Address("TCP", "127.0.0.1", 5000+i),
+                NodeID(b'\x17\x17' + b'\x00'*17 + bytes([i]), verify=False)
+                ))
+        i += 1
+        self.assertFalse(self.table.insert(
+            IPv4Address("TCP", "127.0.0.1", 5000+i),
+            NodeID(b'\x17' + b'\x00'*18 + bytes([i]), verify=False)
+            ))
+
+        # 0xCCFF... IDs
+        for i in range(self.table.k):
+            self.assertTrue(self.table.insert(
+                IPv4Address("TCP", "127.0.0.1", 6000+i),
+                NodeID(b'\xCC' + b'\xFF'*18 + bytes([i]), verify=False)
+                ))
+        i += 1
+        self.assertFalse(self.table.insert(
+            IPv4Address("TCP", "127.0.0.1", 6000+i),
+            NodeID(b'\xCC' + b'\xFF'*18 + bytes([i]), verify=False)
+            ))
