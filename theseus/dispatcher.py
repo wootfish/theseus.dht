@@ -113,8 +113,10 @@ class Dispatcher(Factory):
             return fail(TheseusConnectionError("Address blacklisted"))
 
         if addr in self.states and self.states[addr][STATE] is not DISCONNECTED:
+            # redundant cnxns shouldn't get made in the first place, but if we
+            # are making one, might as well fail well by having it succeed
             self.log.warn("Tried to add a redundant cnxn to address: {addr}", addr=addr)
-            return fail(TheseusConnectionError("Redundant cnxn"))  # or should we 'fail gently' by returning succeed(self.states[CNXN])?  TODO: decide
+            return succeed(self.states[CNXN])
 
         if addr[1] in set(node.listen_port for node in self.manager):
             self.log.debug("Aborting cnxn to {addr} due to shared listen port", addr=addr)
