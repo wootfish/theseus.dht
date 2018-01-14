@@ -33,7 +33,7 @@ class Dispatcher(Factory):
         self.clock = reactor  # so we can swap in a fake clock in tests
 
         self.manager = parent_node.manager
-        self.routing_table = self.manager.routing_table
+        self.routing_table = self.manager.table
         self.data_store = self.manager.data_store
 
         self.states = {}  # {IPv4addrs: {metadata keys: values}}

@@ -3,6 +3,7 @@ from twisted.logger import Logger
 
 from .node import NodeService
 from .routing import RoutingTable
+from .datastore import DataStore
 
 
 class NodeManagerService(MultiService):
@@ -11,6 +12,9 @@ class NodeManagerService(MultiService):
 
     def __init__(self, num_nodes=None, node_ids=None):
         super().__init__()
+
+        self.table = RoutingTable(self)
+        self.data_store = DataStore()
 
         if num_nodes is not None:
             self.num_nodes = num_nodes
@@ -26,5 +30,3 @@ class NodeManagerService(MultiService):
 
             for node_id in node_ids:
                 self.addService(NodeService(self, node_id))
-
-        self.table = RoutingTable(self)

@@ -20,9 +20,9 @@ class NodeService(Service):
         self.node_id = node_id
 
     def startService(self):
-        #self.dispatcher = Dispatcher(...)  # TODO
-
         self.updateID()
+
+        self.dispatcher = Dispatcher(self)
         self.listen_port = self.startListening()
 
     def startListening(self):
