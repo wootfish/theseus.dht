@@ -30,11 +30,11 @@ class Dispatcher(Factory):
     query_retry_wait = 0.1
 
     def __init__(self, routing_table, data_store, parent_node):
+        self.clock = reactor  # so we can swap in a fake clock in tests
+
+        self.manager = parent_node.manager
         self.routing_table = routing_table
         self.data_store = data_store
-        self.parent_node = parent_node
-
-        self.clock = reactor  # so we can swap in a fake clock in tests
 
         self.states = {}  # {IPv4addrs: {metadata keys: values}}
         self.unbound_states = {}  # like self.states but for cnxns where the remote cnxn port is ephemeral and the remote node's listen port is not known
@@ -48,8 +48,8 @@ class Dispatcher(Factory):
 
         self.info_getters = {
             MAX_VERSION: (lambda: config["listen_port"]),
-            LISTEN_PORT: (lambda: self.parent_node.listen_port),
-            ID: (lambda: self.parent_node.node_id),
+            LISTEN_PORT: (lambda: parent_node.listen_port),
+            ID: (lambda: parent_node.node_id),
             }
         self.info_updaters = {
             MAX_VERSION: None,  # TODO
@@ -116,7 +116,7 @@ class Dispatcher(Factory):
             self.log.warn("Tried to add a redundant cnxn to address: {addr}", addr=addr)
             return fail(TheseusConnectionError("Redundant cnxn"))  # or should we 'fail gently' by returning succeed(self.states[CNXN])?  TODO: decide
 
-        if addr[1] in set(node.listen_port for node in self.parent_node.manager):
+        if addr[1] in set(node.listen_port for node in self.manager):
             self.log.debug("Aborting cnxn to {addr} due to shared listen port", addr=addr)
             return fail(TheseusConnectionError("Shared listen port"))
 
