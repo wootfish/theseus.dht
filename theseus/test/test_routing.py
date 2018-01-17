@@ -5,12 +5,17 @@ from theseus.nodeid import NodeID
 from theseus.routing import RoutingTable
 from theseus.nodemanager import NodeManagerService
 
+import theseus.node
+
 from theseus.test import test_node
 
 
 class SingleNodeRoutingTableTests(unittest.TestCase):
     def setUp(self):
         test_node.NodeTests.setUp(self)  # apply NodeService testing harness
+
+        theseus.node.NodeService.updateID = lambda _: None
+        theseus.node.NodeService._listen = lambda _, __: None
 
         self.node_manager = NodeManagerService(
                 node_ids=[NodeID(b'\xAA'*20, verify=False)]
@@ -95,6 +100,9 @@ class SingleNodeRoutingTableTests(unittest.TestCase):
 class MultiNodeRoutingTableTests(unittest.TestCase):
     def setUp(self):
         test_node.NodeTests.setUp(self)  # apply NodeService testing harness
+
+        theseus.node.NodeService.updateID = lambda _: None
+        theseus.node.NodeService._listen = lambda _, __: None
 
         self.node_manager = NodeManagerService(
             node_ids=[
