@@ -82,33 +82,6 @@ class Dispatcher(Factory):
 
         return p
 
-    #def getCallbacks(self, addr):
-    #    data_names = OrderedDict((
-    #        (b'max_version', MAX_VERSION),
-    #        (b'listen_port', LISTEN_PORT),
-    #        (b'id', ID),
-    #        ))
-
-    #    def info_response_callback(args):
-    #        assert type(args) is dict
-
-    #        info = args.get(b'info', {})
-    #        for str_key, enum_key in data_names.items():
-    #            if str_key in info:
-    #                self.info_updaters[enum_key](addr, info[str_key])
-
-    #    def info_query_callback(args):
-    #        info_response_callback(args)
-
-    #        info = {}
-    #        for key in args.get(b'keys', []):
-    #            if data_names.get(key) in self.info_getters:
-    #                info[key] = self.info_getters[data_names[key]]()
-
-    #        return {b'info': info}
-
-    #    return info_query_callback, info_response_callback
-
     def makeCnxn(self, addr, retries=0):
         if addr in self.blacklist:
             self.log.debug("Tried to connect to a blacklisted address: {addr}", addr=addr)
@@ -198,9 +171,6 @@ class Dispatcher(Factory):
 
         self.log.info("listen_port for cnxn on {addr} updated to {new_port}", addr=addr, new_port=new_port)
         self.states[new_addr] = state
-
-        # update callbacks for new address
-        #state[CNXN].info, state[CNXN].onInfo = self.getCallbacks(new_addr)
 
     def maybeUpdateNodeID(self, cnxn, new_id):
         cnxn_addr, cnxn_state = None
