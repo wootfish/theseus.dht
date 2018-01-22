@@ -65,11 +65,10 @@ class Dispatcher(Factory):
             return  # aborts the cnxn
 
         p = DHTProtocol()
-        p.find, p.onFind = self.routing_table.getCallbacks()
-        p.maybeGet, p.put = self.data_store.getCallbacks()
-
         p.info_getters = self.info_getters
         p.info_setters = self.info_setters
+        p.routing_query = self.routing_table.query
+        # TODO add refs to data store method(s) here once they're written
 
         if addr not in self.states:
             self.unbound_states[addr] = {

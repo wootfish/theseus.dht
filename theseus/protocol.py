@@ -28,7 +28,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             })
 
         self.response_handlers.update({
-            b'find': self.onFind,
+            #b'find': self.onFind,
             b'get': self.onGet,
             b'put': self.onPut,
             b'info': self.onInfo,
@@ -62,10 +62,21 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
                       node=self.remote_state, name=query_name, txn=txn_id, args=args)
 
     def get(self, args):
-        data = self.maybeGet(args)
-        if data is None:
-            return self.find(args)
-        return {"data": data}
+        #data = self.maybeGet(args)
+        #if data is None:
+        #    return self.find(args)
+        #return {"data": data}
+
+        pass  # TODO: fill out after making real data store
+
+    def onGet(self, args):
+        pass  # TODO: fill out at the same time as self.get
+
+    def put(self, args):
+        pass  # TODO: fill out at the same time as self.get
+
+    def onPut(self, args):
+        pass  # TODO: fill out at the same time as self.get
 
     def info(self, args):
         self.onInfo(args)  # update any advertised info keys
@@ -84,3 +95,9 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         for key in NodeInfoKeys:
             if key.value in info:
                 self.info_setters[key](self, info[key.value])
+
+    def find(self, args):
+        target_addr = args.get(b'addr')
+        if type(target_addr) is not bytes or len(target_addr) != 20:
+            raise Exception("bad find addr")
+        return {"nodes": self.routing_query(target_addr)}
