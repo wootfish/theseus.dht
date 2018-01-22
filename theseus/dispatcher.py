@@ -51,7 +51,7 @@ class Dispatcher(Factory):
             LISTEN_PORT: (lambda: parent_node.listen_port),
             ID: (lambda: parent_node.node_id.address),
             }
-        self.info_updaters = {
+        self.info_setters = {
             MAX_VERSION: None,  # TODO
             LISTEN_PORT: self.maybeUpdateListenPort,
             ID: self.maybeUpdateNodeID,
@@ -67,7 +67,9 @@ class Dispatcher(Factory):
         p = DHTProtocol()
         p.find, p.onFind = self.routing_table.getCallbacks()
         p.maybeGet, p.put = self.data_store.getCallbacks()
-        p.info, p.onInfo = self.getCallbacks(addr)
+
+        p.info_getters = self.info_getters
+        p.info_setters = self.info_setters
 
         if addr not in self.states:
             self.unbound_states[addr] = {
@@ -80,32 +82,32 @@ class Dispatcher(Factory):
 
         return p
 
-    def getCallbacks(self, addr):
-        data_names = OrderedDict((
-            (b'max_version', MAX_VERSION),
-            (b'listen_port', LISTEN_PORT),
-            (b'id', ID),
-            ))
+    #def getCallbacks(self, addr):
+    #    data_names = OrderedDict((
+    #        (b'max_version', MAX_VERSION),
+    #        (b'listen_port', LISTEN_PORT),
+    #        (b'id', ID),
+    #        ))
 
-        def info_response_callback(args):
-            assert type(args) is dict
+    #    def info_response_callback(args):
+    #        assert type(args) is dict
 
-            info = args.get(b'info', {})
-            for str_key, enum_key in data_names.items():
-                if str_key in info:
-                    self.info_updaters[enum_key](addr, info[str_key])
+    #        info = args.get(b'info', {})
+    #        for str_key, enum_key in data_names.items():
+    #            if str_key in info:
+    #                self.info_updaters[enum_key](addr, info[str_key])
 
-        def info_query_callback(args):
-            info_response_callback(args)
+    #    def info_query_callback(args):
+    #        info_response_callback(args)
 
-            info = {}
-            for key in args.get(b'keys', []):
-                if data_names[key] in self.info_getters:
-                    info[key] = self.info_getters(data_names[key])
+    #        info = {}
+    #        for key in args.get(b'keys', []):
+    #            if data_names.get(key) in self.info_getters:
+    #                info[key] = self.info_getters[data_names[key]]()
 
-            return {b'info': info}
+    #        return {b'info': info}
 
-        return info_query_callback, info_response_callback
+    #    return info_query_callback, info_response_callback
 
     def makeCnxn(self, addr, retries=0):
         if addr in self.blacklist:
@@ -175,7 +177,13 @@ class Dispatcher(Factory):
         self.log.info("Blacklisting {addr} (reason: {reason})", addr=addr, reason=reason)
         self.blacklist.append(addr)
 
-    def maybeUpdateListenPort(self, addr, new_port):
+    # note to posterity: if looping through states and unbound_states to find a
+    # cnxn turns out to be slow in these following functions, maybe consider
+    # replacing states with some sort of bijective object, a double-dict of
+    # some type that allows fast lookups from addr to cnxn _or_ cnxn to addr
+
+    def maybeUpdateListenPort(self, cnxn, new_port):
+        #addr = next(addr for addr, _cnxn in self.states.items() if _cnxn is cnxn)
         new_addr = IPv4Address("TCP", addr.host, new_port)
 
         if new_addr == addr:
@@ -186,32 +194,39 @@ class Dispatcher(Factory):
             self.log.debug("Node at address {addr} tried to steal listen addr {new_addr}", addr=addr, new_addr=new_addr)
             raise Exception("Listen addr already claimed")
 
-        if addr in self.unbound_states:
-            state = self.unbound_states.pop(addr)
-        else:
-            state = self.states.pop(addr)
+        state = self.unbound_states.pop(addr, None) or self.states.pop(addr)
 
         self.log.info("listen_port for cnxn on {addr} updated to {new_port}", addr=addr, new_port=new_port)
         self.states[new_addr] = state
 
         # update callbacks for new address
-        state[CNXN].info, state[CNXN].onInfo = self.getCallbacks(new_addr)
+        #state[CNXN].info, state[CNXN].onInfo = self.getCallbacks(new_addr)
 
-    def maybeUpdateNodeID(self, addr, new_id):
-        for node_addr, node_state in chain(self.states.items(), self.unbound_states.items()):
-            if node_addr == addr:
-                if node_state[INFO][ID] == new_id:
-                    return
-                continue
+    def maybeUpdateNodeID(self, cnxn, new_id):
+        cnxn_addr, cnxn_state = None
+        for addr, state in chain(self.states.items, self.unbound_states.items()):
+            if cnxn is state[CNXN]:
+                if state[INFO][ID] == new_id:
+                    return  # node trying to "change" to its current id, for some reason
+                cnxn_addr, cnxn_state = addr, state
 
-            if node_state[INFO][ID] == new_id:
-                self.log.debug("Node at address {addr} tried to steal ID {new_id}", addr=addr, new_id=new_id)
+            elif state[INFO][ID] == new_id:
+                if cnxn_addr is None:
+                    cnxn_addr = next(_addr for _addr, _state in
+                            chain(self.states.items, self.unbound_states.items())
+                            if _state[CNXN] is cnxn
+                            )
+
+                self.log.debug("Node at address {addr} tried to steal ID {new_id}", addr=cnxn_addr, new_id=new_id)
                 raise Exception("Node ID already claimed")
 
-        self.states.get(addr, self.unbound_states.get(addr))[INFO][ID] = new_id
+        if None in (cnxn_addr, cnxn_state):
+            self.log.warn("Invariant violated: cnxn_addr, cnxn_state = {addr}, {state} for cnxn {cnxn}. This means this cnxn is not tracked by the Dispatcher, which shouldn't be possible!", addr=cnxn_addr, state=cnxn_state, cnxn=cnxn)
+            raise Exception("Internal error")
 
-        self.routing_table.remove(addr)
-        self.routing_table.insert(addr, new_id)
+        cnxn_state[INFO][ID] = new_id
+        self.routing_table.remove(cnxn_addr)
+        self.routing_table.insert(cnxn_addr, new_id)
 
     def getNodeInfo(self, addr, info_key, defer=True):
         if defer:

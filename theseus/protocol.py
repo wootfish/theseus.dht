@@ -2,6 +2,7 @@ from twisted.protocols.policies import TimeoutMixin
 from twisted.logger import Logger
 
 from .krpc import KRPCProtocol
+from .enums import NodeInfoKeys
 
 from collections import OrderedDict
 
@@ -10,6 +11,11 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     log = Logger()
 
     idle_timeout = 34  # seconds
+
+    # the info_updaters and info_getters callbacks are populated by the factory
+    # during buildProtocol
+    info_updaters = None
+    info_getters = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -60,3 +66,21 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         if data is None:
             return self.find(args)
         return {"data": data}
+
+    def info(self, args):
+        self.onInfo(args)  # update any advertised info keys
+
+        info = {}
+        requested = args.get(b'keys', [])
+        for key in NodeInfoKeys:
+            if key.value in requested:
+                info[key.value] = self.info_getters[key]()
+
+        return {b'info': info}
+
+    def onInfo(self, args):
+        info = args.get(b'info', {})
+
+        for key in NodeInfoKeys:
+            if key.value in info:
+                self.info_setters[key](self, info[key.value])
