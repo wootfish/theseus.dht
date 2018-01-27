@@ -17,6 +17,7 @@ class KRPCProtocol(NetstringReceiver):
 
         self.query_handlers = {}
         self.response_handlers = {}
+
         self.open_queries = {}
         self.deferred_responses = {}
 

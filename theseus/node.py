@@ -14,6 +14,8 @@ class NodeService(Service):
     log = Logger()
 
     listen_port = None
+    node_key_private = None  # TODO: populate this field in startService
+    node_key_public = None  # TODO: populate this field in startService
 
     def __init__(self, manager, node_id=None):
         self.manager = manager

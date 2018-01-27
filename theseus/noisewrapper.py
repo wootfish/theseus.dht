@@ -26,7 +26,7 @@ class NoiseProtocol(ProtocolWrapper):
             return
 
         # initialize Noise state
-        self._noise = NoiseConnection.from_name()
+        self._noise = NoiseConnection.from_name()  # FIXME is this right? shouldn't we pass the name
 
         if self.factory.role is INITIATOR:
             self._noise.set_as_initiator()
@@ -104,3 +104,13 @@ class NoiseFactory(WrappingFactory):
         super().__init__(wrapped_factory)
 
         self.role = role
+
+
+class NoiseSettings:
+    def __init__(self, local_key=None, remote_key=None, chunk_strategy=None):
+        self.local_key = local_key
+        self.remote_key = remote_key
+        self.chunk_strategy = chunk_strategy
+
+    def chunker(self):
+        if self.chunk_strategy is None:

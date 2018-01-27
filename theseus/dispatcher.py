@@ -43,8 +43,8 @@ class Dispatcher(Factory):
         self.pending_info = {}  # {addrs: {metadata keys: [deferreds]}}
         self.active_lookups = []  # so we can check whether a node is part of any active lookups
 
-        self.client_factory = NoiseFactory(self, INITIATOR)
-        self.server_factory = NoiseFactory(self, RESPONDER)
+        self.client_factory = NoiseFactory(self, INITIATOR)  # TODO who uses ths??
+        self.server_factory = NoiseFactory(self, RESPONDER)  # TODO who uses ths??
 
         self.info_getters = {
             MAX_VERSION: (lambda: config["listen_port"]),
@@ -64,7 +64,7 @@ class Dispatcher(Factory):
             self.log.warn("Tried to build redundant cnxn protocol for address {addr}", addr=addr)
             return  # aborts the cnxn
 
-        p = DHTProtocol()
+        p = DHTProtocol()  # TODO should this be going through the noise wrapper protocol factory from __init__?
         p.info_getters = self.info_getters
         p.info_setters = self.info_setters
         p.routing_query = self.routing_table.query
