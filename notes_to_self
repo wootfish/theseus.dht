@@ -32,11 +32,20 @@ config needs to handle handshake type (NN, NK, KN, KK), any PSK, prologued 'K' p
 after all this is taken care of, we'll also need to fix how routing queries are handled, i bet, because currently the routing table doesn't maintain full contact info (tho maybe it should!) so it can't properly answer a query on its own
 
 part of sorting out all the above config stuff also involves getting key generation right
-    and to generate the keys properly, we're gonna have to know how they're gonna get used
-    which is to say, how they'll be fed to the actual noise library object
-    this is still sort of, shall we say, an "open question" since the library is light on documentation
+    when ephemeral keys have to be generated in the noise library in HandshakeState:
+        self.e = self.noise_protocol.dh_fn.generate_keypair()
+        (state.py line 306)
+    self.noise_protocol.dh_fn is populated in NoiseProtocl.__init__ like so:
+        mappings, pattern_modifiers = self._parse_protocol_name()
+        self.dh_fn = mappings['dh']
+        (noise_protocol.py, lines 32 & 44)
+    mappings['dh'] = .functions.dh_map (per noise_protocol.py line 18)
+    dh_map = {
+        '25519': DH('ed25519'),
+        '448': DH('ed448')
+    }
 
-another thing: down the road, once we have re-handshaking added to the noise wrapper, we should add some internal logic to make sure it re-handshakes prior to nonce exhaustion
+another thing: down the road, once we have re-handshaking added to the noise wrapper, we should add some internal logic to make sure it performs a re-handshake with NNpsk0 prior to nonce exhaustion
 
 maybe a good idea for how to start would be to write some Noise wrapper unit tests
     these vet the basic implementation and also offer a chance to get familiarized with how the library handles keys

@@ -7,7 +7,7 @@ from .enums import INITIATOR
 
 
 class NoiseProtocol(ProtocolWrapper):
-    def __init__(self, factory, wrappedProtocol, noise_name=b'Noise_NN_25519_ChaChaPoly_SHA256'):
+    def __init__(self, factory, wrappedProtocol, noise_name=b'Noise_NN_25519_ChaChaPoly_BLAKE2b'):
         super().__init__(factory, wrappedProtocol)
 
         self._noise = None
@@ -26,7 +26,7 @@ class NoiseProtocol(ProtocolWrapper):
             return
 
         # initialize Noise state
-        self._noise = NoiseConnection.from_name()  # FIXME is this right? shouldn't we pass the name
+        self._noise = NoiseConnection.from_name(self.noise_name)
 
         if self.factory.role is INITIATOR:
             self._noise.set_as_initiator()
