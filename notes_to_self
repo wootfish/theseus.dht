@@ -45,6 +45,9 @@ part of sorting out all the above config stuff also involves getting key generat
         '448': DH('ed448')
     }
 
+    so to generate a 25519 key pair i think we should call
+    noise.functions.dh_map['25519'].generate_keypair()
+
 another thing: down the road, once we have re-handshaking added to the noise wrapper, we should add some internal logic to make sure it performs a re-handshake with NNpsk0 prior to nonce exhaustion
 
 maybe a good idea for how to start would be to write some Noise wrapper unit tests
