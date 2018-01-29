@@ -81,10 +81,10 @@ If for some reason two peers don't want to use a PSK, i.e. if they want to resta
 
 Every encrypted Theseus protocol message is preceded by an encrypted declaration of the protocol message's size. Whenever a plaintext is ready to send, the plaintext bytestring's length is calculated, encoded as a big-endian 32-bit integer, and encrypted, yielding a 20-byte ciphertext (4 message bytes + 16 AE tag bytes). This encrypted length announcement is sent, then the plaintext is encrypted and sent.
 
-The process for receiving messages is therefore essentially this:
+The process for receiving higher-level protocol messages is therefore essentially this:
 
 1. Read bytes off the wire until we've received 20 bytes total.
-2. Decrypt these 20 bytes and treat the resulting four bytes as a big-endian 32-bit integer N.
+2. Decrypt these 20 bytes and treat the resulting 4 bytes as an unsigned, big-endian 32-bit integer N.
 3. Read bytes off the wire until we've received N + 16 more bytes total.
 4. Decrypt these N + 16 bytes. This is the protocol message.
 5. Repeat.
