@@ -22,7 +22,7 @@ The larger the network gets, the more secure and reliable it is for everyone.
   - [Encryption](#encryption)
     - [Initial Handshake](#initial-handshake)
     - [Subsequent Handshakes](#subsequent-handshakes)
-    - [Declaring Message Sizes](#declaring-message-sizes)
+    - [Message Sizes](#message-sizes)
     - [Plaintext Format](#plaintext-format)
   - [Storing Data](#storing-data)
     - [Tags](#tags)
