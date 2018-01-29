@@ -98,9 +98,9 @@ class Dispatcher(Factory):
             self.log.warn("Tried to add a redundant cnxn to address: {addr}", addr=addr)
             return succeed(self.states[CNXN])
 
-        if addr[1] in set(node.listen_port for node in self.manager):
-            self.log.debug("Aborting cnxn to {addr} due to shared listen port", addr=addr)
-            return fail(TheseusConnectionError("Shared listen port"))
+        if node_key in set(node.node_key for node in self.manager):
+            self.log.debug("Aborting cnxn to {addr} due to shared node key (?!)", addr=addr)
+            return fail(TheseusConnectionError("Shared node key"))
 
         self.log.debug("Attempting to add new cnxn to {addr}", addr=addr)
         self.states[addr] = {
@@ -129,7 +129,7 @@ class Dispatcher(Factory):
     def _makeCnxn(self, addr):
         # this is broken out so that tests can overwrite it to avoid touching
         # the network
-        return TCP4ClientEndpoint(reactor, *addr).connect(self.client_factory)
+        return TCP4ClientEndpoint(reactor, addr.host, addr.port).connect(self.client_factory)
 
     def listen(self, port):
         """

@@ -29,9 +29,22 @@ class NodeService(Service):
         self.node_key = noise.functions.dh_map['25519'].generate_keypair()
         self.dispatcher = Dispatcher(self)
 
+        self.pending_cnxns = []
+
+    def connect(self, address, node_key):
+        if self.running:
+            self.log.info("Making cnxn to {address}", address=address)
+            self.dispatcher.makeCnxn(address, node_key)
+        else:
+            self.log.info("Queueing up cnxn to {address}", address=address)
+            self.pending_cnxns.append((address, node_key))
+
     def startService(self):
         self.updateID()
         self.listen_port = self.startListening()
+
+        while self.pending_cnxns:
+            self.dispatcher.makeCnxn(*self.pending_cnxns.pop())
 
     def startListening(self):
         """
@@ -55,7 +68,7 @@ class NodeService(Service):
             except CannotListenError:
                 continue
             else:
-                self.log.info("Now listening on port {port}.", port=port)
+                self.log.info("Now listening on port {port} with node key {key}", port=port, key=self.node_key.public_bytes)
                 break
 
         return port
