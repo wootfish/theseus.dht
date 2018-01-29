@@ -2,10 +2,10 @@ from enum import Enum, IntEnum
 
 # NodeStateKeys members are used as keys to the Dispatcher's internal 'states'
 # dict.
-NodeStateKeys = Enum("NodeStateKeys", "ROLE STATE LAST_ACTIVE INFO CNXN")
-ROLE, STATE, LAST_ACTIVE, INFO, CNXN = (NodeStateKeys.ROLE,
+NodeStateKeys = Enum("NodeStateKeys", "ROLE STATE LAST_ACTIVE INFO CNXN NODE_KEY")
+ROLE, STATE, LAST_ACTIVE, INFO, CNXN, NODE_KEY = (NodeStateKeys.ROLE,
         NodeStateKeys.STATE, NodeStateKeys.LAST_ACTIVE, NodeStateKeys.INFO,
-        NodeStateKeys.CNXN)
+        NodeStateKeys.CNXN, NodeStateKeys.NODE_KEY)
 
 # NoiseProtoRoles enumerate possible protocol roles in the Noise Framework. The
 # Noise protocol initiator for a connection's initial handshake is always the

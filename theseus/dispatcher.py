@@ -11,12 +11,14 @@ from twisted.internet.address import IPv4Address
 from twisted.internet.protocol import Factory
 from twisted.internet.endpoints import TCP4ClientEndpoint
 
-from .enums import ROLE, STATE, LAST_ACTIVE, INFO, CNXN
+import noise.functions
+
+from .enums import ROLE, STATE, LAST_ACTIVE, INFO, CNXN, NODE_KEY
 from .enums import INITIATOR, RESPONDER
 from .enums import DISCONNECTED, CONNECTING
 from .enums import ID, LISTEN_PORT, MAX_VERSION
 
-from .noisewrapper import NoiseFactory
+from .noisewrapper import NoiseFactory, NoiseSettings
 from .protocol import DHTProtocol
 from .errors import TheseusConnectionError
 from .config import config
@@ -43,8 +45,8 @@ class Dispatcher(Factory):
         self.pending_info = {}  # {addrs: {metadata keys: [deferreds]}}
         self.active_lookups = []  # so we can check whether a node is part of any active lookups
 
-        self.client_factory = NoiseFactory(self, INITIATOR)  # TODO who uses ths??
-        self.server_factory = NoiseFactory(self, RESPONDER)  # TODO who uses ths??
+        self.server_factory = NoiseFactory(self, RESPONDER, parent_node.node_key)
+        self.client_factory = NoiseFactory(self, INITIATOR)
 
         self._listeners = []
 
@@ -66,13 +68,15 @@ class Dispatcher(Factory):
             self.log.warn("Tried to build redundant cnxn protocol for address {addr}", addr=addr)
             return  # aborts the cnxn
 
-        p = DHTProtocol()
+        p = self.client_factory.buildProtocol()
         p.info_getters = self.info_getters
         p.info_setters = self.info_setters
         p.routing_query = self.routing_table.query
         # TODO add refs to data store method(s) here once they're written
 
-        if addr not in self.states:
+        if addr in self.states:
+            p.context = NoiseSettings(remote_static=self.states[addr][NODE_KEY])
+        else:
             self.unbound_states[addr] = {
                     STATE: CONNECTING,
                     ROLE: RESPONDER,
@@ -83,7 +87,7 @@ class Dispatcher(Factory):
 
         return p
 
-    def makeCnxn(self, addr, retries=0):
+    def makeCnxn(self, addr, node_key, retries=0):
         if addr in self.blacklist:
             self.log.debug("Tried to connect to a blacklisted address: {addr}", addr=addr)
             return fail(TheseusConnectionError("Address blacklisted"))
@@ -105,6 +109,7 @@ class Dispatcher(Factory):
                 INFO: {},
                 LAST_ACTIVE: time.monotonic(),
                 CNXN: None,
+                NODE_KEY: node_key,
                 }
 
         def callback(cnxn):
@@ -165,11 +170,10 @@ class Dispatcher(Factory):
     # some type that allows fast lookups from addr to cnxn _or_ cnxn to addr
 
     def maybeUpdateListenPort(self, cnxn, new_port):
-        #addr = next(addr for addr, _cnxn in self.states.items() if _cnxn is cnxn)
+        addr = next(addr for addr, _cnxn in self.states.items() if _cnxn is cnxn)
         new_addr = IPv4Address("TCP", addr.host, new_port)
 
         if new_addr == addr:
-            # no change
             return
 
         if new_addr in self.states:

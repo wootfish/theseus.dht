@@ -3,6 +3,8 @@ from twisted.internet.error import CannotListenError
 from twisted.application.service import Service
 from twisted.logger import Logger
 
+import noise.functions
+
 from .nodeid import NodeID
 from .config import config
 from .dispatcher import Dispatcher
@@ -23,6 +25,8 @@ class NodeService(Service):
     def __init__(self, manager, node_id=None):
         self.manager = manager
         self.node_id = node_id
+
+        self.node_key = noise.functions.dh_map['25519'].generate_keypair()
         self.dispatcher = Dispatcher(self)
 
     def startService(self):

@@ -4,7 +4,7 @@ from twisted.logger import Logger
 
 from noise.connection import NoiseConnection
 
-from .enums import INITIATOR
+from .enums import INITIATOR, RESPONDER
 
 import struct
 
@@ -12,15 +12,16 @@ import struct
 class NoiseProtocol(ProtocolWrapper):
     log = Logger()
 
-    def __init__(self, factory, wrappedProtocol, noise_name=b'Noise_NN_25519_ChaChaPoly_BLAKE2b'):
+    def __init__(self, factory, wrappedProtocol):
         super().__init__(factory, wrappedProtocol)
 
+        self.context = None
         self._noise = None
+
         self._pending_writes = []
         self._recv_buf = b''
         self._recv_bytes_left = None  # populated after handshake
         self._pending_len_msg = None  # populated after handshake
-        self.noise_name = noise_name
 
     def makeConnection(self, transport):
         Protocol.makeConnection(self, transport)  # don't call ProtocolWrapper.makeConnection until the channel is ready to write() to
@@ -30,14 +31,26 @@ class NoiseProtocol(ProtocolWrapper):
         if self._noise is not None:
             return
 
+        if self.context is None:
+            self.warn("Tried to startHandshake with {addr} while self.context is None!", addr=self.getPeer())
+            raise Exception("Can't start handshake without parameters")
+
         # initialize Noise state
-        self._noise = NoiseConnection.from_name(self.noise_name)
+        self._noise = NoiseConnection.from_name(self.context.noise_name)
 
         if self.factory.role is INITIATOR:
+            if self.context.remote_static is None:
+                raise Exception("Missing required remote key data!")
+
+            self._noise.noise_protocol.keypairs['rs'] = self.context.remote_static
             self._noise.set_as_initiator()
             self._noise.start_handshake()
             self.transport.write(self._noise.write_message())
         else:
+            if self.context.local_static is None:
+                raise Exception("Missing required local key data!")
+
+            self._noise.noise_protocol.keypairs['s'] = self.context.local_static
             self._noise.set_as_responder()
             self._noise.start_handshake()
 
@@ -122,17 +135,21 @@ class NoiseProtocol(ProtocolWrapper):
 class NoiseFactory(WrappingFactory):
     protocol = NoiseProtocol
 
-    def __init__(self, wrapped_factory, role):
+    def __init__(self, wrapped_factory, role, node_key=None):
         super().__init__(wrapped_factory)
 
         self.role = role
+        self.node_key = node_key
+
+    def buildProtocol(self, addr):
+        proto = super().buildProtocol(addr)
+        if self.role is RESPONDER and self.node_key is not None:
+            proto.context = NoiseSettings(local_static=self.node_key)
+        return proto
 
 
-#class NoiseSettings:
-#    def __init__(self, local_key=None, remote_key=None, chunk_strategy=None):
-#        self.local_key = local_key
-#        self.remote_key = remote_key
-#        self.chunk_strategy = chunk_strategy
-#
-#    def chunker(self):
-#        if self.chunk_strategy is None:
+class NoiseSettings:
+    def __init__(self, noise_name=b'Noise_NK_25519_ChaChaPoly_BLAKE2b', local_static=None, remote_static=None):
+        self.noise_name = noise_name
+        self.local_static = local_static
+        self.remote_static = remote_static
