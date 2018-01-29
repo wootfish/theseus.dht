@@ -9,19 +9,21 @@ from time import time
 
 class NodeID:
     def __init__(self, node_id=None, id_preimage=None, verify=True, priority=UNSET):
-        # node_id==None, id_preimage==None generates a random ID with a current
-        # timestamp.
+        """
+        node_id==None, id_preimage==None generates a random ID with a current
+        timestamp.
 
-        # node_id==None, id_preimage!=None hashes a given input and sets node_id
-        # to the output.
+        node_id==None, id_preimage!=None hashes a given input and sets node_id
+        to the output.
 
-        # node_id!=None, id_preimage==None raises an error unless verify=False
+        node_id!=None, id_preimage==None raises an error unless verify=False
 
-        # node_id!=None, id_preimage!=None verifies that the given ID and
-        # preimage match, unless verify=False
+        node_id!=None, id_preimage!=None verifies that the given ID and
+        preimage match, unless verify=False
 
-        # If node_id is None and priority is UNSET, priority is
-        # automatically upgraded to CRITICAL.
+        If node_id is None and priority is UNSET, priority is
+        automatically upgraded to CRITICAL.
+        """
 
         self.node_id = node_id
         self.will_verify = verify

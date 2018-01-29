@@ -1,7 +1,7 @@
 import time
 
 from itertools import chain
-from collections import deque, OrderedDict
+from collections import deque
 
 from twisted.logger import Logger
 from twisted.internet import reactor
@@ -11,14 +11,14 @@ from twisted.internet.address import IPv4Address
 from twisted.internet.protocol import Factory
 from twisted.internet.endpoints import TCP4ClientEndpoint
 
-import noise.functions
+from noise.functions import KeyPair25519
 
 from .enums import ROLE, STATE, LAST_ACTIVE, INFO, CNXN, NODE_KEY
 from .enums import INITIATOR, RESPONDER
 from .enums import DISCONNECTED, CONNECTING
 from .enums import ID, LISTEN_PORT, MAX_VERSION
 
-from .noisewrapper import NoiseFactory, NoiseSettings
+from .noisewrapper import NoiseFactory
 from .protocol import DHTProtocol
 from .errors import TheseusConnectionError
 from .config import config
@@ -34,6 +34,8 @@ class Dispatcher(Factory):
     def __init__(self, parent_node):
         self.clock = reactor  # so we can swap in a fake clock in tests
 
+        self.node_key = parent_node.node_key
+
         self.manager = parent_node.manager
         self.routing_table = self.manager.table
         self.data_store = self.manager.data_store
@@ -45,7 +47,7 @@ class Dispatcher(Factory):
         self.pending_info = {}  # {addrs: {metadata keys: [deferreds]}}
         self.active_lookups = []  # so we can check whether a node is part of any active lookups
 
-        self.server_factory = NoiseFactory(self, RESPONDER, parent_node.node_key)
+        self.server_factory = NoiseFactory(self, RESPONDER)
         self.client_factory = NoiseFactory(self, INITIATOR)
 
         self._listeners = []
@@ -61,22 +63,14 @@ class Dispatcher(Factory):
             ID: self.maybeUpdateNodeID,
             }
 
-    def buildProtocol(self, remote):
-        addr = remote.getHost()
-
-        if addr in self.states or addr in self.unbound_states:
-            self.log.warn("Tried to build redundant cnxn protocol for address {addr}", addr=addr)
-            return  # aborts the cnxn
-
-        p = self.client_factory.buildProtocol()
+    def buildProtocol(self, addr):
+        p = DHTProtocol()  # self.client_factory.buildProtocol(addr)
         p.info_getters = self.info_getters
         p.info_setters = self.info_setters
         p.routing_query = self.routing_table.query
         # TODO add refs to data store method(s) here once they're written
 
-        if addr in self.states:
-            p.context = NoiseSettings(remote_static=self.states[addr][NODE_KEY])
-        else:
+        if addr not in self.states:  # i.e. if this is an incoming, not outgoing, cnxn
             self.unbound_states[addr] = {
                     STATE: CONNECTING,
                     ROLE: RESPONDER,
@@ -109,7 +103,7 @@ class Dispatcher(Factory):
                 INFO: {},
                 LAST_ACTIVE: time.monotonic(),
                 CNXN: None,
-                NODE_KEY: node_key,
+                NODE_KEY: KeyPair25519.from_public_bytes(node_key),
                 }
 
         def callback(cnxn):
@@ -195,8 +189,9 @@ class Dispatcher(Factory):
 
             elif state[INFO][ID] == new_id:
                 if cnxn_addr is None:
-                    cnxn_addr = next(_addr for _addr, _state in
-                            chain(self.states.items, self.unbound_states.items())
+                    cnxn_addr = next(
+                            _addr for _addr, _state
+                            in chain(self.states.items, self.unbound_states.items())
                             if _state[CNXN] is cnxn
                             )
 
@@ -217,6 +212,9 @@ class Dispatcher(Factory):
         else:
             state = self.states.get(addr) or self.unbound_states.get(addr, {})
             return state.get(INFO, {}).get(info_key)
+
+    def getNodeKey(self, addr):
+        return self.states.get(addr, {}).get(NODE_KEY)
 
     def getNodeState(self, addr, state_key):
         state = self.states.get(addr) or self.unbound_states.get(addr, {})

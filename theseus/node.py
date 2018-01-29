@@ -1,9 +1,8 @@
-from twisted.internet import reactor
 from twisted.internet.error import CannotListenError
 from twisted.application.service import Service
 from twisted.logger import Logger
 
-import noise.functions
+from noise.functions import DH
 
 from .nodeid import NodeID
 from .config import config
@@ -26,7 +25,7 @@ class NodeService(Service):
         self.manager = manager
         self.node_id = node_id
 
-        self.node_key = noise.functions.dh_map['25519'].generate_keypair()
+        self.node_key = DH("ed25519").generate_keypair()
         self.dispatcher = Dispatcher(self)
 
         self.pending_cnxns = []

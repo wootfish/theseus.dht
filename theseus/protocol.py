@@ -4,8 +4,6 @@ from twisted.logger import Logger
 from .krpc import KRPCProtocol
 from .enums import NodeInfoKeys
 
-from collections import OrderedDict
-
 
 class DHTProtocol(KRPCProtocol, TimeoutMixin):
     log = Logger()
@@ -48,8 +46,8 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         self.setTimeout(None)
 
     def timeoutConnection(self):  # called by TimeoutMixin
-        self.log.info("Connection to {state} timed out after {n} seconds",
-                      state=self.remote_state, n=self.idle_timeout)
+        self.log.info("Connection to {addr} timed out after {n} seconds",
+                      addr=self.transport.getPeer(), n=self.idle_timeout)
         self.transport.loseConnection()
 
     def stringReceived(self, string):
@@ -62,10 +60,10 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
                       node=self.remote_state, name=query_name, txn=txn_id, args=args)
 
     def get(self, args):
-        #data = self.maybeGet(args)
-        #if data is None:
-        #    return self.find(args)
-        #return {"data": data}
+        # data = self.maybeGet(args)
+        # if data is None:
+        #     return self.find(args)
+        # return {"data": data}
 
         pass  # TODO: fill out after making real data store
 

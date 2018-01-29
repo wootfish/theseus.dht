@@ -111,7 +111,7 @@ class Config:
         merged = dic1.copy()
         for k in dic2:
             if isinstance(dic2[k], dict) and k in dic1 and isinstance(dic1[k], dict):
-                merged[k] = dict_merge(dic1[k], dic2[k])
+                merged[k] = Config.dict_merge(dic1[k], dic2[k])
             else:
                 merged[k] = dic2[k]
 

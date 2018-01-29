@@ -1,10 +1,9 @@
 from twisted.protocols.policies import ProtocolWrapper, WrappingFactory
-from twisted.internet.protocol import Protocol
 from twisted.logger import Logger
 
 from noise.connection import NoiseConnection
 
-from .enums import INITIATOR, RESPONDER
+from .enums import INITIATOR
 
 import struct
 
@@ -24,7 +23,7 @@ class NoiseProtocol(ProtocolWrapper):
         self._pending_len_msg = None  # populated after handshake
 
     def makeConnection(self, transport):
-        Protocol.makeConnection(self, transport)  # don't call ProtocolWrapper.makeConnection until the channel is ready to write() to
+        super().makeConnection(transport)
         self.startHandshake()
 
     def startHandshake(self):
@@ -32,8 +31,10 @@ class NoiseProtocol(ProtocolWrapper):
             return
 
         if self.context is None:
-            self.warn("Tried to startHandshake with {addr} while self.context is None!", addr=self.getPeer())
+            self.log.warn("Tried to startHandshake with {addr} while self.context is None!", addr=self.getPeer())
             raise Exception("Can't start handshake without parameters")
+
+        self.log.info("Starting Noise handshake with {addr}, context: {ctxt}", addr=self.getPeer(), ctxt=self.context)
 
         # initialize Noise state
         self._noise = NoiseConnection.from_name(self.context.noise_name)
@@ -134,17 +135,31 @@ class NoiseProtocol(ProtocolWrapper):
 
 class NoiseFactory(WrappingFactory):
     protocol = NoiseProtocol
+    log = Logger()
 
-    def __init__(self, wrapped_factory, role, node_key=None):
+    def __init__(self, wrapped_factory, role):
         super().__init__(wrapped_factory)
 
         self.role = role
-        self.node_key = node_key
+        self.dispatcher = wrapped_factory
 
     def buildProtocol(self, addr):
         proto = super().buildProtocol(addr)
-        if self.role is RESPONDER and self.node_key is not None:
-            proto.context = NoiseSettings(local_static=self.node_key)
+
+        if self.role is INITIATOR:
+            node_key = self.dispatcher.getNodeKey(addr)
+            if node_key is None:
+                self.log.warn("Unable to establish cnxn due to unpopulated remote node key")
+                return
+            proto.context = NoiseSettings(remote_static=node_key)
+
+        else:
+            node_key = self.dispatcher.node_key
+            if node_key is None:
+                self.log.warn("Unable to establish cnxn due to unpopulated local node key")
+                return
+            proto.context = NoiseSettings(local_static=node_key)
+
         return proto
 
 
@@ -153,3 +168,6 @@ class NoiseSettings:
         self.noise_name = noise_name
         self.local_static = local_static
         self.remote_static = remote_static
+
+    def __repr__(self):
+        return "NoiseSettings({}, {}, {})".format(self.noise_name, self.local_static, self.remote_static)
