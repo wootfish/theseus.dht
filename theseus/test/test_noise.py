@@ -14,9 +14,9 @@ import warnings
 class NoiseVectors(unittest.TestCase):
     def setUp(self):
         # these values should be populated within each test
-        self.messages = None
         self.noise_1 = None
         self.noise_2 = None
+        self.messages = None
         self.handshake_hash = None
 
         # these ones are constant across all test vectors
@@ -146,7 +146,7 @@ class NoiseVectors(unittest.TestCase):
 
 
 class NoiseWrapper(unittest.TestCase):
-    def setUp(self):
+    def test_initial_handshake(self):
         silly_factory = Factory.forProtocol(AccumulatingProtocol)
         silly_factory.protocolConnectionMade = None  # for some reason AccumulatingProtocol expects this property to exist??
 
@@ -159,9 +159,8 @@ class NoiseWrapper(unittest.TestCase):
         self.noise_1 = self.noise_factory_1.buildProtocol(addr_2)
         self.noise_2 = self.noise_factory_2.buildProtocol(addr_1)
 
-    def test_initial_handshake(self):
-        self.transport_1 = StringTransportWithDisconnection()
-        self.transport_2 = StringTransportWithDisconnection()
+        self.transport_1 = StringTransportWithDisconnection(addr_1, addr_2)
+        self.transport_2 = StringTransportWithDisconnection(addr_2, addr_1)
 
         self.noise_1.makeConnection(self.transport_1)
         self.noise_2.makeConnection(self.transport_2)
@@ -180,9 +179,55 @@ class NoiseWrapper(unittest.TestCase):
         self.transport_2.clear()
 
         self.assertEqual(len(self.transport_1.value()), 0)
-        self.assertEqual(len(msg_2), 48)  # 32-byte block (& same-sized key) + 16-byte AE block
+        self.assertEqual(len(msg_2), 48)  # 32-byte key (=2 16-byte blocks) + 16-byte AE block
         self.assertTrue(self.noise_2.wrappedProtocol.made)
         self.assertFalse(self.noise_1.wrappedProtocol.made)
 
         self.noise_1.dataReceived(msg_2)
         self.assertTrue(self.noise_1.wrappedProtocol.made)
+
+        self.assertEqual(self.noise_1.wrappedProtocol.data, b'')
+        self.assertEqual(self.noise_2.wrappedProtocol.data, b'')
+
+    def test_send_messages(self):
+        self.test_initial_handshake()  # get the handshake over with so we're ready to send messages
+
+        plaintext_1 = b"Whitfield Diffie"
+        plaintext_2 = b"Martin Hellman"
+        plaintext_3 = b"Bruce Schneier"
+
+        # message one
+        self.noise_1.write(plaintext_1)
+        ciphertext_1 = self.transport_1.value()
+        self.transport_1.clear()
+        self.assertEqual(len(ciphertext_1), 52)  # 52 = (4+16) + (16+16)
+        self.noise_2.dataReceived(ciphertext_1)
+
+        self.assertEqual(len(self.transport_1.value()), 0)
+        self.assertEqual(len(self.transport_2.value()), 0)
+        self.assertEqual(self.noise_1.wrappedProtocol.data, b'')
+        self.assertEqual(self.noise_2.wrappedProtocol.data, plaintext_1)
+
+        # message two
+        self.noise_2.write(plaintext_2)
+        ciphertext_2 = self.transport_2.value()
+        self.transport_2.clear()
+        self.assertEqual(len(ciphertext_2), 50)  # 50 = (4+16) + (14+16)
+        self.noise_1.dataReceived(ciphertext_2)
+
+        self.assertEqual(len(self.transport_1.value()), 0)
+        self.assertEqual(len(self.transport_2.value()), 0)
+        self.assertEqual(self.noise_1.wrappedProtocol.data, plaintext_2)
+        self.assertEqual(self.noise_2.wrappedProtocol.data, plaintext_1)
+
+        # message three
+        self.noise_1.write(plaintext_3)
+        ciphertext_3 = self.transport_1.value()
+        self.transport_1.clear()
+        self.assertEqual(len(ciphertext_3), 50)  # 50 = (4+16) + (14+16)
+        self.noise_2.dataReceived(ciphertext_3)
+
+        self.assertEqual(len(self.transport_1.value()), 0)
+        self.assertEqual(len(self.transport_2.value()), 0)
+        self.assertEqual(self.noise_1.wrappedProtocol.data, plaintext_2)
+        self.assertEqual(self.noise_2.wrappedProtocol.data, plaintext_1 + plaintext_3)

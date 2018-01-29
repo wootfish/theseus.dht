@@ -1,12 +1,17 @@
 from twisted.protocols.policies import ProtocolWrapper, WrappingFactory
 from twisted.internet.protocol import Protocol
+from twisted.logger import Logger
 
 from noise.connection import NoiseConnection
 
 from .enums import INITIATOR
 
+import struct
+
 
 class NoiseProtocol(ProtocolWrapper):
+    log = Logger()
+
     def __init__(self, factory, wrappedProtocol, noise_name=b'Noise_NN_25519_ChaChaPoly_BLAKE2b'):
         super().__init__(factory, wrappedProtocol)
 
@@ -51,8 +56,10 @@ class NoiseProtocol(ProtocolWrapper):
 
         if self._noise.handshake_finished:
             # we're in business!
+            self.log.debug("Noise handshake with {peer} complete.", peer=self.getPeer())
+
             self._recv_bytes_left = 20
-            self._expecting_len_msg = True
+            self._pending_len_msg = True
 
             while self._pending_writes:
                 self.write(self._pending_writes.pop(0))
@@ -72,27 +79,42 @@ class NoiseProtocol(ProtocolWrapper):
             self._recv_buf = b''
         else:
             # self._recv_bytes_left < 0
-            # we got a full message & then some
+            # meaning we got a full message & then some
             data = self._recv_buf[:self._recv_bytes_left]
             self._recv_buf = self._recv_buf[self._recv_bytes_left:]
 
         msg = self._noise.decrypt(data)
 
         if self._pending_len_msg:
-            self._recv_bytes_left = (msg[0] << 24) + (msg[1] << 16) + (msg[2] << 8) + msg[3]
+            length = self._len_bytes_to_int(msg)
+            self._recv_bytes_left = length + 16 - len(self._recv_buf)
+            self.log.debug("Length announcement decrypted. Value: {length}. {m} bytes currently buffered, so waiting on {n} ciphertext bytes.", length=length, n=self._recv_bytes_left, m=len(self._recv_buf))
         else:
-            super().dataReceived(data)
+            self.log.debug("Protocol message decrypted. Message: {msg}", msg=msg)
+            super().dataReceived(msg)
             self._recv_bytes_left = 20
 
         self._pending_len_msg = not self._pending_len_msg
 
-        if len(self._recv_buf) > self._recv_bytes_left:
+        if len(self._recv_buf) >= self._recv_bytes_left:
             self._handleCiphertext(b'')
+
+    @staticmethod
+    def _len_int_to_bytes(i):
+        return struct.pack(">L", i)
+
+    @staticmethod
+    def _len_bytes_to_int(b):
+        return struct.unpack(">L", b)[0]
 
     def write(self, data):
         if self._noise is not None and self._noise.handshake_finished:
-            data = self._noise.encrypt(data)
-            super().write(data)
+            # TODO once we're implementing message padding, add that here
+            length_enc = self._noise.encrypt(self._len_int_to_bytes(len(data)))
+            data_enc = self._noise.encrypt(data)
+
+            super().write(length_enc)
+            super().write(data_enc)
         else:
             self._pending_writes.append(data)
 
