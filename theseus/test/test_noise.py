@@ -1,6 +1,10 @@
 from twisted.trial import unittest
+from twisted.test.proto_helpers import AccumulatingProtocol, StringTransportWithDisconnection
+from twisted.internet.protocol import Factory
+from twisted.internet.address import IPv4Address
 
-#from theseus.noisewrapper import NoiseProtocol
+from theseus.noisewrapper import NoiseFactory
+from theseus.enums import INITIATOR, RESPONDER
 
 from noise.connection import Keypair, NoiseConnection
 
@@ -141,6 +145,44 @@ class NoiseVectors(unittest.TestCase):
 
 
 
-#class NoiseWrapper(unittest.TestCase):
-#    def test_initial_handshake(self):
-#        noise_1 = NoiseProtocol
+class NoiseWrapper(unittest.TestCase):
+    def setUp(self):
+        silly_factory = Factory.forProtocol(AccumulatingProtocol)
+        silly_factory.protocolConnectionMade = None  # for some reason AccumulatingProtocol expects this property to exist??
+
+        addr_1 = IPv4Address("TCP", "127.0.0.1", 1337)
+        addr_2 = IPv4Address("TCP", "127.0.0.1", 4200)
+
+        self.noise_factory_1 = NoiseFactory(silly_factory, INITIATOR)
+        self.noise_factory_2 = NoiseFactory(silly_factory, RESPONDER)
+
+        self.noise_1 = self.noise_factory_1.buildProtocol(addr_2)
+        self.noise_2 = self.noise_factory_2.buildProtocol(addr_1)
+
+    def test_initial_handshake(self):
+        self.transport_1 = StringTransportWithDisconnection()
+        self.transport_2 = StringTransportWithDisconnection()
+
+        self.noise_1.makeConnection(self.transport_1)
+        self.noise_2.makeConnection(self.transport_2)
+
+        self.assertFalse(self.noise_1.wrappedProtocol.made)
+        self.assertFalse(self.noise_2.wrappedProtocol.made)
+
+        msg_1 = self.transport_1.value()
+        self.transport_1.clear()
+
+        self.assertEqual(len(msg_1), 32)  # 32-byte key
+        self.assertEqual(len(self.transport_2.value()), 0)
+
+        self.noise_2.dataReceived(msg_1)
+        msg_2 = self.transport_2.value()
+        self.transport_2.clear()
+
+        self.assertEqual(len(self.transport_1.value()), 0)
+        self.assertEqual(len(msg_2), 48)  # 32-byte block (& same-sized key) + 16-byte AE block
+        self.assertTrue(self.noise_2.wrappedProtocol.made)
+        self.assertFalse(self.noise_1.wrappedProtocol.made)
+
+        self.noise_1.dataReceived(msg_2)
+        self.assertTrue(self.noise_1.wrappedProtocol.made)
