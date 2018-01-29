@@ -87,6 +87,6 @@ class NodeID:
 
     @staticmethod
     def _getHashInput():
-        timestamp = NodeID.timestampIntToBytes(time())
+        timestamp = NodeID.timestampIntToBytes(int(time()))
         bytestring = urandom(6)
         return timestamp + bytestring
