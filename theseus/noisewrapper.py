@@ -106,11 +106,11 @@ class NoiseFactory(WrappingFactory):
         self.role = role
 
 
-class NoiseSettings:
-    def __init__(self, local_key=None, remote_key=None, chunk_strategy=None):
-        self.local_key = local_key
-        self.remote_key = remote_key
-        self.chunk_strategy = chunk_strategy
-
-    def chunker(self):
-        if self.chunk_strategy is None:
+#class NoiseSettings:
+#    def __init__(self, local_key=None, remote_key=None, chunk_strategy=None):
+#        self.local_key = local_key
+#        self.remote_key = remote_key
+#        self.chunk_strategy = chunk_strategy
+#
+#    def chunker(self):
+#        if self.chunk_strategy is None:

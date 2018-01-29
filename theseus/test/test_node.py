@@ -1,15 +1,12 @@
 from twisted.trial import unittest
 from twisted.internet.error import CannotListenError
 
-import theseus.node
-import theseus.nodemanager
+from theseus.node import NodeService
+from theseus.nodemanager import NodeManagerService
 
 import random
 import collections
 
-
-# TODO figure out how to fuck with config directly rather than just copying
-# over relevant parameters
 
 class NodeTests(unittest.TestCase):
     listen_port_range = [1337, 42000]
@@ -22,25 +19,18 @@ class NodeTests(unittest.TestCase):
         self.test_rng = random.Random(x=NodeTests.seed)
         self.mirror_rng = random.Random(x=NodeTests.seed)
 
-        # functions to swap out: node.randrange, NodeService._listen, NodeService.updateID
+        self.old_randrange = NodeService._randrange
+        self.old_updateID = NodeService.updateID
 
-        self._old_randrange = theseus.node.randrange
-        theseus.node.randrange = self.test_rng.randrange
-
-        NodeService = theseus.node.NodeService
-
-        self._old_updateid = NodeService.updateID
-        self._old_listen = NodeService._listen
-
+        NodeService._randrange = self.test_rng.randrange
         NodeService.updateID = dumb_dummy
-        NodeService._listen = dumb_dummy
 
     def tearDown(self):
-        theseus.node.randrange = self._old_randrange
-        theseus.node.NodeService.updateID = self._old_updateid
-        theseus.node.NodeService._listen = self._old_listen
+        NodeService._randrange = self.old_randrange
+        NodeService.updateID = self.old_updateID
 
     def test_listening(self):
+        # test-specific setup
         node_data = collections.defaultdict(dict)
 
         def new_update_ID(self):
@@ -48,14 +38,15 @@ class NodeTests(unittest.TestCase):
 
         def new_listen(self, port):
             if "port" in node_data[self]:
-                raise Exception("node tried to listen while already listening")
+                raise Exception("node tried to start listening more than once")
             node_data[self]["port"] = port
 
-        NodeService = theseus.node.NodeService
-        NodeService.updateID = new_update_ID
+        self.old_listen = NodeService._listen
         NodeService._listen = new_listen
+        NodeService.updateID = new_update_ID
 
-        node_manager = theseus.nodemanager.NodeManagerService()
+        # test proper
+        node_manager = NodeManagerService()
         node_manager.startService()
 
         for node in node_manager:
@@ -63,3 +54,6 @@ class NodeTests(unittest.TestCase):
             self.assertTrue(node_data[node]["update_id_called"])
             self.assertEqual(node_data[node]["port"], node.listen_port)
             self.assertEqual(node.listen_port, self.mirror_rng.randrange(*self.listen_port_range))
+
+        # test-specific teardown
+        NodeService._listen = self.old_listen

@@ -46,6 +46,8 @@ class Dispatcher(Factory):
         self.client_factory = NoiseFactory(self, INITIATOR)  # TODO who uses ths??
         self.server_factory = NoiseFactory(self, RESPONDER)  # TODO who uses ths??
 
+        self._listeners = []
+
         self.info_getters = {
             MAX_VERSION: (lambda: config["listen_port"]),
             LISTEN_PORT: (lambda: parent_node.listen_port),
@@ -64,7 +66,7 @@ class Dispatcher(Factory):
             self.log.warn("Tried to build redundant cnxn protocol for address {addr}", addr=addr)
             return  # aborts the cnxn
 
-        p = DHTProtocol()  # TODO should this be going through the noise wrapper protocol factory from __init__?
+        p = DHTProtocol()
         p.info_getters = self.info_getters
         p.info_setters = self.info_setters
         p.routing_query = self.routing_table.query
@@ -87,8 +89,8 @@ class Dispatcher(Factory):
             return fail(TheseusConnectionError("Address blacklisted"))
 
         if addr in self.states and self.states[addr][STATE] is not DISCONNECTED:
-            # redundant cnxns shouldn't get made in the first place, but if we
-            # are making one, might as well fail well by having it succeed
+            # redundant cnxn attempts shouldn't get made in the first place,
+            # but might as well fail well by having them succeed after warning
             self.log.warn("Tried to add a redundant cnxn to address: {addr}", addr=addr)
             return succeed(self.states[CNXN])
 
@@ -122,7 +124,15 @@ class Dispatcher(Factory):
     def _makeCnxn(self, addr):
         # this is broken out so that tests can overwrite it to avoid touching
         # the network
-        return TCP4ClientEndpoint(reactor, *addr).connect(self)
+        return TCP4ClientEndpoint(reactor, *addr).connect(self.client_factory)
+
+    def listen(self, port):
+        """
+        Attempts to start listening for cnxns on the given port.
+        Throws a CannotListenError if the port is not available.
+        """
+        listener = reactor.listenTCP(port, self.server_factory)
+        self._listeners.append(listener)
 
     def sendQuery(self, addr, query_name, query_args, retries=0):
         if addr not in self.states or self.states[addr][CNXN] is None:

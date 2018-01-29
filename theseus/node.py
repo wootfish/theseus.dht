@@ -13,18 +13,20 @@ from random import randrange
 class NodeService(Service):
     log = Logger()
 
+    dispatcher = None
     listen_port = None
     node_key_private = None  # TODO: populate this field in startService
-    node_key_public = None  # TODO: populate this field in startService
+    node_key_public = None   # TODO: populate this field in startService
+
+    _randrange = staticmethod(randrange)
 
     def __init__(self, manager, node_id=None):
         self.manager = manager
         self.node_id = node_id
+        self.dispatcher = Dispatcher(self)
 
     def startService(self):
         self.updateID()
-
-        self.dispatcher = Dispatcher(self)
         self.listen_port = self.startListening()
 
     def startListening(self):
@@ -38,21 +40,25 @@ class NodeService(Service):
         ports_to_avoid = config["ports_to_avoid"]
 
         while True:
-            listen_port = randrange(*listen_port_range)
-            if listen_port in ports_to_avoid:
+            port = self._randrange(*listen_port_range)
+            if port in ports_to_avoid:
                 continue
 
-            self.log.info("Attempting to listen on port {port}...", port=listen_port)
+            self.log.info("Attempting to listen on port {port}...", port=port)
 
             try:
-                self._listen(listen_port)
+                self._listen(port)
             except CannotListenError:
                 continue
             else:
-                self.log.info("Now listening on port {port}.", port=listen_port)
+                self.log.info("Now listening on port {port}.", port=port)
                 break
 
-        return listen_port
+        return port
+
+    def _listen(self, port):
+        # broken out so our node unit tests can override it to avoid touching the dispatcher
+        self.dispatcher.listen(port)
 
     def updateID(self):
         self.node_id = NodeID()
@@ -62,6 +68,3 @@ class NodeService(Service):
             return node_id
 
         self.node_id.on_id_hash.addCallback(callback)
-
-    def _listen(self, port):
-        self._listener = reactor.listenTCP(port, self.dispatcher)
