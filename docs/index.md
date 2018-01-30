@@ -198,7 +198,9 @@ Note that the `values` associated with keys within the `info` dictionary may be 
 
 A node may have as many info fields as it wants. It should at the very minimum provide these: `{"id": ["<160-bit node id>", "<node id hash preimage>"], "listen_port": <port node is listening for cnxns on (int)>, "max_version": "protocol version string"}`.
 
-Applications using the Theseus DHT may feel free to add their own metadata keys, and are encouraged to use a uniform and unusual prefix for these keys to avoid naming conflicts. For instance, Theseus-specific parameters like Bloom filters for search are prefixed `theseus_`.
+Applications integrating into the DHT may choose to support additional application-specific RPCs; if so, it is suggested (though, for privacy reasons, not required) that they include an "extensions" info key mapping to a list of names enumerating supported protocol extensions. The namespace for extension names is of course shared between all applications on the DHT, so anyone making use of this feature are strongly encouraged to names that are not likely to give rise to collisions. The name "theseus" is reserved, naturally, for when development starts on the Theseus application itself. When Theseus proper is built upon the Theseus DHT, nodes for it will advertise `"extensions": ["theseus"]`.
+
+Applications using the Theseus DHT should also feel free to add their own metadata keys, and are encouraged to use a uniform and distinctive prefix for these keys to avoid naming conflicts. For instance, Theseus-specific parameters like Bloom filters for search will be prefixed `theseus_`.
 
 Arguments: `{"info": {"sender_key_one": "sender_value_one", ...}, "keys": ["key_one", "key_two", ..., "key_n"]}`
 
@@ -302,7 +304,7 @@ If you want to discuss anything privately, you can reach me (Eli) a couple diffe
 
 - Implementation!
 
-- Interesting question: The Noise Protocol Framework has the concept of a "fallback pattern", which allows graceful handling of situations where one party is not able to complete a handshake as desired by the other. It would be worth looking into whether we can securely integrate these patterns into the Theseus DHT protocol.
+- Interesting question: The Noise Protocol Framework has the concept of a "fallback pattern", which allows graceful handling of situations where one party is not able to complete a handshake as desired by the other. It would be worth looking into whether we can securely integrate these patterns into the Theseus DHT protocol. The win would be that node key rotation becomes easier, which probably only really matters for very long-lived nodes.
   - This is easier said than done. We have to be careful to avoid unnecessarily weakening the protocol against MitM attacks in the case of fallback protocols involving node keys. There will probably turn out to be a trade-off here, and it will have to be carefully considered.
   - Remember that a MitM attacker could trivially force a fallback handshake by just corrupting some transmitted data.
   - On the other hand, the benefits for people running long-lived nodes at static addresses also need to be considered. Supporting fallback could allow them to periodically rotate node keys and/or recover from key compromise without remote peers having to update their contact info for the nodes.
