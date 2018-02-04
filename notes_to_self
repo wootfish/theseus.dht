@@ -58,7 +58,12 @@ idea:
             the only things we update so far are state keys
             we might want to be able to add support for triggering validation on new keys down the road
             we could pass both the key to be updated and the new value to the factory
+            and in that way make extensibility easier
     or maybe states _should_ just be dicts, since they just store data
     in this view of things, all updates would be performed directly through the factory
 
     question to answer either way: what's the most elegant way of getting contact info for a given state/addr/cnxn?
+
+    other question is, what entities do we give the routing table to put in buckets?
+    shouldn't it be full node states? or should they not get passed around?
+
