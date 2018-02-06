@@ -34,6 +34,7 @@ class Config:
 
     config_defaults = {
         "config_version": "1",
+        "protocol_version": "0",
         "listen_port_range": [1337, 42000],
         "ports_to_avoid": [
             1080, 1093, 1094, 1099, 1109, 1127, 1178, 1194, 1210, 1214, 1236, 1241,
