@@ -2,10 +2,10 @@ from enum import Enum, IntEnum
 
 # NodeStateKeys members are used as keys to the Dispatcher's internal 'states'
 # dict.
-NodeStateKeys = Enum("NodeStateKeys", "ROLE STATE LAST_ACTIVE INFO CNXN NODE_KEY")
-ROLE, STATE, LAST_ACTIVE, INFO, CNXN, NODE_KEY = (NodeStateKeys.ROLE,
+NodeStateKeys = Enum("NodeStateKeys", "ROLE STATE LAST_ACTIVE INFO CNXN")
+ROLE, STATE, LAST_ACTIVE, INFO, CNXN = (NodeStateKeys.ROLE,
         NodeStateKeys.STATE, NodeStateKeys.LAST_ACTIVE, NodeStateKeys.INFO,
-        NodeStateKeys.CNXN, NodeStateKeys.NODE_KEY)
+        NodeStateKeys.CNXN)
 
 
 # NoiseProtoRoles enumerate possible protocol roles in the Noise Framework. The
@@ -19,13 +19,14 @@ INITIATOR, RESPONDER = NoiseProtoRoles.INITIATOR, NoiseProtoRoles.RESPONDER
 # NodeCnxnStates are the possible values associated with NodeStateKeys.STATE
 NodeCnxnStates = Enum("NodeCnxnStates", "DISCONNECTED CONNECTING CONNECTED")
 DISCONNECTED, CONNECTING, CONNECTED = (NodeCnxnStates.DISCONNECTED,
-    NodeCnxnStates.CONNECTING, NodeCnxnStates.CONNECTED)
+        NodeCnxnStates.CONNECTING, NodeCnxnStates.CONNECTED)
 
 
 # NodeInfoKeys enum members have their associated ASCII key as member.value
 class NodeInfoKeys(Enum):
     MAX_VERSION = b'max_version'
     LISTEN_PORT = b'listen_port'
+    NODE_KEY = b'node_key'
     ID = b'id'
 
 
