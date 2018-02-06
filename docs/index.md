@@ -196,7 +196,7 @@ Submitting a query with `keys` included and mapped to an empty list is allowed. 
 
 Note that the `values` associated with keys within the `info` dictionary may be arbitrary bencoded data, even though the example below only shows strings. It is perfectly fine to include a set of flags as a binary string, to include nested lists or dictionaries, etc.
 
-A node may have as many info fields as it wants. It should at the very minimum provide these: `{"id": ["<160-bit node id>", "<node id hash preimage>"], "listen_port": <port node is listening for cnxns on (int)>, "max_version": "protocol version string"}`.
+A node may have as many info fields as it wants. It should at the very minimum be able to provide these: `{"id": ["<160-bit node id>", "<node id hash preimage>"], "listen_port": <integer port on which node is listening for cnxns>, "max_version": "protocol version string", "node_key": "<public node key bytes>"}`.
 
 Applications integrating into the DHT may choose to support additional application-specific RPCs; if so, it is suggested (though, for privacy reasons, not required) that they include an "extensions" info key mapping to a list of names enumerating supported protocol extensions. The namespace for extension names is of course shared between all applications on the DHT, so anyone making use of this feature are strongly encouraged to names that are not likely to give rise to collisions. The name "theseus" is reserved, naturally, for when development starts on the Theseus application itself. When Theseus proper is built upon the Theseus DHT, nodes for it will advertise `"extensions": ["theseus"]`.
 
