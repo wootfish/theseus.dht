@@ -141,12 +141,12 @@ We define the following queries: `find`, `get`, `put`, `info`, `handshake_sugges
 
 ### Contact Format
 
-A node's contact information may be encoded as a bytestring of length 58. This is the concatenation, in order, of:
+A node's contact information may be encoded as a bytestring of length 58. This is the concatenation, in order, of the node's:
 
-- The node's ID (20 bytes)
-- The node's IP address (4 bytes)
-- The node's port (2 bytes)
-- The node's Ed25519 'node key' (32 bytes)
+- Node ID (20 bytes)
+- IP address (4 bytes)
+- Port (2 bytes)
+- Ed25519 'node key' (32 bytes)
 
 Network byte order should be used for all fields. Sharing contact info for multiple nodes is as simple as concatenating the contact info of each individual node, producing a bytestring whose length is a multiple of 58.
 
