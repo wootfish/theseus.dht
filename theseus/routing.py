@@ -141,8 +141,8 @@ class RoutingTable:
 
     @staticmethod
     def xor(bytes_1, bytes_2):
-        if bytes_1 is None or bytes_2 is None:
-            return float('inf')
+        #if bytes_1 is None or bytes_2 is None:
+        #    return float('inf')
         return RoutingTable.addrToInt(bytes_1) ^ RoutingTable.addrToInt(bytes_2)
 
     @staticmethod
