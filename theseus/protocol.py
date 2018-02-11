@@ -56,8 +56,8 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         super().stringReceived(string)
 
     def onQuery(self, txn_id, query_name, args):
-        self.log.info("Query from {node} (txn {txn}): {name} {args}",
-                      node=self.remote_state, name=query_name, txn=txn_id, args=args)
+        self.log.info("Query from {addr} (txn {txn}): {name} {args}",
+                      addr=self.transport.getPeer(), name=query_name, txn=txn_id, args=args)
 
     def get(self, args):
         pass  # TODO: fill out after making real data store
@@ -72,25 +72,31 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         pass  # TODO: fill out at the same time as self.get
 
     def info(self, args):
-        self.onInfo(args)  # update any advertised info keys
+        pass  # TODO
 
-        info = {}
-        requested = args.get(b'keys', [])
-        for key in NodeInfoKeys:
-            if key.value in requested:
-                info[key.value] = self.info_getters[key]()
+        #self.onInfo(args)  # update any advertised info keys
 
-        return {b'info': info}
+        #info = {}
+        #requested = args.get(b'keys', [])
+        #for key in NodeInfoKeys:
+        #    if key.value in requested:
+        #        info[key.value] = self.info_getters[key]()
+
+        #return {b'info': info}
 
     def onInfo(self, args):
-        info = args.get(b'info', {})
+        pass  # TODO
 
-        for key in NodeInfoKeys:
-            if key.value in info:
-                self.info_setters[key](self, info[key.value])
+        #info = args.get(b'info', {})
+
+        #for key in NodeInfoKeys:
+        #    if key.value in info:
+        #        self.info_setters[key](self, info[key.value])
 
     def find(self, args):
-        target_addr = args.get(b'addr')
-        if type(target_addr) is not bytes or len(target_addr) != 20:
-            raise Exception("bad find addr")
-        return {"nodes": self.routing_query(target_addr)}
+        pass  # TODO
+
+        #target_addr = args.get(b'addr')
+        #if type(target_addr) is not bytes or len(target_addr) != 20:
+        #    raise Exception("bad find addr")
+        #return {"nodes": self.routing_query(target_addr)}
