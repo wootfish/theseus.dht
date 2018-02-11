@@ -52,20 +52,14 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         self.transport.loseConnection()
 
     def stringReceived(self, string):
-        super().stringReceived(string)
-
         self.resetTimeout()
+        super().stringReceived(string)
 
     def onQuery(self, txn_id, query_name, args):
         self.log.info("Query from {node} (txn {txn}): {name} {args}",
                       node=self.remote_state, name=query_name, txn=txn_id, args=args)
 
     def get(self, args):
-        # data = self.maybeGet(args)
-        # if data is None:
-        #     return self.find(args)
-        # return {"data": data}
-
         pass  # TODO: fill out after making real data store
 
     def onGet(self, args):
