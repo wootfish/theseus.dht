@@ -21,8 +21,8 @@ class NodeID:
         node_id!=None, id_preimage!=None verifies that the given ID and
         preimage match, unless verify=False
 
-        If node_id is None and priority is UNSET, priority is
-        automatically upgraded to CRITICAL.
+        If node_id is None and priority is UNSET, priority is automatically
+        upgraded to CRITICAL.
         """
 
         self.node_id = node_id
