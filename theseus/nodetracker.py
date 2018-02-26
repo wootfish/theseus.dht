@@ -1,11 +1,14 @@
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 
+from .noisewrapper import NoiseWrapper, NoiseSettings
+from .enums import INITIATOR
+
 import time
 
 
 class NodeState(Factory):
-    reactor = reactor  # kind of wild how this isn't a no-op
+    reactor = reactor  # crazy how this isn't a no-op
 
     state = None
     host = None
@@ -41,8 +44,8 @@ class NodeState(Factory):
         # or else move some factory duties to the tracker (which might be a
         # good idea anyway bc it's still sort of up in the air how we'll handle
         # _listening_)
-        p = NoiseFactory(INITIATOR, Factory.forProtocol(DHTProtocol)).buildProtocol(addr)
-        p.context = NoiseSettings(remote_static=self.info[NODE_KEY])
+        p = self.tracker.buildProtocol(addr)
+        p.settings = NoiseSettings(INITIATOR, remote_static=self.info[NODE_KEY])
         return p
 
     def connect(self):
@@ -62,22 +65,31 @@ class NodeState(Factory):
         ...
 
 
-class NodeTracker:
+class NodeTracker(Factory):
     def __init__(self, parent):
         self.parent = parent
 
         self.by_cnxn = {}
         self.by_contact = {}
+        self.factory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(DHTProtocol))
 
-    def register(self, contact_info):
+    def buildProtocol(self, addr):
+        p = self.factory.buildProtocol(addr)
+        self.by_cnxn[p] = NodeState.fromCnxn(cnxn)
+        return p
+
+    def registerContact(self, contact_info):
         if contact_info not in self.by_contact:
-            new_state = NodeState.fromContact(contact_info)
-            new_state.client_factory = self.client_factory
-            self.by_contact[contact_info] = new_state
-        return self.by_contact[contact_info]
+            state = NodeState.fromContact(contact_info)
+            state.tracker = self
+            self.by_contact[contact_info] = state
 
-    def getByCnxn(self, cnxn):
-        return self.by_cnxn.get(cnxn)
+        return self.by_contact[contact_info]
 
     def getByContact(self, contact_info):
         return self.by_contact.get(contact)
+
+    def getByCnxn(self, cnxn):
+        for state in self.by_contact.values():
+            if state.cnxn is cnxn:
+                return state

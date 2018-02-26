@@ -1,5 +1,5 @@
 from twisted.internet.error import CannotListenError
-from twisted.application.service import Service
+from twisted.application.service import ServiceCollection
 from twisted.logger import Logger
 
 from noise.functions import DH
@@ -27,9 +27,6 @@ class PeerService(Service):
         self.routing_table = RoutingTable(self)
         self.node_tracker = NodeTracker(self)
 
-        self.server_factory = ... # TODO
-        self.client_factory = ... # TODO
-
         self.blacklist = deque(maxlen=self.blacklist_size)
         self.pending_cnxns = []
 
@@ -44,7 +41,7 @@ class PeerService(Service):
         Starts listening on a reasonable port.
         """
 
-        # TODO: optionally take user-specified port, exit cleanly if port unavailable
+        # maybe we should add the option to take a user-specified port (and exit cleanly if it's not available)?
 
         listen_port_range = config["listen_port_range"]
         ports_to_avoid = config["ports_to_avoid"]
@@ -71,7 +68,7 @@ class PeerService(Service):
         Attempts to start listening for cnxns on the given port.
         Throws a CannotListenError if the port is not available.
         """
-        self.listener = reactor.listenTCP(port, self.server_factory)  # TODO update self.server_factory to whatever it should be (maybe it'll end up being self.node_tracker?)
+        self.listener = reactor.listenTCP(port, self.node_tracker)
 
     def makeCnxn(self, listen_addr, peer_key):
         if listen_addr.host in self.blacklist:
