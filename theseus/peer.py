@@ -1,5 +1,5 @@
 from twisted.internet.error import CannotListenError
-from twisted.application.service import ServiceCollection
+from twisted.application.service import Service
 from twisted.logger import Logger
 
 from noise.functions import DH
@@ -8,6 +8,7 @@ from random import randrange
 
 from .nodeid import NodeID
 from .config import config
+from .nodetracker import NodeTracker
 
 
 class PeerService(Service):
@@ -34,7 +35,8 @@ class PeerService(Service):
         self.listen_port = self.startListening()
 
         while self.pending_cnxns:
-            self.makeCnxn(*self.pending_cnxns.pop())
+            contact, d = self.pending_cnxns.pop()
+            self.makeCnxn(contact).chainDeferred(d)
 
     def startListening(self):
         """
@@ -70,11 +72,16 @@ class PeerService(Service):
         """
         self.listener = reactor.listenTCP(port, self.node_tracker)
 
-    def makeCnxn(self, listen_addr, peer_key):
+    def makeCnxn(self, contact_info):
+        if not self.running:
+            d = Deferred()
+            self.pending_cnxns.append((contact_info, d))
+            return d
+
         if listen_addr.host in self.blacklist:
             return fail(TheseusConnectionError("Address blacklisted"))
 
-        node_state = self.node_tracker.register(listen_addr, peer_key)
+        node_state = self.node_tracker.registerContact(contact_info)
         return node_state.connect()
 
     def maybeUpdateInfo(self, cnxn, info_key, new_value):
