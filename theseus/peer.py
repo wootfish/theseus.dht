@@ -5,6 +5,7 @@ from twisted.logger import Logger
 from noise.functions import DH
 
 from random import randrange
+from collections import deque
 
 from .nodeid import NodeID
 from .config import config
@@ -71,6 +72,9 @@ class PeerService(Service):
         Throws a CannotListenError if the port is not available.
         """
         self.listener = reactor.listenTCP(port, self.node_tracker)
+
+    def addToBlacklist(self, host):
+        self.blacklist.append(host)
 
     def makeCnxn(self, contact_info):
         if not self.running:
