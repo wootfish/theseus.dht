@@ -1,5 +1,5 @@
 from twisted.application.service import Application
-from theseus.nodemanager import NodeManagerService
+from theseus.peer import PeerService
 
 application = Application("theseus_dht")
 
