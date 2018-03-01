@@ -8,7 +8,7 @@ import time
 
 
 class NodeState(Factory):
-    reactor = reactor  # crazy how this isn't a no-op
+    reactor = reactor  # kind of crazy how this isn't a no-op
 
     state = None
     host = None
@@ -29,21 +29,15 @@ class NodeState(Factory):
         return instance
 
     @classmethod
-    def fromCnxn(cls, cnxn):
+    def fromProto(cls, protocol):
         instance = cls()
         instance.role = RESPONDER
         instance.state = CONNECTING
-        instance.host = cnxn.getHost()
-        instance.cnxn = cnxn
+        instance.host = protocol.getHost()
+        instance.cnxn = protocol
         return instance
 
     def buildProtocol(self, addr):
-        # TODO we need to figure out what the best way is for the NodeTracker
-        # to find out about p here and add it to its self.by_cnxn dict
-        # we'll need to either give this object a ref back to the tracker
-        # or else move some factory duties to the tracker (which might be a
-        # good idea anyway bc it's still sort of up in the air how we'll handle
-        # _listening_)
         p = self.tracker.buildProtocol(addr)
         p.settings = NoiseSettings(INITIATOR, remote_static=self.info[NODE_KEY])
         return p
@@ -69,27 +63,33 @@ class NodeTracker(Factory):
     def __init__(self, parent):
         self.parent = parent
 
-        self.by_cnxn = {}
-        self.by_contact = {}
+        self.addr_to_contact = {}
+        self.contact_to_state = {}
+        self.proto_to_state = {}
+
         self.factory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(DHTProtocol))
 
     def buildProtocol(self, addr):
         p = self.factory.buildProtocol(addr)
-        self.by_cnxn[p] = NodeState.fromCnxn(cnxn)
+        contact = self.addr_to_contact.get(addr)
+        if contact is None:
+            node_state = NodeState.fromProto(p)
+        else:
+            node_state = self.contact_to_state[contact]
+        p.node_state = node_state
+        self.proto_to_state[p] = node_state  # TODO once the dust settles, reconsider whether we need this & getByProto. we might not. it is nice in that it keeps references to all protocols we make, even ones we know nothing about the remote side of, but i'm not 100% convinced that's really necessary
         return p
 
     def registerContact(self, contact_info):
-        if contact_info not in self.by_contact:
+        if contact_info not in self.contact_to_state:
             state = NodeState.fromContact(contact_info)
             state.tracker = self
-            self.by_contact[contact_info] = state
+            self.contact_to_state[contact_info] = state
 
-        return self.by_contact[contact_info]
+        return self.contact_to_state[contact_info]
 
     def getByContact(self, contact_info):
-        return self.by_contact.get(contact)
+        return self.contact_to_state.get(contact)
 
-    def getByCnxn(self, cnxn):
-        for state in self.by_contact.values():
-            if state.cnxn is cnxn:
-                return state
+    def getByProto(self, protocol):
+        return self.proto_to_state.get(protocol)
