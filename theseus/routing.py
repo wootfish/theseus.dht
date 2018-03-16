@@ -2,6 +2,13 @@ from twisted.logger import Logger
 
 
 class RoutingTable:
+    """
+    Maintains a Kademlia-style routing table.
+    The actual entities stored are ContactInfo objects.
+    The buckets storing these are determined by NodeIDs.
+    A ContactInfo's NodeIDs are retrieved through RoutingTable.getNodeIDs.
+    """
+
     log = Logger()
     k = 8
 
@@ -15,18 +22,27 @@ class RoutingTable:
                 return True
             return False
 
-    def _bucketLookup(self, addr):
-        if type(addr) is bytes:
-            addr = self.addrToInt(addr)
+    def _bucketLookup(self, node_id):
+        if type(node_id) is bytes:
+            addr = self.idToInt(node_id)
 
         for bucket in self.buckets:
             if bucket[0] <= addr <= bucket[1]:
                 return bucket
 
+    def _bucketIsSplitCandidate(self, bucket):
+        for node_id in self.parent.node_ids:
+            if bucket[0] <= self.idToInt(node_id.node_id) <= bucket[1]:
+                return True
+        return False
+
     def _bucketSplit(self, bucket):
-        # returns True if split was successful, False if it wasn't possible
+        # returns True if split was successful, False if it wasn't allowed
         if bucket[0] == bucket[1]:
             self.log.warn("Weird edge case encountered: Failed to split bucket {bucket}", bucket=bucket)
+            return False
+
+        if not _bucketIsSplitCandidate(bucket):
             return False
 
         bisector = (bucket[0] + bucket[1]) // 2
@@ -38,103 +54,57 @@ class RoutingTable:
         for listen_addr, node_id in self.buckets.pop(bucket).items():
             self._insert(listen_addr, node_id)
 
-        self.log.info("Routing table bucket {bucket} split. Current table state: {pretty}", bucket=(hex(bucket[0]), hex(bucket[1])), pretty=RoutingTable.pretty(self))
+        self.log.info("Routing table bucket {bucket} split. Current table state: {pretty}", bucket=(hex(bucket[0]), hex(bucket[1])), pretty=self.pretty())
         return True
 
-    def maybeInsert(self, contact_info):
-        # returns True if the contact was inserted or is already in the table
-        # returns False if the insert failed
+    def insert(self, contact_info):
+        """
+        Retrieves the node IDs associated with contact_info and tries to insert
+        contact_info to their associated buckets.
+        """
 
-        self.log.debug("Attempting to insert {contact} into routing table. (ID: {node_id})", contact=contact_info, node_id=contact_info.node_id)
+        node_ids = self.getNodeIDs(contact_info)
+        self.log.debug("Attempting to insert {contact} into routing table. (IDs: {node_ids})", contact=contact_info, node_ids=node_ids)
 
-        # currently in the process of moving this validation logic out of state objects & into peer.py
-        #if listen_addr in self.buckets[bucket]:
-        #    self.log.debug("Insert 'successful': {addr} already in routing table", addr=listen_addr)
-        #    return True
+        for node_id in node_ids:
+            self._insert(contact_info, node_id)
 
-        ## just for safety's sake, make sure this isn't a duplicate ID
-        #for _listen_addr, _node_id in self.buckets[bucket].items():
-        #    if node_id.address == _node_id.address:
-        #        self.log.warn("Fail: Routing table collision for {addr} (other node: {other_addr})", addr=listen_addr, other_addr=_listen_addr)
-        #        self.log.warn("This is VERY BAD and probably reflects a bug in the program -- the dispatcher should have prevented a duplicate ID from ever getting this far into program state!")
-        #        return False
+    def _insert(self, contact_info, node_id):
+        bucket_key = self._bucketLookup(node_id)
+        bucket = self.buckets[bucket_key]
 
-        bucket = self._bucketLookup(contact_info.address)
+        if contact_info in bucket:
+            return
 
-        # 1st: does the bucket have room?
-        if len(self.buckets[bucket]) < self.k:
-            self.buckets[bucket].add(contact_info)
-            return True
+        if len(bucket) <= self.k:
+            bucket.add(contact_info)
+            return
 
-        # 2nd: does the bucket qualify for a split?
-        for node in self.node_manager:
-            addr = node.node_id.address
-            if addr is not None and bucket[0] <= self.addrToInt(addr) <= bucket[1]:
-                break
-        else:
-            return False
-
-        # split the bucket and retry the insert
-        if self._bucketSplit(bucket):
-            return self.maybeInsert(contact_info)
-        else:
-            return False
+        # bucket is full, but maybe we can split it & then retry the insert
+        if self._bucketSplit(bucket_key):
+            self._insert(contact_info, node_id)
 
     def discard(self, contact_info):
-        """
-        Returns True if the address was found and removed.
-        Returns False if the address was not found in the routing table.
-        """
         for bucket in self.buckets.values():
             if contact_info in bucket:
                 bucket.remove(contact_info)
-                return True
-        return False
 
-    #def refresh(self):
-    #    """
-    #    Resets the routing table to a clean slate and re-inserts every node,
-    #    one by one. Really only useful when a local node changes ID.
-    #    """
-    #    old_buckets = self.buckets
-    #    self.buckets = {(0, 2**160-1): set()}
-
-    #    for bucket in old_buckets.values():
-    #        sorted_items = sorted(bucket.items(), key=lambda t: t[1])
-    #        for listen_addr, node_id in sorted_items:
-    #            self.insert(listen_addr, node_id)
-
-    def query(self, target_addr, k=None):
-        # if this turns out to be slow, it could probably be sped up by using
-        # something like heapq instead of a full list comprehension+sort
-
-        if k is None:
-            k = self.k
-
-        entries = [
-                contact_info
-                for bucket in self.buckets
-                for contact_info in self.buckets[bucket]
-                ]
-        entries.sort(key=lambda contact_info: self.xor(contact_info.node_id, target_addr))
-        return entries[:k]
-
-    #def getCallbacks(self, addr):
-    #    def on_find_query(args):
-    #        target_addr = args.get(b"addr")
-    #        assert type(target_addr) is bytes
-    #        assert len(target_addr) == 20
-    #        return {"nodes": self.query(target_addr)}
-
-    #    def on_find_response(args):
-    #        pass  # TODO what do we do here? surely the routing table wants this info
-
-    #    return on_find_query, on_find_response
+    def query(self, target_id):
+        return self.buckets[self._bucketLookup(target_id)]
 
     @staticmethod
-    def addrToInt(node_address):
+    def getNodeIDs(contact_info):
+        from app import peer
+        node = peer.node_tracker.getByContact(contact_info)
+        if node is None:
+            self.log.warn("Tried to get node IDs for {contact} but node_tracker has no corresponding record.", contact=contact_info)
+            return []
+        return node.getInfo("ids")  # FIXME: what if getNodeIDs returns a Deferred?
+
+    @staticmethod
+    def idToInt(node_id):
         n = 0
-        for byte in node_address:
+        for byte in node_id:
             n <<= 8
             n += byte
         return n
@@ -143,14 +113,13 @@ class RoutingTable:
     def xor(bytes_1, bytes_2):
         #if bytes_1 is None or bytes_2 is None:
         #    return float('inf')
-        return RoutingTable.addrToInt(bytes_1) ^ RoutingTable.addrToInt(bytes_2)
+        return RoutingTable.idToInt(bytes_1) ^ RoutingTable.idToInt(bytes_2)
 
-    @staticmethod
-    def pretty(table):
+    def pretty():
         """
-        Returns a prettyprintable representation of the given table's state.
-        This mostly means converting things to hex where appropriate and
-        boiling off some boilerplate.
+        Returns a prettyprintable representation of the table's state. This
+        mostly means converting things to hex where appropriate and boiling off
+        some boilerplate.
         """
 
         pretty = {}
