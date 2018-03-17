@@ -1,5 +1,10 @@
+from twisted.internet.address import IPv4Address, IPv6Address
+
+from typing import Union, Any
+
+
 class ContactInfo:
-    def __init__(self, host, port, key):
+    def __init__(self, host: Union[IPv4Address, IPv6Address], port: int, key):  # TODO what type should 'key' be? is it bytes?
         self.host = host
         self.port = port
         self.key = key
@@ -7,7 +12,7 @@ class ContactInfo:
     def __hash__(self):
         return hash((self.host, self.port, self.key))
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any):
         if not issubclass(other.__class__, ContactInfo):
             return False
 

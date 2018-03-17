@@ -8,7 +8,7 @@ from time import time
 from heapq import heappush, heappop
 from functools import lru_cache
 
-from .enums import UNSET
+from .enums import UNSET, IDCheckPriorities
 
 
 class Hasher:
@@ -16,14 +16,14 @@ class Hasher:
 
     OPSLIMIT = pwhash.argon2id.OPSLIMIT_MODERATE
     MEMLIMIT = pwhash.argon2id.MEMLIMIT_MODERATE
-    MAX_THREADS = 3
-    LRU_CACHE_SIZE = 500
+    MAX_THREADS: int = 3
+    LRU_CACHE_SIZE: int = 500
 
     def __init__(self):
         self.priority_queue = []
         self.curr_jobs = []
 
-    def checkNodeID(self, node_id, preimage, priority=UNSET, check_timestamp=True):
+    def checkNodeID(self, node_id: bytes, preimage: bytes, priority: IDCheckPriorities = UNSET, check_timestamp: bool = True):
         self.log.debug("Checking node ID {node_id} ({priority})", node_id=node_id, priority=priority)
 
         if check_timestamp and time() - self.timestampBytesToInt(preimage[:4]) > 2**16:
@@ -34,7 +34,7 @@ class Hasher:
         d.addCallback(lambda result: result == node_id)
         return d
 
-    def getNodeID(self, preimage, priority=UNSET):
+    def getNodeID(self, preimage: bytes, priority : IDCheckPriorities = UNSET):
         # job[0]: priority
         # job[1]: Boolean flag which, if set to False, says to skip this job
         #         (used when upgrading job priority -- it's cheaper than
@@ -67,7 +67,7 @@ class Hasher:
 
         return d
 
-    def _callback(self, result):
+    def _callback(self, result: bytes):
         self.log.debug("Hash job completed, result: {result}", result=result)
 
         # filter out the completed job
@@ -97,11 +97,11 @@ class Hasher:
 
     @staticmethod
     @lru_cache(maxsize=LRU_CACHE_SIZE)
-    def _kdf(input_data, salt):
+    def _kdf(input_data: bytes, salt: bytes):
         return pwhash.argon2id.kdf(20, input_data, salt, opslimit=Hasher.OPSLIMIT, memlimit=Hasher.MEMLIMIT)
 
     @staticmethod
-    def timestampBytesToInt(timestamp):
+    def timestampBytesToInt(timestamp: bytes):
         n = 0
         for byte in timestamp:
             n <<= 8
