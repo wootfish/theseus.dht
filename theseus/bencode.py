@@ -5,13 +5,19 @@ vice versa.
 
 from twisted.logger import Logger
 
+from typing import Union, Any, Tuple, List, Dict
+
 from .errors import BencodeError
+
+
+BencodeInput = Union[bytes, bytearray, str, int, list, tuple, dict]
+BdecodeOutput = Union[int, list, dict, bytes]
 
 
 log = Logger()
 
 
-def bencode(data):
+def bencode(data: BencodeInput) -> bytes:
     if type(data) in (bytes, bytearray):
         return _bencode_bytes(data)
     elif type(data) is str:
@@ -27,7 +33,7 @@ def bencode(data):
         raise BencodeError("Tried to bencode data with unsupported type {}".format(type(data)))
 
 
-def bdecode(data):
+def bdecode(data: bytes) -> BdecodeOutput:
     if type(data) is str:
         data = data.encode("utf-8")  # for more convenient interactive use
 
@@ -41,7 +47,7 @@ def bdecode(data):
     return result
 
 
-def _bdecode(data):
+def _bdecode(data: bytes) -> Tuple[BdecodeOutput, int]:
     byte_digits = [ord(str(i)) for i in range(10)]
 
     if data[0] == ord('i'):
@@ -57,19 +63,19 @@ def _bdecode(data):
         raise BencodeError("Data to decode not in proper bencode format")
 
 
-def _bencode_bytes(data):
+def _bencode_bytes(data: bytes) -> bytes:
     return str(len(data)).encode("ascii") + b':' + data
 
 
-def _bencode_int(data):
+def _bencode_int(data: int) -> bytes:
     return b'i' + str(data).encode("ascii") + b'e'
 
 
-def _bencode_list(data):
+def _bencode_list(data: Union[list, tuple]) -> bytes:  # TODO determine: is data: Union[list, tuple] ok or should we annotate with something more generic like Iterable (and rename the function)?
     return b'l' + b''.join(bencode(elem) for elem in data) + b'e'
 
 
-def _bencode_dict(data):
+def _bencode_dict(data: dict) -> bytes:
     result = b'd'
 
     for key in data:
@@ -91,7 +97,7 @@ def _bencode_dict(data):
 # we've consumed all available data
 
 
-def _bdecode_int(data):
+def _bdecode_int(data: bytes) -> Tuple[int, int]:
     try:
         endpoint = data.index(b'e')
         result = int(data[1:endpoint])
@@ -102,7 +108,7 @@ def _bdecode_int(data):
     return (result, endpoint+1)
 
 
-def _bdecode_list(data):
+def _bdecode_list(data: bytes) -> Tuple[List[BdecodeOutput, ...], int]:
     result = []
     ind = 1
     try:
@@ -116,7 +122,7 @@ def _bdecode_list(data):
     return (result, ind+1)
 
 
-def _bdecode_dict(data):
+def _bdecode_dict(data: bytes) -> Dict[BdecodeOutput, BdecodeOutput]:
     d = {}
     ind = 1
     try:
@@ -137,7 +143,7 @@ def _bdecode_dict(data):
     return (d, ind+1)
 
 
-def _bdecode_bytes(data):
+def _bdecode_bytes(data: bytes) -> bytes:
     try:
         sep_ind = data.index(b':')
         bytes_len = int(data[:sep_ind])
