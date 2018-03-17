@@ -28,8 +28,6 @@ class NodeInfoKeys(Enum):
     LISTEN_PORT = b'listen_port'
     NODE_KEY = b'node_key'
     ID = b'id'
-
-
 MAX_VERSION, LISTEN_PORT, ID = (NodeInfoKeys.MAX_VERSION,
         NodeInfoKeys.LISTEN_PORT, NodeInfoKeys.ID)
 
