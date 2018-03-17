@@ -21,6 +21,8 @@ Suggested usage:
 
 from twisted.logger import Logger
 
+from typing import Dict, Any
+
 import os
 import json
 
@@ -28,11 +30,11 @@ import json
 class Config:
     log = Logger()
 
-    theseus_dir = os.path.expanduser(os.getenv("THESEUSHOME", "~/.theseus/"))
-    config_file = os.path.join(theseus_dir, "theseus_config")
-    data_file = os.path.join(theseus_dir, "data_store")
+    theseus_dir: str = os.path.expanduser(os.getenv("THESEUSHOME", "~/.theseus/"))
+    config_file: str = os.path.join(theseus_dir, "theseus_config")
+    data_file: str = os.path.join(theseus_dir, "data_store")
 
-    config_defaults = {
+    config_defaults: Dict[str, Any] = {
         "config_version": "1",
         "protocol_version": "0",
         "listen_port_range": [1337, 42000],
@@ -60,15 +62,15 @@ class Config:
     def __init__(self):
         self._load_config()
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str):
         return self._config[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any):
         self._config[key] = value
         self._write_config()
 
-    def get(self, *args, **kwargs):
-        return self._config.get(*args, **kwargs)
+    def get(self, key: str, default: Any = None):
+        return self._config.get(key, default)
 
     def _write_config(self):
         with open(self.config_file, "w+") as f:
@@ -102,7 +104,7 @@ class Config:
         self._write_config()
 
     @staticmethod
-    def dict_merge(dic1, dic2):
+    def dict_merge(dic1: Dict, dic2: Dict) -> Dict:
         """
         Merges two dictionaries together -- and if they have sub-dictionaries
         under the same key, it merges those too! The merge is returned. Neither
@@ -115,7 +117,6 @@ class Config:
                 merged[k] = Config.dict_merge(dic1[k], dic2[k])
             else:
                 merged[k] = dic2[k]
-
         return merged
 
 
