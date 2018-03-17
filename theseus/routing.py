@@ -1,5 +1,16 @@
 from twisted.logger import Logger
 
+from typing import TYPE_CHECKING, Union, Tuple
+if TYPE_CHECKING:
+    from .nodeid import NodeID
+    from .contactinfo import ContactInfo
+    from .peer import PeerService
+
+
+# TODO there are a lot of places where it's ambiguous whether a function takes
+# a raw node ID (i.e. bytes) or a NodeID object, including several places where
+# annotations might be wrong-- review, correct, and disambiguate!
+
 
 class RoutingTable:
     """
@@ -12,31 +23,29 @@ class RoutingTable:
     log = Logger()
     k = 8
 
-    def __init__(self, parent):
+    def __init__(self, parent: "PeerService"):
         self.parent = parent
         self.buckets = {(0, 2**160-1): set()}
 
-    def __contains__(self, contact):
+    def __contains__(self, contact: "ContactInfo"):
         for bucket in self.buckets.values():
             if contact in bucket:
                 return True
             return False
 
-    def _bucketLookup(self, node_id):
-        if type(node_id) is bytes:
-            addr = self.idToInt(node_id)
-
+    def _bucketLookup(self, node_address: bytes]):
+        addr_int = self.bytesToInt(node_address)
         for bucket in self.buckets:
-            if bucket[0] <= addr <= bucket[1]:
+            if bucket[0] <= addr_int <= bucket[1]:
                 return bucket
 
-    def _bucketIsSplitCandidate(self, bucket):
+    def _bucketIsSplitCandidate(self, bucket: Tuple[int, int]):
         for node_id in self.parent.node_ids:
-            if bucket[0] <= self.idToInt(node_id.node_id) <= bucket[1]:
+            if bucket[0] <= self.bytesToInt(node_id.node_id) <= bucket[1]:
                 return True
         return False
 
-    def _bucketSplit(self, bucket):
+    def _bucketSplit(self, bucket: Tuple[int, int]):
         # returns True if split was successful, False if it wasn't allowed
         if bucket[0] == bucket[1]:
             self.log.warn("Weird edge case encountered: Failed to split bucket {bucket}", bucket=bucket)
@@ -57,7 +66,7 @@ class RoutingTable:
         self.log.info("Routing table bucket {bucket} split. Current table state: {pretty}", bucket=(hex(bucket[0]), hex(bucket[1])), pretty=self.pretty())
         return True
 
-    def insert(self, contact_info):
+    def insert(self, contact_info: "ContactInfo"):
         """
         Retrieves the node IDs associated with contact_info and tries to insert
         contact_info to their associated buckets.
@@ -69,7 +78,7 @@ class RoutingTable:
         for node_id in node_ids:
             self._insert(contact_info, node_id)
 
-    def _insert(self, contact_info, node_id):
+    def _insert(self, contact_info: "ContactInfo", node_id: bytes):
         bucket_key = self._bucketLookup(node_id)
         bucket = self.buckets[bucket_key]
 
@@ -84,16 +93,16 @@ class RoutingTable:
         if self._bucketSplit(bucket_key):
             self._insert(contact_info, node_id)
 
-    def discard(self, contact_info):
+    def discard(self, contact_info: "ContactInfo"):
         for bucket in self.buckets.values():
             if contact_info in bucket:
                 bucket.remove(contact_info)
 
-    def query(self, target_id):
-        return self.buckets[self._bucketLookup(target_id)]
+    def query(self, target_addr: bytes):
+        return self.buckets[self._bucketLookup(target_addr)]
 
     @staticmethod
-    def getNodeIDs(contact_info):
+    def getNodeIDs(contact_info: "ContactInfo"):
         from app import peer
         node = peer.node_tracker.getByContact(contact_info)
         if node is None:
@@ -102,20 +111,20 @@ class RoutingTable:
         return node.getInfo("ids")  # FIXME: what if getNodeIDs returns a Deferred?
 
     @staticmethod
-    def idToInt(node_id):
+    def bytesToInt(node_id: bytes):
         n = 0
         for byte in node_id:
             n <<= 8
             n += byte
         return n
 
-    @staticmethod
-    def xor(bytes_1, bytes_2):
-        #if bytes_1 is None or bytes_2 is None:
-        #    return float('inf')
-        return RoutingTable.idToInt(bytes_1) ^ RoutingTable.idToInt(bytes_2)
+    #@staticmethod
+    #def xor(bytes_1: bytes, bytes_2: bytes):
+    #    #if bytes_1 is None or bytes_2 is None:
+    #    #    return float('inf')
+    #    return RoutingTable.bytesToInt(bytes_1) ^ RoutingTable.bytesToInt(bytes_2)
 
-    def pretty():
+    def pretty(self):
         """
         Returns a prettyprintable representation of the table's state. This
         mostly means converting things to hex where appropriate and boiling off
