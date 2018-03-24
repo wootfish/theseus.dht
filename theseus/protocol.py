@@ -1,5 +1,5 @@
-from twisted.protocols.policies import TimeoutMixin
 from twisted.logger import Logger
+from twisted.protocols.policies import TimeoutMixin
 
 from .krpc import KRPCProtocol
 from .enums import NodeInfoKeys
@@ -7,13 +7,7 @@ from .enums import NodeInfoKeys
 
 class DHTProtocol(KRPCProtocol, TimeoutMixin):
     log = Logger()
-
     idle_timeout = 34  # seconds
-
-    # the info_updaters and info_getters callbacks are populated by the factory
-    # during buildProtocol
-    info_updaters = None
-    info_getters = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -59,44 +53,23 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         self.log.info("Query from {addr} (txn {txn}): {name} {args}",
                       addr=self.transport.getPeer(), name=query_name, txn=txn_id, args=args)
 
-    def get(self, args):
+    def find(self, args):
         pass  # TODO: fill out after making real data store
 
-    def onGet(self, args):
-        pass  # TODO: fill out at the same time as self.get
-
-    def put(self, args):
-        pass  # TODO: fill out at the same time as self.get
-
-    def onPut(self, args):
-        pass  # TODO: fill out at the same time as self.get
+    def get(self, args):
+        pass  # TODO
 
     def info(self, args):
         pass  # TODO
 
-        #self.onInfo(args)  # update any advertised info keys
+    def put(self, args):
+        pass  # TODO
 
-        #info = {}
-        #requested = args.get(b'keys', [])
-        #for key in NodeInfoKeys:
-        #    if key.value in requested:
-        #        info[key.value] = self.info_getters[key]()
-
-        #return {b'info': info}
+    def onGet(self, args):
+        pass  # TODO
 
     def onInfo(self, args):
         pass  # TODO
 
-        #info = args.get(b'info', {})
-
-        #for key in NodeInfoKeys:
-        #    if key.value in info:
-        #        self.info_setters[key](self, info[key.value])
-
-    def find(self, args):
+    def onPut(self, args):
         pass  # TODO
-
-        #target_addr = args.get(b'addr')
-        #if type(target_addr) is not bytes or len(target_addr) != 20:
-        #    raise Exception("bad find addr")
-        #return {"nodes": self.routing_query(target_addr)}

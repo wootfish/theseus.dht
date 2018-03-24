@@ -21,8 +21,6 @@ Suggested usage:
 
 from twisted.logger import Logger
 
-from typing import Dict, Any
-
 import os
 import json
 
@@ -30,11 +28,11 @@ import json
 class Config:
     log = Logger()
 
-    theseus_dir: str = os.path.expanduser(os.getenv("THESEUSHOME", "~/.theseus/"))
-    config_file: str = os.path.join(theseus_dir, "theseus_config")
-    data_file: str = os.path.join(theseus_dir, "data_store")
+    theseus_dir = os.path.expanduser(os.getenv("THESEUSHOME", "~/.theseus/"))
+    config_file = os.path.join(theseus_dir, "theseus_config")
+    data_file = os.path.join(theseus_dir, "data_store")
 
-    config_defaults: Dict[str, Any] = {
+    config_defaults = {
         "config_version": "1",
         "protocol_version": "0",
         "listen_port_range": [1337, 42000],
@@ -62,14 +60,14 @@ class Config:
     def __init__(self):
         self._load_config()
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key):
         return self._config[key]
 
-    def __setitem__(self, key: str, value: Any):
+    def __setitem__(self, key, value):
         self._config[key] = value
         self._write_config()
 
-    def get(self, key: str, default: Any = None):
+    def get(self, key, default=None):
         return self._config.get(key, default)
 
     def _write_config(self):
@@ -104,7 +102,7 @@ class Config:
         self._write_config()
 
     @staticmethod
-    def dict_merge(dic1: Dict, dic2: Dict) -> Dict:
+    def dict_merge(dic1, dic2):
         """
         Merges two dictionaries together -- and if they have sub-dictionaries
         under the same key, it merges those too! The merge is returned. Neither

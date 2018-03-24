@@ -9,7 +9,7 @@ from typing import Optional
 
 
 class NodeID:
-    def __init__(self, node_id: Optional[bytes] = None, id_preimage: Optional[bytes] = None, verify: bool = True, priority: IDCheckPriorities = UNSET):
+    def __init__(self, node_id=None, id_preimage=None, verify=True, priority=UNSET):
         """
         node_id==None, id_preimage==None generates a random ID with a current
         timestamp.
@@ -57,7 +57,7 @@ class NodeID:
         #preimage = None if self.preimage is None else hex(self.preimage)
         return "NodeID(({}, {}))".format(self.address, self.preimage)
 
-    def set_priority(self, new_priority: IDCheckPriorities):
+    def set_priority(self, new_priority):
         if new_priority.value > self.priority.value:
             self.priority = new_priority
 
@@ -67,7 +67,7 @@ class NodeID:
             elif self.will_verify:
                 self.verify_address()
 
-    def generate_address(self, preimage: Optional[bytes] = None):
+    def generate_address(self, preimage=None):
         self.preimage = self.preimage or self._getHashInput()
 
         def callback(node_id):
@@ -81,7 +81,7 @@ class NodeID:
         hasher.checkNodeID(self.address, self.preimage, self.priority).chainDeferred(self.on_id_hash)
 
     @staticmethod
-    def timestampIntToBytes(t: int):
+    def timestampIntToBytes(t):
         bytestring = b''
         while t > 0:
             bytestring = bytes([t & 0xFF]) + bytestring

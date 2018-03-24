@@ -8,6 +8,11 @@ from .enums import INITIATOR, RESPONDER
 import struct
 
 
+# NOTE TO SELF: would it be possible to somehow integrate the default
+# NetstringReceiver in with NoiseWrapper? rather than re-implementing
+# netstrings for the data the payloads of these encrypted messages?
+
+
 class NoiseWrapper(ProtocolWrapper):
     log = Logger()
     settings = None
@@ -59,7 +64,6 @@ class NoiseWrapper(ProtocolWrapper):
             self._noise.start_handshake()
 
     def dataReceived(self, data):
-        # is this handshake data?
         if self._noise.handshake_finished:
             self._handleCiphertext(data)
         else:
@@ -116,6 +120,17 @@ class NoiseWrapper(ProtocolWrapper):
         if len(self._recv_buf) >= self._recv_bytes_left:
             self._handleCiphertext(b'')
 
+    def write(self, data):
+        if self._noise is not None and self._noise.handshake_finished:
+            # TODO once we're implementing message padding, add that here
+            length_enc = self._noise.encrypt(self._len_int_to_bytes(len(data)))
+            data_enc = self._noise.encrypt(data)
+
+            super().write(length_enc)
+            super().write(data_enc)
+        else:
+            self._pending_writes.append(data)
+
     @staticmethod
     def _len_int_to_bytes(i):
         return struct.pack(">L", i)
@@ -128,17 +143,6 @@ class NoiseWrapper(ProtocolWrapper):
     def getDefaultConfig():
         from .app import peer
         return NoiseSettings(RESPONDER, local_static=peer.peer_key)
-
-    def write(self, data):
-        if self._noise is not None and self._noise.handshake_finished:
-            # TODO once we're implementing message padding, add that here
-            length_enc = self._noise.encrypt(self._len_int_to_bytes(len(data)))
-            data_enc = self._noise.encrypt(data)
-
-            super().write(length_enc)
-            super().write(data_enc)
-        else:
-            self._pending_writes.append(data)
 
 
 class NoiseSettings:

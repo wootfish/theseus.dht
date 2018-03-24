@@ -27,9 +27,9 @@ class NodeInfoKeys(Enum):
     MAX_VERSION = b'max_version'
     LISTEN_PORT = b'listen_port'
     NODE_KEY = b'node_key'
-    ID = b'id'
-MAX_VERSION, LISTEN_PORT, ID = (NodeInfoKeys.MAX_VERSION,
-        NodeInfoKeys.LISTEN_PORT, NodeInfoKeys.ID)
+    IDS = b'ids'
+MAX_VERSION, LISTEN_PORT, IDS = (NodeInfoKeys.MAX_VERSION,
+        NodeInfoKeys.LISTEN_PORT, NodeInfoKeys.IDS)
 
 
 # IDCheckPriorities allows prioritization of hash computation for different

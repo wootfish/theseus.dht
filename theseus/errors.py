@@ -1,11 +1,3 @@
-errcodes = {}
-
-
-def errcode(cls):
-    errcodes[cls.errcode] = cls
-    return cls
-
-
 class TheseusProtocolError(Exception):
     """
     Generic error superclass for protocol errors.
@@ -13,6 +5,12 @@ class TheseusProtocolError(Exception):
     """
     errcode = 300
     error_name = "Generic error"
+
+
+errcodes = {}
+def errcode(cls):
+    errcodes[cls.errcode] = cls
+    return cls
 
 
 @errcode
