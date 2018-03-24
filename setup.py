@@ -8,7 +8,7 @@ setup(
     url="https://github.com/wootfish/theseus.dht",
     author="Eli Sohl",
     license="GPLv3",
-    packages=['theseus', 'theseus.test'],
+    packages=['theseus'],
     install_requires=["noiseprotocol", "twisted", "PyNaCl"],
     python_requires=">=3.5",
 )
