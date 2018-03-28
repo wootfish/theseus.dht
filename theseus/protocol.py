@@ -8,6 +8,7 @@ from .enums import NodeInfoKeys
 class DHTProtocol(KRPCProtocol, TimeoutMixin):
     log = Logger()
     idle_timeout = 34  # seconds
+    node_state = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -25,9 +26,6 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             b'put': self.onPut,
             b'info': self.onInfo,
             })
-
-    # the dispatcher populates the protocol's find, onFind, get, put, onGet,
-    # info, and onInfo callbacks during buildProtocol
 
     def connectionMade(self):
         super().connectionMade()
