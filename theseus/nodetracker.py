@@ -41,7 +41,7 @@ class NodeState(Factory):
 
     def connect(self, reactor=reactor):
         if not self.info.get(LISTEN_PORT):
-            return fail("remote listen port unknown")
+            return fail(Exception("remote listen port unknown"))
         endpoint = TCP4ClientEndpoint(reactor, self.host, self.info[LISTEN_PORT])
         return endpoint.connect(self)
 
