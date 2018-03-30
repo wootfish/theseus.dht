@@ -1,11 +1,14 @@
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, fail
-from twisted.internet.protocol import Factory, Protocol
+from twisted.internet.defer import fail
+from twisted.internet.endpoints import TCP4ClientEndpoint
+from twisted.internet.protocol import Factory
+from twisted.protocols.policies import WrappingFactory
 
-from .enums import INITIATOR
+from .enums import INITIATOR, RESPONDER
+from .enums import DISCONNECTED, CONNECTING
+from .enums import LISTEN_PORT, NODE_KEY
 from .noisewrapper import NoiseWrapper, NoiseSettings
-
-import time
+from .protocol import DHTProtocol
 
 
 class NodeState(Factory):

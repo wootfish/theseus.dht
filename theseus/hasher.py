@@ -8,7 +8,7 @@ from time import time
 from heapq import heappush, heappop
 from functools import lru_cache
 
-from .enums import UNSET, IDCheckPriorities
+from .enums import UNSET
 
 
 class Hasher:

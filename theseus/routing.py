@@ -1,7 +1,5 @@
 from twisted.logger import Logger
 
-from typing import TYPE_CHECKING, Union, Tuple
-
 from .enums import IDS
 
 

@@ -1,11 +1,10 @@
 from twisted.internet.defer import Deferred
 
-from .enums import CRITICAL, UNSET, IDCheckPriorities
+from .enums import CRITICAL, UNSET
 from .hasher import hasher
 
 from os import urandom
 from time import time
-from typing import Optional
 
 
 class NodeID:

@@ -2,7 +2,6 @@ from twisted.logger import Logger
 from twisted.protocols.policies import TimeoutMixin
 
 from .krpc import KRPCProtocol
-from .enums import NodeInfoKeys
 
 
 class DHTProtocol(KRPCProtocol, TimeoutMixin):

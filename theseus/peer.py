@@ -1,4 +1,6 @@
+from twisted.internet import reactor
 from twisted.internet.error import CannotListenError
+from twisted.internet.defer import Deferred, fail
 from twisted.application.service import Service
 from twisted.logger import Logger
 
@@ -10,6 +12,8 @@ from collections import deque
 from .nodeid import NodeID
 from .config import config
 from .nodetracker import NodeTracker
+from .routing import RoutingTable
+from .errors import TheseusConnectionError
 
 
 class PeerService(Service):
@@ -66,7 +70,7 @@ class PeerService(Service):
 
         return port
 
-    def _listen(self, port):
+    def _listen(self, port, reactor=reactor):
         """
         Attempts to start listening for cnxns on the given port.
         Throws a CannotListenError if the port is not available.
