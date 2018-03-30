@@ -23,7 +23,7 @@ class Hasher:
         self.priority_queue = []
         self.curr_jobs = []
 
-    def checkNodeID(self, node_id, preimage, priority, check_timestamp = True):
+    def checkNodeID(self, node_id, preimage, priority, check_timestamp=True):
         self.log.debug("Checking node ID {node_id} ({priority})", node_id=node_id, priority=priority)
 
         if check_timestamp and time() - self.timestampBytesToInt(preimage[:4]) > 2**16:
@@ -34,7 +34,7 @@ class Hasher:
         d.addCallback(lambda result: result == node_id)
         return d
 
-    def getNodeID(self, preimage, priority = UNSET):
+    def getNodeID(self, preimage, priority=UNSET):
         # job[0]: priority
         # job[1]: Boolean flag which, if set to False, says to skip this job
         #         (used when upgrading job priority -- it's cheaper than

@@ -48,7 +48,7 @@ class RoutingTable:
             self.log.warn("Weird edge case encountered: Failed to split bucket {bucket}", bucket=bucket)
             return False
 
-        if not _bucketIsSplitCandidate(bucket):
+        if not self._bucketIsSplitCandidate(bucket):
             return False
 
         bisector = (bucket[0] + bucket[1]) // 2
@@ -106,14 +106,14 @@ class RoutingTable:
         """
 
         pretty = {}
-        for bucket in table.buckets:
+        for bucket in self.table.buckets:
             lower_padded = "0x" + hex(bucket[0])[2:].rjust(40, '0')
             upper_padded = "0x" + hex(bucket[1])[2:].rjust(40, '0')
 
             key = "{}~{}".format(lower_padded, upper_padded)
             pretty[key] = []
 
-            for node_addr, node_id in table.buckets[bucket].items():
+            for node_addr, node_id in self.table.buckets[bucket].items():
                 pretty_nodeid = "0x" + node_id.address.hex()
                 pretty_ipaddr = node_addr.host + ":" + str(node_addr.port)
                 pretty[key].append((pretty_nodeid, pretty_ipaddr))
@@ -127,7 +127,7 @@ class RoutingTable:
         from app import peer
         node = peer.node_tracker.getByContact(contact_info)
         if node is None:
-            self.log.warn("Tried to get node IDs for {contact} but node_tracker has no corresponding record.", contact=contact_info)
+            RoutingTable.log.warn("Tried to get node IDs for {contact} but node_tracker has no corresponding record.", contact=contact_info)
             return []
         return node.getInfo(IDS)
 

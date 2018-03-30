@@ -91,7 +91,7 @@ class NodeTracker(Factory):
         return self.contact_to_state[contact_info]
 
     def getByContact(self, contact_info):
-        return self.contact_to_state.get(contact)
+        return self.contact_to_state.get(contact_info)
 
     def getByProto(self, protocol):
         return self.proto_to_state.get(protocol)

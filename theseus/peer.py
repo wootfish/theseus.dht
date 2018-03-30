@@ -86,7 +86,7 @@ class PeerService(Service):
             self.pending_cnxns.append((contact_info, d))
             return d
 
-        if listen_addr.host in self.blacklist:
+        if contact_info.host in self.blacklist:
             return fail(TheseusConnectionError("Address blacklisted"))
 
         node_state = self.node_tracker.registerContact(contact_info)
