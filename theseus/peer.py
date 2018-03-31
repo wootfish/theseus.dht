@@ -65,7 +65,7 @@ class PeerService(Service):
             except CannotListenError:
                 continue
             else:
-                self.log.info("Now listening on port {port} with node key {key}", port=port, key=self.node_key.public_bytes)
+                self.log.info("Now listening on port {port} with node key {key}", port=port, key=self.peer_key.public_bytes)
                 break
 
         return port
