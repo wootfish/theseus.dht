@@ -2,6 +2,7 @@ from twisted.protocols.policies import ProtocolWrapper
 from twisted.logger import Logger
 
 from noise.connection import NoiseConnection
+from noise.exceptions import NoiseValueError
 
 from .enums import INITIATOR, RESPONDER
 
@@ -64,10 +65,15 @@ class NoiseWrapper(ProtocolWrapper):
             self._noise.start_handshake()
 
     def dataReceived(self, data):
-        if self._noise.handshake_finished:
-            self._handleCiphertext(data)
-        else:
-            self._handleHandshake(data)
+        try:
+            if self._noise.handshake_finished:
+                self._handleCiphertext(data)
+            else:
+                self._handleHandshake(data)
+        except Exception as e:
+            self.log.warn("Exception caused by received data {data}. Details: {e}", e=e, data=data)
+            self.log.info("Terminating connection to {peer} due to malformed message.", peer=self.transport.getPeer())
+            self.transport.loseConnection()
 
     def _handleHandshake(self, data):
         self._noise.read_message(data)  # discard any payload
@@ -153,4 +159,4 @@ class NoiseSettings:
         self.remote_static = remote_static
 
     def __repr__(self):
-        return "NoiseSettings({}, {}, {}, {})".format(self.initiator, self.noise_name, self.local_static, self.remote_static)
+        return "NoiseSettings({}, {}, {}, {})".format(self.role, self.noise_name, self.local_static, self.remote_static)

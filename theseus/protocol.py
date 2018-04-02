@@ -28,9 +28,13 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
     def connectionMade(self):
         super().connectionMade()
-
-        self.log.info("Encrypted channel established with {addr}", addr=self.transport.getPeer())
         self.setTimeout(self.idle_timeout)
+
+        peer = self.transport.getPeer()
+        if self.node_state is not None:
+            self.node_state.host = peer.host
+
+        self.log.info("Encrypted channel established with {addr}", addr=peer)
 
     def connectionLost(self, reason):
         super().connectionLost(reason)

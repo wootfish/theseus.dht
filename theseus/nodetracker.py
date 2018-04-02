@@ -33,7 +33,6 @@ class NodeState(Factory):
         instance = cls()
         instance.role = RESPONDER
         instance.state = CONNECTING
-        instance.host = protocol.getPeer().host
         instance.cnxn = protocol
         return instance
 
@@ -78,7 +77,7 @@ class NodeTracker(Factory):
             node_state = NodeState.fromProto(p)
         else:
             node_state = self.contact_to_state[contact]
-        p.node_state = node_state
+        p.wrappedProtocol.node_state = node_state
         self.proto_to_state[p] = node_state  # TODO once the dust settles, reconsider whether we need this & getByProto. we might not. it is nice in that it keeps references to all protocols we make, even ones we know nothing about the remote side of, but i'm not 100% convinced that's really necessary
         return p
 
