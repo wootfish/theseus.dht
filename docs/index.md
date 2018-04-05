@@ -1,16 +1,16 @@
 # Theseus DHT Protocol
 
-The Theseus DHT is a distributed hash table with unusually strong security properties.
+The Theseus DHT is a protocol for creating distributed hash tables with unusually strong security properties.
 
-It is derived in large part from Kademlia, an efficient distributed hash table algorithm which is good at handling benign failures but bad at handling malicious interference. In particular, Kademlia is very vulnerable to Sybil attacks, which can result in the modification or erasure of any data in the network.
+The protocol is derived in large part from Kademlia, an efficient distributed hash table protocol which is good at handling benign failures but bad at handling malicious interference. In particular, Kademlia is very vulnerable to Sybil attacks, which can result in the modification or erasure of any data in the network.
 
-The Theseus DHT protocol addresses these and other concerns, mitigating Sybil attacks through a combination of several novel strategies. It also adds features like strong encryption, optional authentication, optional perfect forward secrecy, and more. The network's Sybil resistance also increases as the network itself grows.
+The Theseus DHT protocol addresses these and other concerns, offering robustness in the face of Sybil attacks through a combination of several novel strategies. It also adds new desirable features like strong encryption, optional authentication, optional perfect forward secrecy, and more. The network's Sybil resistance can also be easily analyzed, and increases as the network itself grows.
 
-To a passive observer, all Theseus DHT protocol traffic is indistinguishable from random noise. Even message lengths can be made to follow arbitrary patterns or no pattern at all. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout.
+To a passive observer, _all_ Theseus DHT protocol traffic is indistinguishable from random noise. Not only that, but even message sizes can be made to follow arbitrary patterns or no pattern at all. All this makes the protocol very hard to fingerprint. Any node which is able to get a trusted introduction to the network also enjoys considerable protection against man-in-the-middle attacks. Standard, well-studied cryptographic primitives are used throughout.
 
-The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resistance to Sybil attacks increases as the network itself grows, the DHT is being developed as a stand-alone library which can be used by any program that wants to be able to use a simple, secure distributed hash table.
+The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resistance to Sybil attacks increases as the network grows, the DHT is being developed as a stand-alone library. That way, it can be used in any application where a simple, secure distributed hash table is desired.
 
-A nice privacy property: With multiple applications using the same DHT, a user's presence on the DHT indicates their use of one of these applications, but _doesn't indicate which one they're using_.
+With multiple applications using the same DHT, a user's presence on the DHT indicates their use of one of these applications, but doesn't indicate which one they're using (unless they choose to announce that information). This is a nice security property.
 
 The larger the network gets, the more secure and reliable it is for everyone.
 
