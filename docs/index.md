@@ -10,7 +10,7 @@ To a passive observer, _all_ Theseus DHT protocol traffic is indistinguishable f
 
 The Theseus DHT is being developed as a component of the overall Theseus project. Since the DHT's resistance to Sybil attacks increases as the network grows, the DHT is being developed as a stand-alone library. That way, it can be used in any application where a simple, secure distributed hash table is desired.
 
-With multiple applications using the same DHT, a user's presence on the DHT indicates their use of one of these applications, but doesn't indicate which one they're using (unless they choose to announce that information). This is a nice security property.
+With multiple applications using the same DHT, a user's presence on the DHT indicates their use of one of these applications, but doesn't indicate which one they're using (unless they choose to announce that information). This is a nice privacy property to have.
 
 The larger the network gets, the more secure and reliable it is for everyone.
 
