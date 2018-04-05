@@ -1,6 +1,6 @@
 from twisted.internet import reactor
 from twisted.internet.error import CannotListenError
-from twisted.internet.defer import Deferred, fail
+from twisted.internet.defer import Deferred, fail, DeferredList
 from twisted.application.service import Service
 from twisted.logger import Logger
 
@@ -35,6 +35,10 @@ class PeerService(Service):
 
         self.blacklist = deque(maxlen=self.blacklist_size)
         self.pending_cnxns = []
+
+        DeferredList([node_id.on_id_hash for node_id in self.node_ids]).addCallback(
+            lambda l: self.log.info("Local node IDs set: {ids}", ids=[t[1] for t in l])
+            )
 
     def startService(self):
         self.listen_port = self.startListening()
