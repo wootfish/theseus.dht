@@ -6,10 +6,32 @@ from twisted.internet.threads import deferToThread
 
 from time import time
 from heapq import heappush, heappop
-from functools import lru_cache
+from functools import lru_cache, total_ordering
 
 from .enums import UNSET
 
+
+@total_ordering
+class HashJob:
+    log = Logger()
+    active = True
+
+    def __init__(self, priority, preimage, d=None):
+        self.priority = priority
+        self.preimage = preimage
+        self.d = d or Deferred()
+
+    def deactivate(self):
+        self.active = False
+
+    def __lt__(self, other):
+        return self.priority < other.priority or (self.priority == other.priority and self.active and not other.active)
+
+    def __repr__(self):
+        if self.active:
+            return "HashJob({pre}, {pri})".format(pre=self.preimage, pri=self.priority.name)
+        else:
+            return "HashJob({pre}, {pri}, False)".format(pre=self.preimage, pri=self.priority.name)
 
 class Hasher:
     log = Logger()
@@ -35,65 +57,48 @@ class Hasher:
         return d
 
     def getNodeID(self, preimage, priority=UNSET):
-        # job[0]: priority
-        # job[1]: Boolean flag which, if set to False, says to skip this job
-        #         (used when upgrading job priority -- it's cheaper than
-        #         popping the old job, which would break the heap invariant)
-        # job[2]: KDF input (node_id)
-        # job[3]: Deferred that'll callback when job is done
-
-        d = Deferred()
-
-        # if there's already a job for this preimage + a lower priority,
-        # deactivate it & steal the associated Deferred
+        # if there's already a pending job with this preimage w/ a lower
+        # priority, deactivate it & steal the associated Deferred
         for job in self.priority_queue:
-            _priority, _flag, _preimage, _d = job
-
-            if not _flag or _preimage != preimage:
-                continue
-
-            if priority > _priority:
-                self.log.debug("Upgrading hash job for {preimage} from priority {old} to {new}", preimage=preimage, old=_priority, new=priority)
-                job[1] = False
-                d = _d
+            if job.preimage == preimage and job.active and job.priority < priority:
+                self.log.debug("Upgrading hash job for {preimage} from priority {old} to {new}", preimage=preimage, old=job.priority, new=priority)
+                job.deactivate()
+                new_job = HashJob(priority, preimage, job.d)
                 break
         else:
-            self.log.debug("Adding hash job for {preimage}, priority {priority}.", preimage=preimage, priority=priority)
+            new_job = HashJob(priority, preimage)
+            self.log.debug("Adding {job}", job=new_job)
 
-        # push our new job onto the heap
-        new_job = [priority, True, preimage, d]
         heappush(self.priority_queue, new_job)
         self._maybeAddJobs()
+        return new_job.d
 
-        return d
+    def _callback(self, result, preimage):
+        self.log.debug("Hash job for {preimage} complete. Result: {result}", preimage=preimage, result=result)
 
-    def _callback(self, result):
-        self.log.debug("Hash job completed, result: {result}", result=result)
-
-        # filter out the completed job
-        self.curr_jobs = [job for job in self.curr_jobs if not job[3].called]
-
-        # if we have room for more jobs, add 'em
+        # swap out the completed job
+        self.curr_jobs = [job for job in self.curr_jobs if job.preimage != preimage]
         self._maybeAddJobs()
 
         # pass the result on to other callbacks
         return result
 
     def _maybeAddJobs(self):
+        job = None
+
+        # loop for as long as we have both unclaimed jobs and free threads
         while (len(self.curr_jobs) < self.MAX_THREADS) and self.priority_queue:
             job = heappop(self.priority_queue)
-            _, flag, preimage, d_job = job
-
-            if not flag:
+            if not job.active:
                 continue
 
-            self.log.info("Starting ID check job for {preimage}", preimage=preimage)
-            d_thread = deferToThread(Hasher._kdf, preimage, bytes(16))
-            d_thread.addCallback(self._callback)
-            d_thread.chainDeferred(d_job)
+            self.log.info("Starting {job}", job=job)
+            d_thread = deferToThread(Hasher._kdf, job.preimage, bytes(16))
+            d_thread.addCallback(self._callback, job.preimage)
+            d_thread.chainDeferred(job.d)
             self.curr_jobs.append(job)
 
-        self.log.info("Job(s) added.")
+        self.log.info("Active hash jobs: {n} ({m} in queue)", n=len(self.curr_jobs), m=len(self.priority_queue))
 
     @staticmethod
     @lru_cache(maxsize=LRU_CACHE_SIZE)
