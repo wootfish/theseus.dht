@@ -34,7 +34,6 @@ class PeerService(Service):
         self.node_tracker = NodeTracker(self)
 
         self.blacklist = deque(maxlen=self.blacklist_size)
-        self.pending_cnxns = []
 
         DeferredList([node_id.on_id_hash for node_id in self.node_ids]).addCallback(
             lambda l: self.log.info("Local node IDs set: {ids}", ids=[t[1] for t in l])
@@ -42,10 +41,6 @@ class PeerService(Service):
 
     def startService(self):
         self.listen_port = self.startListening()
-
-        while self.pending_cnxns:
-            contact, d = self.pending_cnxns.pop()
-            self.makeCnxn(contact).chainDeferred(d)
 
     def startListening(self):
         """
@@ -86,9 +81,7 @@ class PeerService(Service):
 
     def makeCnxn(self, contact_info):
         if not self.running:
-            d = Deferred()
-            self.pending_cnxns.append((contact_info, d))
-            return d
+            return fail(TheseusConnectionError("Service must be running to make connections"))
 
         if contact_info.host in self.blacklist:
             return fail(TheseusConnectionError("Address blacklisted"))
