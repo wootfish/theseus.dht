@@ -3,17 +3,22 @@ from twisted.internet.error import CannotListenError
 from twisted.internet.defer import Deferred, fail, DeferredList
 from twisted.application.service import Service
 from twisted.logger import Logger
+from twisted.plugin import getPlugins
 
 from noise.functions import DH
 
 from random import randrange
 from collections import deque
 
+from .contactinfo import ContactInfo
 from .nodeid import NodeID
 from .config import config
 from .nodetracker import NodeTracker
 from .routing import RoutingTable
 from .errors import TheseusConnectionError
+from .plugins import IPeerSource
+
+import sys
 
 
 class PeerService(Service):
@@ -40,7 +45,15 @@ class PeerService(Service):
             )
 
     def startService(self):
+        super().startService()
         self.listen_port = self.startListening()
+
+        self.log.info("PATH={path}", path=sys.path)
+        for peer_source in getPlugins(IPeerSource):
+            self.log.info("Loaded plugin for peer source {source}", source=peer_source)
+            #peer_source.get().addCallback(lambda peers: self.log.info("Peers from {source}: {peers}", source=peer_source, peers=peers))
+            peer_source.get().addCallback(lambda peers: list(map(self.makeCnxn, peers)))
+            peer_source.put(ContactInfo(None, self.listen_port, self.peer_key))
 
     def startListening(self):
         """
