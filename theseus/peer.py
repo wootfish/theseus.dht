@@ -87,6 +87,7 @@ class PeerService(Service):
         Attempts to start listening for cnxns on the given port.
         Throws a CannotListenError if the port is not available.
         """
+        self.log.info("{foo}", foo=reactor.listenTCP)
         self.listener = reactor.listenTCP(port, self.node_tracker)
 
     def addToBlacklist(self, host):

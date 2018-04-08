@@ -1,4 +1,5 @@
 from twisted.internet import reactor
+from twisted.logger import Logger
 from twisted.internet.defer import fail
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet.protocol import Factory
@@ -23,8 +24,8 @@ class NodeState(Factory):
     def fromContact(cls, contact_info):
         instance = cls()
         instance.state = DISCONNECTED
-        instance.host = contact_info.listen_addr.host
-        instance.info[LISTEN_PORT] = contact_info.listen_addr.port
+        instance.host = contact_info.host
+        instance.info[LISTEN_PORT] = contact_info.port
         instance.info[NODE_KEY] = contact_info.key
         return instance
 
@@ -48,7 +49,8 @@ class NodeState(Factory):
         return endpoint.connect(self)
 
     def disconnect(self):
-        ...
+        self.transport.loseConnection()
+        self.cnxn = None
 
     def query(self, query_name, args):
         ...
@@ -61,6 +63,8 @@ class NodeState(Factory):
 
 
 class NodeTracker(Factory):
+    log = Logger()
+
     def __init__(self, parent):
         self.parent = parent
 
@@ -68,10 +72,10 @@ class NodeTracker(Factory):
         self.contact_to_state = {}
         self.proto_to_state = {}
 
-        self.factory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(DHTProtocol))
+        self.subfactory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(DHTProtocol))
 
     def buildProtocol(self, addr):
-        p = self.factory.buildProtocol(addr)
+        p = self.subfactory.buildProtocol(addr)
         contact = self.addr_to_contact.get(addr)
         if contact is None:
             node_state = NodeState.fromProto(p)
@@ -83,6 +87,7 @@ class NodeTracker(Factory):
 
     def registerContact(self, contact_info):
         if contact_info not in self.contact_to_state:
+            self.log.debug("Registering contact {contact}", contact=contact_info)
             state = NodeState.fromContact(contact_info)
             state.tracker = self
             self.contact_to_state[contact_info] = state

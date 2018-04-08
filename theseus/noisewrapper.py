@@ -28,12 +28,16 @@ class NoiseWrapper(ProtocolWrapper):
         self._pending_len_msg = None  # populated after handshake
 
     def makeConnection(self, transport):
-        super().makeConnection(transport)
+        self.transport = transport
 
         if self.settings is None:
             self.settings = self.getDefaultConfig()
 
         self.startHandshake()
+
+    def connectionLost(self, reason):
+        self.log.info("Connection lost with {addr}. {reason}", addr=self.getPeer(), reason=reason.getErrorMessage())
+        super().connectionLost(reason)
 
     def startHandshake(self):
         if self._noise is not None:
@@ -71,8 +75,8 @@ class NoiseWrapper(ProtocolWrapper):
             else:
                 self._handleHandshake(data)
         except Exception as e:
-            self.log.warn("Exception caused by received data {data}. Details: {e}", e=e, data=data)
-            self.log.info("Terminating connection to {peer} due to malformed message.", peer=self.transport.getPeer())
+            self.log.failure("Unexpected exception caused by received data {data}", data=data)
+            self.log.info("Terminating connection to {peer} due to unexpected error.", peer=self.transport.getPeer())
             self.transport.loseConnection()
 
     def _handleHandshake(self, data):
@@ -83,14 +87,13 @@ class NoiseWrapper(ProtocolWrapper):
 
         if self._noise.handshake_finished:
             # we're in business!
-            self.log.debug("Noise handshake with {peer} complete.", peer=self.getPeer())
-
             self._recv_bytes_left = 20
             self._pending_len_msg = True
 
             while self._pending_writes:
                 self.write(self._pending_writes.pop(0))
 
+            self.log.info("Encrypted channel to {addr} established.", addr=self.getHost())
             super().makeConnection(self.transport)
 
     def _handleCiphertext(self, data):

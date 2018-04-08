@@ -34,21 +34,17 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         if self.node_state is not None:
             self.node_state.host = peer.host
 
-        self.log.info("Encrypted channel established with {addr}", addr=peer)
+        #self.log.info("Connection made with {addr}", addr=peer)
 
     def connectionLost(self, reason):
         super().connectionLost(reason)
-
         self.setTimeout(None)
 
-    def timeoutConnection(self):  # called by TimeoutMixin
-        self.log.info("Connection to {addr} timed out after {n} seconds",
-                      addr=self.transport.getPeer(), n=self.idle_timeout)
-        self.transport.loseConnection()
+        #self.log.info("Connection lost with {addr}", addr=self.node_state.host)
 
     def stringReceived(self, string):
         self.resetTimeout()
-        super().stringReceived(string)
+        KRPCProtocol.stringReceived(string)
 
     def onQuery(self, txn_id, query_name, args):
         self.log.info("Query from {addr} (txn {txn}): {name} {args}",

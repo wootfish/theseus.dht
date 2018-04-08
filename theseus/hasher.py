@@ -38,6 +38,8 @@ class Hasher:
 
     OPSLIMIT = pwhash.argon2id.OPSLIMIT_MODERATE
     MEMLIMIT = pwhash.argon2id.MEMLIMIT_MODERATE
+    #OPSLIMIT = pwhash.argon2id.OPSLIMIT_INTERACTIVE
+    #MEMLIMIT = pwhash.argon2id.MEMLIMIT_INTERACTIVE
     MAX_THREADS = 3
     LRU_CACHE_SIZE = 500
 
