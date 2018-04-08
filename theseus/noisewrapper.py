@@ -93,7 +93,7 @@ class NoiseWrapper(ProtocolWrapper):
             while self._pending_writes:
                 self.write(self._pending_writes.pop(0))
 
-            self.log.info("Encrypted channel to {addr} established.", addr=self.getHost())
+            self.log.info("Encrypted channel to {addr} established.", addr=self.getPeer())
             super().makeConnection(self.transport)
 
     def _handleCiphertext(self, data):

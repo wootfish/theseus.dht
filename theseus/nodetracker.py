@@ -16,6 +16,7 @@ class NodeState(Factory):
     cnxn = None
     host = None
     state = None
+    log = Logger()
 
     def __init__(self):
         self.info = {}
@@ -49,6 +50,7 @@ class NodeState(Factory):
         return endpoint.connect(self)
 
     def disconnect(self):
+        self.log.info("Initiating disconnection from {addr}", addr=self.cnxn.getPeer())
         self.transport.loseConnection()
         self.cnxn = None
 

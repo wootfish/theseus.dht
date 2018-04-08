@@ -12,6 +12,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # for generating responses to KRPC queries
         self.query_handlers.update({
             b'find': self.find,
             b'get': self.get,
@@ -19,6 +20,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             b'info': self.info,
             })
 
+        # for processing data in responses to sent queries
         self.response_handlers.update({
             #b'find': self.onFind,
             b'get': self.onGet,
@@ -34,13 +36,9 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         if self.node_state is not None:
             self.node_state.host = peer.host
 
-        #self.log.info("Connection made with {addr}", addr=peer)
-
     def connectionLost(self, reason):
         super().connectionLost(reason)
         self.setTimeout(None)
-
-        #self.log.info("Connection lost with {addr}", addr=self.node_state.host)
 
     def stringReceived(self, string):
         self.resetTimeout()
