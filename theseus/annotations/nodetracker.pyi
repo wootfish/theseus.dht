@@ -1,7 +1,6 @@
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Factory
 
-from .bencode import BdecodeOutput
 from .contactinfo import ContactInfo
 from ..enums import NodeCnxnStates, NodeInfoKeys
 from .noisewrapper import NoiseWrapper
@@ -30,9 +29,7 @@ class NodeState(Factory):
     def query(self, query_name: AnyStr, args: Dict[AnyStr, Any]) -> Deferred: ...
     def getContactInfo(self) -> ContactInfo: ...
     @overload
-    def getInfo(self, info_key: NodeInfoKeys) -> BdecodeOutput: ...
-    @overload
-    def getInfo(self, info_key: NodeInfoKeys, defer: bool) -> Union[BdecodeOutput, Deferred]: ...  # TODO check whether this return type is ok
+    def getInfo(self, info_key: NodeInfoKeys, defer: bool) -> Deferred: ...
 
 
 class NodeTracker(Factory):

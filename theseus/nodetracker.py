@@ -60,7 +60,13 @@ class NodeState(Factory):
     def getContactInfo(self):
         ...
 
-    def getInfo(self, info_key, defer=False):
+    def getInfo(self, info_keys, advertise=None, ignore_local=False):
+        # TODO
+        # info_keys should be a list of desired info keys
+        # advertise should be a dict of local info keys: values
+        # for both args, keys may be passed either as bytes or as NodeInfoKeys enum members
+        # if True, ignore_local forces a new request for all info keys rather than locally looking up any that've already been requested
+        # this function will always return a Deferred
         ...
 
 
