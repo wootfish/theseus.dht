@@ -16,7 +16,8 @@ from .config import config
 from .nodetracker import NodeTracker
 from .routing import RoutingTable
 from .errors import TheseusConnectionError
-from .plugins import IPeerSource
+from .plugins import IPeerSource, IInfoProvider
+from .enums import NodeInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS
 
 import sys
 
@@ -48,11 +49,14 @@ class PeerService(Service):
         super().startService()
         self.listen_port = self.startListening()
 
-        self.log.info("PATH={path}", path=sys.path)
         for peer_source in getPlugins(IPeerSource):
-            self.log.info("Loaded plugin for peer source {source}", source=peer_source)
-            #peer_source.get().addCallback(lambda peers: self.log.info("Peers from {source}: {peers}", source=peer_source, peers=peers))
-            peer_source.get().addCallback(lambda peers: list(map(self.makeCnxn, peers)))
+            def cb(peers):
+                self.log.info("Peers from {source}: {peers}", source=peer_source, peers=peers)
+                for peer in peers:
+                    self.makeCnxn(peer)
+
+            self.log.info("Loading plugin for peer source {source}", source=peer_source)
+            peer_source.get().addCallback(cb)
             peer_source.put(ContactInfo(None, self.listen_port, self.peer_key))
 
     def startListening(self):
@@ -105,6 +109,30 @@ class PeerService(Service):
 
     def maybeUpdateInfo(self, cnxn, info_key, new_value):
         ...
+
+    def getInfo(self, key):
+        # takes either an ascii key or a NodeInfoKeys enum member. info keys
+        # that come from plugins must be passed as bytes
+        if key in NodeInfoKeys:
+            key = key.value
+
+        # get the local info, or if the key doesn't match a native key, check
+        # against keys provided by extensions
+
+        # TODO return Deferreds where appropriate for pending results (eg node IDs)
+
+        if key == MAX_VERSION.value:
+            return "n/a"  # no version yet
+        if key == LISTEN_PORT.value:
+            return self.listen_port  # bc of this we need to prevent getInfo from being called before the service is started
+        if key == PEER_KEY.value:
+            return self.peer_key.public_bytes  # TODO make sure this has proper type (bytes, not like a callable or something)
+        if key == IDS.value:
+            return [node_id.node_id for node_id in self.node_ids if node_id.node_ids is not None]
+
+        for provider in getPlugins(IInfoProvider):
+            if key in provider.provided:
+                return provider.get(key)
 
     def doLookup(self, addr, tags):
         ...

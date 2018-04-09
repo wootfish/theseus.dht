@@ -51,3 +51,22 @@ class IPeerSource(Interface):
         FIXME: how should we generalize this to support e.g. reporting contact
         info for Tor hidden services?
         """
+
+
+class IInfoProvider(Interface):
+    """
+    Interface for plugins that add support for extra peer info keys.
+    """
+
+    provided = Attribute(
+            """
+            An object enumerating the supported info keys. Technically only
+            needs to support __contains__.
+            """
+            )
+
+    def get(key):
+        """
+        Returns the value associated with the given info key. This will only be
+        invoked with keys for which the 'contains' attribute reports support.
+        """
