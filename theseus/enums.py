@@ -26,10 +26,10 @@ DISCONNECTED, CONNECTING, CONNECTED = (NodeCnxnStates.DISCONNECTED,
 class NodeInfoKeys(Enum):
     MAX_VERSION = b'max_version'
     LISTEN_PORT = b'listen_port'
-    NODE_KEY = b'node_key'
+    PEER_KEY = b'peer_key'
     IDS = b'ids'
-MAX_VERSION, LISTEN_PORT, NODE_KEY, IDS = (NodeInfoKeys.MAX_VERSION,
-        NodeInfoKeys.LISTEN_PORT, NodeInfoKeys.NODE_KEY, NodeInfoKeys.IDS)
+MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS = (NodeInfoKeys.MAX_VERSION,
+        NodeInfoKeys.LISTEN_PORT, NodeInfoKeys.PEER_KEY, NodeInfoKeys.IDS)
 
 
 # IDCheckPriorities allows prioritization of hash computation for different
