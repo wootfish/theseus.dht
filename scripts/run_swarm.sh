@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-N=15
+N=${1:-15}
 
 
 rm -rf /tmp/theseus_ports
