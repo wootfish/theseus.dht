@@ -9,9 +9,14 @@ from .enums import INITIATOR, RESPONDER
 import struct
 
 
-# NOTE TO SELF: would it be possible to somehow integrate the default
-# NetstringReceiver in with NoiseWrapper? rather than re-implementing
-# netstrings for the data the payloads of these encrypted messages?
+# NOTE: would it be possible to somehow integrate the default NetstringReceiver
+# in with NoiseWrapper? rather than re-implementing netstrings for the data the
+# payloads of these encrypted messages?
+# Or really we'd probably want to use Int32StringReceiver
+
+
+# TODO this needs to immediately close the cnxn on Noise protocol errors, but
+# currently appears to let them slide
 
 
 class NoiseWrapper(ProtocolWrapper):
