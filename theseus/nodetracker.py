@@ -7,7 +7,7 @@ from twisted.protocols.policies import WrappingFactory
 
 from .enums import INITIATOR, RESPONDER
 from .enums import DISCONNECTED, CONNECTING
-from .enums import LISTEN_PORT, NODE_KEY
+from .enums import LISTEN_PORT, PEER_KEY
 from .noisewrapper import NoiseWrapper, NoiseSettings
 from .protocol import DHTProtocol
 
@@ -27,7 +27,7 @@ class NodeState(Factory):
         instance.state = DISCONNECTED
         instance.host = contact_info.host
         instance.info[LISTEN_PORT] = contact_info.port
-        instance.info[NODE_KEY] = contact_info.key
+        instance.info[PEER_KEY] = contact_info.key
         return instance
 
     @classmethod
@@ -39,8 +39,8 @@ class NodeState(Factory):
         return instance
 
     def buildProtocol(self, addr):
-        p = self.tracker.buildProtocol(addr)
-        p.settings = NoiseSettings(INITIATOR, remote_static=self.info[NODE_KEY])
+        p = self.subfactory.buildProtocol(addr)
+        p.settings = NoiseSettings(INITIATOR, remote_static=self.info[PEER_KEY])
         return p
 
     def connect(self, reactor=reactor):
@@ -67,12 +67,11 @@ class NodeState(Factory):
 class NodeTracker(Factory):
     log = Logger()
 
-    def __init__(self, parent):
-        self.parent = parent
+    def __init__(self, local_peer):
+        self.local_peer = local_peer
 
         self.addr_to_contact = {}
         self.contact_to_state = {}
-        self.proto_to_state = {}
 
         self.subfactory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(DHTProtocol))
 
@@ -84,20 +83,17 @@ class NodeTracker(Factory):
         else:
             node_state = self.contact_to_state[contact]
         p.wrappedProtocol.node_state = node_state
-        self.proto_to_state[p] = node_state  # TODO once the dust settles, reconsider whether we need this & getByProto. we might not. it is nice in that it keeps references to all protocols we make, even ones we know nothing about the remote side of, but i'm not 100% convinced that's really necessary
+        p.wrappedProtocol.local_peer = self.local_peer
         return p
 
     def registerContact(self, contact_info):
         if contact_info not in self.contact_to_state:
             self.log.debug("Registering contact {contact}", contact=contact_info)
             state = NodeState.fromContact(contact_info)
-            state.tracker = self
+            state.subfactory = self
             self.contact_to_state[contact_info] = state
 
         return self.contact_to_state[contact_info]
 
     def getByContact(self, contact_info):
         return self.contact_to_state.get(contact_info)
-
-    def getByProto(self, protocol):
-        return self.proto_to_state.get(protocol)

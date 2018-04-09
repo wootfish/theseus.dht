@@ -19,8 +19,8 @@ class RoutingTable:
     log = Logger()
     k = 8
 
-    def __init__(self, parent):
-        self.parent = parent
+    def __init__(self, local_peer):
+        self.local_peer = local_peer
         self.buckets = {(0, 2**160-1): set()}
 
     def __contains__(self, contact):
@@ -37,7 +37,7 @@ class RoutingTable:
         raise Exception("node_address out of bounds")
 
     def _bucketIsSplitCandidate(self, bucket):
-        for node_id in self.parent.node_ids:
+        for node_id in self.local_peer.node_ids:
             if bucket[0] <= self.bytesToInt(node_id.node_id) <= bucket[1]:
                 return True
         return False
