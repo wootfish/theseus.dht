@@ -95,6 +95,8 @@ It's probably worth noting that this scheme creates a theoretical limit on the s
 
 In environments which aren't likely to have 4 GiB of RAM to spare at any given moment, applications are encouraged to set smaller internal limits on message size -- maybe 2<sup>20</sup> bytes or so. This suggestion, while much smaller, is still conservatively large as a sort of future-proofing. Theseus DHT protocol traffic will probably never even come close to this limit. Individual Noise protocol messages are capped at 65535=2<sup>16</sup>-1 bytes of ciphertext, so protocol messages exceeding 65535 - 16 = 65519 bytes of plaintext will of course need to be sent in chunks.
 
+It goes without saying that in cases where performance is critical, message chunking will only slow down the transfer of data between two peers, increasing the time required to perform tasks like lookups or information retrieval. Thus this feature is likely only of interest to the extremely privacy-conscious. In some ways (though notably _not_ where anonymity is concerned) the trade-off resembles that made by a person who decides to route all their web traffic through Tor. The critical thing here is that even if most users choose not to make this trade-off, _they still get to make the choice_. In stark contrast with most modern systems, here the decision of how far a user wants to go to protect their privacy is theirs to make.
+
 ### Plaintext Format
 
 Each message starts with the RPC embedded in a netstring. Anything after the end of the netstring is discarded. Thus any message may contain arbitrary amounts of padding, or no padding at all.
