@@ -6,7 +6,10 @@ from .bencode import bencode, bdecode
 from .errors import BencodeError, TheseusProtocolError, errcodes
 
 import os
-import traceback
+#import traceback
+
+
+# TODO stare at KRPCProtocol & meditate on whether it can be streamlined
 
 
 class KRPCProtocol(NetstringReceiver):
@@ -94,29 +97,33 @@ class KRPCProtocol(NetstringReceiver):
         except TheseusProtocolError as e:
             errtup = (e.errcode, ''.join(e.args) or e.error_name)
             self.sendError(txn_id, errtup)
-            self.log.warn("Error in query event callback -- sending {errtup}", errtup=errtup)
-            self.log.debug("Traceback: {tb}", tb=traceback.format_exc())
+            self.log.failure("Error in query event callback")
             return
 
         self.log.debug("Attempting to generate response to query (txn {txn}): {query_name} {args}",
                        txn=txn_id, query_name=query_name, args=args)
         try:
             result = self.query_handlers[query_name](args)
-            assert type(result) in (dict, Deferred)
+            assert type(result) in (dict, Deferred)     # implicitly: type(result) may also be str, in the case of an error message
+                                                        # TODO: see if this can be cleaned up. exceptions might be more elegant.
+                                                        # probably the best way would be to make a KRPCProtocolError which
+                                                        # errors.TheseusProtocolError subclasses, then add a catch so query_handlers
+                                                        # functions can throw specific errors and have the codes/names pulled out
+                                                        # from them in the except block and sent remotely
 
-            if type(result) is Deferred:
+            if type(result) is dict:
+                self.deferred_responses.pop(txn_id, None)
+                self.sendResponse(txn_id, result)
+            else:
                 def query_callback(val):
                     self.log.debug("Query callback for {name} (txn {txn_id}) triggered! args={args}, callback value={val}",
                                    name=query_name, txn_id=txn_id, args=args, val=val)
                     self.handleQuery(txn_id, query_name, args)
                     return val
 
-                self.deferred_responses[txn_id] = (query_name, args, result)
+                self.deferred_responses[txn_id] = (query_name, args, result)  # TODO check: it seems like this could overwrite an existing deferred response, which would be a bug -- test and fix
                 result.addCallback(query_callback)
                 self.log.debug("Deferring response in txn {txn_id}", txn_id=txn_id)
-            else:  # type(result) is dict:
-                self.deferred_responses.pop(txn_id, None)
-                self.sendResponse(txn_id, result)
 
         except BencodeError:
             self.sendError(txn_id, (202, "internal error"))
@@ -128,11 +135,11 @@ class KRPCProtocol(NetstringReceiver):
             self.sendError(txn_id, (201, message))
             self.log.info("Error 201 ({msg}) (txn {txn})", msg=message, txn=txn_id)
 
-        except Exception as e:
+        except Exception:
             self.sendError(txn_id, (202, "internal error"))
-            self.log.debug("Traceback: {tb}", tb=traceback.format_exc())
-            self.log.error("Unhandled error responding to query {name} (txn {txn}): {err}",
-                           name=query_name, txn=txn_id, err=e)
+            #self.log.debug("Traceback: {tb}", tb=traceback.format_exc())
+            self.log.failure("Unhandled error responding to query {name} (txn {txn})",
+                           name=query_name, txn=txn_id)
 
     def onQuery(self, txn_id, query_name, args):
         """
