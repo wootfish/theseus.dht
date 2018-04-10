@@ -15,10 +15,6 @@ import struct
 # Or really we'd probably want to use Int32StringReceiver
 
 
-# TODO this needs to immediately close the cnxn on Noise protocol errors, but
-# currently appears to let them slide
-
-
 class NoiseWrapper(ProtocolWrapper):
     log = Logger()
     settings = None
@@ -74,6 +70,7 @@ class NoiseWrapper(ProtocolWrapper):
             self._noise.start_handshake()
 
     def dataReceived(self, data):
+        self.log.info("Received {n} bytes from {addr}", n=len(data), addr=self.getPeer())
         try:
             if self._noise.handshake_finished:
                 self._handleCiphertext(data)
