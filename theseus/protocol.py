@@ -12,7 +12,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     node_state = None
     local_peer = None
 
-    default_info = [key for key in NodeInfoKeys]
+    default_info = [key.value for key in NodeInfoKeys]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,7 +40,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         peer = self.transport.getPeer()
         self.node_state.host = peer.host
         self.node_state.getInfo(self.default_info, advertise={
-            key: self.local_peer.get_info(key) for key in self.default_info
+            key: self.local_peer.getInfo(key) for key in self.default_info
             })
 
     def connectionLost(self, reason):

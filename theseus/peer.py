@@ -128,7 +128,7 @@ class PeerService(Service):
         if key == PEER_KEY.value:
             return self.peer_key.public_bytes  # TODO make sure this has proper type (bytes, not like a callable or something)
         if key == IDS.value:
-            return [node_id.node_id for node_id in self.node_ids if node_id.node_ids is not None]
+            return [node_id.node_id for node_id in self.node_ids if node_id.node_id is not None]
 
         for provider in getPlugins(IInfoProvider):
             if key in provider.provided:

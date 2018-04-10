@@ -1,5 +1,6 @@
 from twisted.internet import reactor
 from twisted.logger import Logger
+from twisted.python.failure import Failure
 from twisted.internet.defer import fail
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet.protocol import Factory
@@ -59,8 +60,8 @@ class NodeState(Factory):
             return fail(Exception("Retries exceeded"))
         if self.cnxn is None:
             return self.connect().addCallback(lambda _: self.query(query_name, args, retries-1))
-        return self.cnxn.query(query_name, args).addErrback(
-                lambda _: self.query(query_name, args, retries-1)))
+        return self.cnxn.sendQuery(query_name, args).addErrback(
+                lambda _: self.query(query_name, args, retries-1))
 
     def getContactInfo(self):
         ...
@@ -68,22 +69,26 @@ class NodeState(Factory):
     def getInfo(self, info_keys, advertise=None, ignore_local=False):
         # info_keys should be a list of desired info keys
         # advertise should be a dict of local info keys: values
-        # for both args, keys may be passed either as bytes or as NodeInfoKeys enum members
+        # for both args, keys must be passed as bytes
         # if True, ignore_local forces a new request for all info keys rather
         # than locally looking up any that've already been requested
 
         # this function will always return a Deferred
 
         if type(info_keys) is not list or not {str, bytes}.issuperset(set(type(key) for key in info_keys)):
+            self.log.warn("Malformed info_keys argument to getInfo. args: ({a}, {b}, {c})", a=info_keys, b=advertise, c=ignore_local)
             return fail(Exception("malformed info_keys argument"))
         if type(advertise) is not dict or not {str, bytes}.issuperset(set(type(key) for key in advertise)):
+            self.log.warn("Malformed advertise argument to getInfo. args: ({a}, {b}, {c})", a=info_keys, b=advertise, c=ignore_local)
             if advertise is not None:
                 return fail(Exception("malformed advertise argument"))
 
         query = {"keys": info_keys}
         if advertise:
             query["info"] = advertise
-        return self.query("info", query)
+        return self.query("info", query).addCallback(lambda response: {
+            key: response.get(b'info', {}).get(key) for key in info_keys
+            })
 
 
 class NodeTracker(Factory):
@@ -101,7 +106,7 @@ class NodeTracker(Factory):
         p = self.subfactory.buildProtocol(addr)
         contact = self.addr_to_contact.get(addr)
         if contact is None:
-            node_state = NodeState.fromProto(p)
+            node_state = NodeState.fromProto(p.wrappedProtocol)
         else:
             node_state = self.contact_to_state[contact]
         p.wrappedProtocol.node_state = node_state
