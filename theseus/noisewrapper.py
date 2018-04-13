@@ -19,14 +19,14 @@ class NoiseWrapper(ProtocolWrapper):
     log = Logger()
     settings = None
     _noise = None
+    _recv_buf = b''
+    _recv_bytes_left = None  # populated after handshake
+    _pending_len_msg = None  # populated after handshake
 
     def __init__(self, factory, wrappedProtocol):
         super().__init__(factory, wrappedProtocol)
 
         self._pending_writes = []
-        self._recv_buf = b''
-        self._recv_bytes_left = None  # populated after handshake
-        self._pending_len_msg = None  # populated after handshake
 
     def makeConnection(self, transport):
         self.transport = transport
@@ -34,6 +34,7 @@ class NoiseWrapper(ProtocolWrapper):
         if self.settings is None:
             self.settings = self.getDefaultConfig()
 
+        self.factory.registerProtocol(self)
         self.startHandshake()
 
     def connectionLost(self, reason):
