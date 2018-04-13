@@ -25,8 +25,8 @@ class KRPCProtocol(NetstringReceiver):
         self.deferred_responses = {}
 
     def connectionLost(self, reason):
-        for txn_id, deferred in self.open_queries.items():
-            deferred.errback(reason)
+        while self.open_queries:
+            self.open_queries.popitem()[1].errback(reason)
 
     def stringReceived(self, string):
         try:
@@ -157,7 +157,7 @@ class KRPCProtocol(NetstringReceiver):
 
     def sendQuery(self, query_name, args):
         if type(query_name) is str:
-            query_name = query_name.encode("ascii")  # normalizing type for the dict key
+            query_name = query_name.encode("ascii")  # make sure type(query_name) is bytes
 
         txn_id = os.urandom(2)
         self.log.info("Sending query (txn {txn}): {query} {args}", txn=txn_id, query=query_name, args=args)
