@@ -84,12 +84,12 @@ Every encrypted Theseus protocol message is preceded by an encrypted declaration
 The process for receiving higher-level protocol messages is therefore essentially this:
 
 1. Read bytes off the wire until we've received 20 bytes total.
-2. Decrypt these 20 bytes and treat the resulting 4 bytes as an unsigned, big-endian 32-bit integer N.
+2. Decrypt these 20 bytes of ciphertext and treat the resulting 4-byte plaintext as an unsigned, big-endian 32-bit integer N.
 3. Read bytes off the wire until we've received N + 16 more bytes total.
-4. Decrypt these N + 16 bytes. This is the protocol message.
+4. Decrypt these N + 16 bytes. The resulting N plaintext bytes are the protocol message.
 5. Repeat.
 
-This scheme allows the size of every ciphertext to be known in advance, which in turn allows arbitrary message chunking without risk of ambiguity regarding message boundaries. Thus, individual packets sent across the wire can be arbitrarily sized, and thus the protocol can assume essentially any traffic pattern.
+This scheme allows the size of every ciphertext to be known in advance, which in turn allows arbitrary message chunking without risk of any ambiguity around message boundaries. Individual packets sent across the wire can therefore be arbitrarily sized, meaning the protocol can assume essentially any traffic pattern.
 
 It's probably worth noting that this scheme creates a theoretical limit on the size of Theseus protocol messages: 2<sup>32</sup> - 1 = 4,294,967,295 bytes. That's 4 GiB, so any application running up against this limit has probably made some big mistakes along the way, to the point where the size limit is the least of their concerns.
 
