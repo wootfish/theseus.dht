@@ -9,10 +9,17 @@ from .enums import INITIATOR, RESPONDER
 import struct
 
 
-# NOTE: would it be possible to somehow integrate the default NetstringReceiver
-# in with NoiseWrapper? rather than re-implementing netstrings for the data the
-# payloads of these encrypted messages?
-# Or really we'd probably want to use Int32StringReceiver
+# NOTE: would it be possible to somehow integrate the default
+# Int32StringReceiver in with NoiseWrapper? rather than re-implementing
+# netstrings for the data the payloads of these encrypted messages? Probably
+# not but food for thought.
+
+# NOTE: open question for future pondering: which of the following seems like
+# better style?
+#       self.transport.write(bytes)
+#       super().write(bytes)
+# super().write runs self.transport.write so they're effectively the same
+# currently the two are used interchangeably here. would be nice to normalize.
 
 
 class NoiseWrapper(ProtocolWrapper):
@@ -38,7 +45,7 @@ class NoiseWrapper(ProtocolWrapper):
         self.startHandshake()
 
     def connectionLost(self, reason):
-        self.log.info("Connection lost with {addr}. {reason}", addr=self.getPeer(), reason=reason.getErrorMessage())
+        self.log.info('Connection lost with {addr}. Details: "{reason}"', addr=self.getPeer(), reason=reason.getErrorMessage())
         super().connectionLost(reason)
 
     def startHandshake(self):
@@ -61,7 +68,9 @@ class NoiseWrapper(ProtocolWrapper):
             self._noise.noise_protocol.keypairs['rs'] = self.settings.remote_static
             self._noise.set_as_initiator()
             self._noise.start_handshake()
-            self.transport.write(self._noise.write_message())
+            message = self._noise.write_message()
+            self.log.debug("Sending {n} handshake bytes to {addr}", n=len(message), addr=self.getPeer())
+            self.transport.write(message)
         else:
             if self.settings.local_static is None:
                 raise Exception("Missing required local key data!")
@@ -71,7 +80,7 @@ class NoiseWrapper(ProtocolWrapper):
             self._noise.start_handshake()
 
     def dataReceived(self, data):
-        self.log.info("Received {n} bytes from {addr}", n=len(data), addr=self.getPeer())
+        self.log.debug("Received {n} bytes from {addr}", n=len(data), addr=self.getPeer())
         try:
             if self._noise.handshake_finished:
                 self._handleCiphertext(data)
@@ -96,7 +105,7 @@ class NoiseWrapper(ProtocolWrapper):
             while self._pending_writes:
                 self.write(self._pending_writes.pop(0))
 
-            self.log.info("Encrypted channel to {addr} established.", addr=self.getPeer())
+            self.log.info("Noise handshake with {addr} complete.", addr=self.getPeer())
             super().makeConnection(self.transport)
 
     def _handleCiphertext(self, data):

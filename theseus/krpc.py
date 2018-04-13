@@ -160,7 +160,7 @@ class KRPCProtocol(NetstringReceiver):
             query_name = query_name.encode("ascii")  # make sure type(query_name) is bytes
 
         txn_id = os.urandom(2)
-        self.log.info("Sending query (txn {txn}): {query} {args}", txn=txn_id, query=query_name, args=args)
+        self.log.info("Sending query to {peer} (txn {txn}): {query} {args}", peer = self.transport.getPeer(), txn=txn_id.hex(), query=query_name, args=args)
         self.sendString(bencode({b't': txn_id, b'y': b'q', b'q': query_name, b'a': args}))
 
         deferred = Deferred()
