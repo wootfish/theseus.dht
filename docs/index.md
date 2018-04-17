@@ -244,20 +244,20 @@ Response: `{"psk": "<bytestring>"}`
 
 ### Errors
 
-Errors at the KRPC level are prefixed 1xx. Errors at the Theseus DHT protocol level are prefixed 2xx. Errors at higher levels of abstraction are prefixed 3xx.
+Errors at the KRPC level are prefixed 1xx. Errors at the Theseus DHT protocol level are prefixed 2xx. Errors of any other type are prefixed 3xx.
 
 So far, the following error codes are defined:
 
 - `1xx` level:
   - `100: Generic KRPC error`
   - `101: Invalid KRPC message`
-  - `102: Internal error`
+  - `102: Internal error (KRPC)`
+  - `103: Method not recognized`
 - `2xx` level:
   - `200: Generic DHT protocol error`
   - `201: Invalid DHT protocol message`
-  - `202: Internal error`
-  - `203: Method not recognized`
-  - `204: Tag not recognized`
+  - `202: Internal error (DHT)`
+  - `203: Tag not recognized`
 - `3xx` level:
   - `300: Generic error`
   - `301: Rate-limiting active`
