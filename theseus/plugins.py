@@ -55,18 +55,18 @@ class IPeerSource(Interface):
 
 class IInfoProvider(Interface):
     """
-    Interface for plugins that add support for extra peer info keys.
+    Interface for plugins that add support for serving new peer info keys.
     """
 
     provided = Attribute(
             """
-            An object enumerating the supported info keys. Technically only
-            needs to support __contains__.
-            """
-            )
+            An object enumerating new local info keys this add-on provides.
+            Must be an object supporting __contains__.
+            Must only contain bytestrings.
+            """)
 
     def get(key):
         """
-        Returns the value associated with the given info key. This will only be
-        invoked with keys for which the 'contains' attribute reports support.
+        Returns the value associated with the given info key. This will only
+        ever be invoked with keys contained by the 'provided' attribute.
         """
