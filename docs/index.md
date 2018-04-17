@@ -249,13 +249,15 @@ Errors at the KRPC level are prefixed 1xx. Errors at the Theseus DHT protocol le
 So far, the following error codes are defined:
 
 - `1xx` level:
-  - `100: Invalid KRPC message`
-  - `101: Internal error`
+  - `100: Generic KRPC error`
+  - `101: Invalid KRPC message`
+  - `102: Internal error`
 - `2xx` level:
-  - `200: Invalid DHT protocol message`
-  - `201: Internal error`
-  - `202: Method not recognized`
-  - `203: Tag not recognized`
+  - `200: Generic DHT protocol error`
+  - `201: Invalid DHT protocol message`
+  - `202: Internal error`
+  - `203: Method not recognized`
+  - `204: Tag not recognized`
 - `3xx` level:
   - `300: Generic error`
   - `301: Rate-limiting active`
@@ -299,7 +301,7 @@ BLAKE2b is favored over SHA512 because it is faster, based on a more modern and 
 For now, let's just use GitHub issues for discussing potential protocol extensions. We'll probably want to come up with something better down the road, but we can worry about that then.
 
 If you want to discuss anything privately, you can reach me (Eli) a couple different ways:
-- Email: {my first and last name, no punctuation} at gmail.
+- Email: my first and last name, with no punctuation, at gmail.
 - [Twitter](#https://twitter.com/elisohl): my DMs are open.
 
 ## Next Steps
@@ -307,6 +309,6 @@ If you want to discuss anything privately, you can reach me (Eli) a couple diffe
 - Implementation!
 
 - Interesting question: The Noise Protocol Framework has the concept of a "fallback pattern", which allows graceful handling of situations where one party is not able to complete a handshake as desired by the other. It would be worth looking into whether we can securely integrate these patterns into the Theseus DHT protocol. The win would be that node key rotation becomes easier, which probably only really matters for very long-lived nodes.
-  - This is easier said than done. We have to be careful to avoid unnecessarily weakening the protocol against MitM attacks in the case of fallback protocols involving node keys. There will probably turn out to be a trade-off here, and it will have to be carefully considered.
+  - This is easier said than done. We have to be careful to avoid unnecessarily weakening the protocol against MitM attacks in the case of fallback protocols involving peer keys. There will probably turn out to be a trade-off here, and it will have to be carefully considered.
   - Remember that a MitM attacker could trivially force a fallback handshake by just corrupting some transmitted data.
   - On the other hand, the benefits for people running long-lived nodes at static addresses also need to be considered. Supporting fallback could allow them to periodically rotate node keys and/or recover from key compromise without remote peers having to update their contact info for the nodes.
