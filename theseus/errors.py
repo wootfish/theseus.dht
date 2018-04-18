@@ -1,4 +1,6 @@
 errcodes = {}
+
+
 def errcode(cls):
     errcodes[cls.errcode] = cls
     return cls
@@ -97,4 +99,8 @@ class TheseusConnectionError(Exception):
 
 
 class RetriesExceededError(Exception):
+    pass
+
+
+class DuplicateContactError(Exception):
     pass

@@ -33,6 +33,7 @@ class HashJob:
         else:
             return "HashJob({pre}, {pri}, False)".format(pre=self.preimage, pri=self.priority.name)
 
+
 class Hasher:
     log = Logger()
 

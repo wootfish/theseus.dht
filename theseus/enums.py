@@ -1,11 +1,11 @@
 from enum import Enum, IntEnum
 
-# NodeStateKeys members are used as keys to the Dispatcher's internal 'states'
+# PeerStateKeys members are used as keys to the Dispatcher's internal 'states'
 # dict.
-NodeStateKeys = Enum("NodeStateKeys", "ROLE STATE LAST_ACTIVE INFO CNXN")
-ROLE, STATE, LAST_ACTIVE, INFO, CNXN = (NodeStateKeys.ROLE,
-        NodeStateKeys.STATE, NodeStateKeys.LAST_ACTIVE, NodeStateKeys.INFO,
-        NodeStateKeys.CNXN)
+PeerStateKeys = Enum("PeerStateKeys", "ROLE STATE LAST_ACTIVE INFO CNXN")
+ROLE, STATE, LAST_ACTIVE, INFO, CNXN = (PeerStateKeys.ROLE,
+        PeerStateKeys.STATE, PeerStateKeys.LAST_ACTIVE, PeerStateKeys.INFO,
+        PeerStateKeys.CNXN)
 
 
 # NoiseProtoRoles enumerate possible protocol roles in the Noise Framework. The
@@ -16,7 +16,7 @@ NoiseProtoRoles = Enum("NoiseProtoRoles", "INITIATOR RESPONDER")
 INITIATOR, RESPONDER = NoiseProtoRoles.INITIATOR, NoiseProtoRoles.RESPONDER
 
 
-# NodeCnxnStates are the possible values associated with NodeStateKeys.STATE
+# NodeCnxnStates are the possible values associated with PeerStateKeys.STATE
 NodeCnxnStates = Enum("NodeCnxnStates", "DISCONNECTED CONNECTING CONNECTED")
 DISCONNECTED, CONNECTING, CONNECTED = (NodeCnxnStates.DISCONNECTED,
         NodeCnxnStates.CONNECTING, NodeCnxnStates.CONNECTED)
@@ -28,6 +28,8 @@ class NodeInfoKeys(Enum):
     LISTEN_PORT = b'listen_port'
     PEER_KEY = b'peer_key'
     IDS = b'ids'
+
+
 MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS = (NodeInfoKeys.MAX_VERSION,
         NodeInfoKeys.LISTEN_PORT, NodeInfoKeys.PEER_KEY, NodeInfoKeys.IDS)
 

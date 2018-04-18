@@ -1,18 +1,23 @@
+from twisted.internet import reactor
 from twisted.logger import Logger
-from twisted.internet.defer import Deferred, DeferredList
+from twisted.internet.defer import DeferredList
 from twisted.protocols.policies import TimeoutMixin
 
 from .krpc import KRPCProtocol
-from .enums import NodeInfoKeys
+from .enums import NodeInfoKeys, INITIATOR, CONNECTED
+from .errors import Error201, Error202
 
 
 class DHTProtocol(KRPCProtocol, TimeoutMixin):
     log = Logger()
+
     idle_timeout = 34  # seconds
-    node_state = None
+    peer_state = None
     local_peer = None
 
-    default_info = [key.value for key in NodeInfoKeys]
+    supported_info_keys = set(key.value for key in NodeInfoKeys)
+
+    _reactor = reactor
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -27,7 +32,6 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
         # for processing data in responses to sent queries
         self.response_handlers.update({
-            #b'find': self.onFind,
             b'get': self.onGet,
             b'put': self.onPut,
             b'info': self.onInfo,
@@ -38,10 +42,16 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         self.setTimeout(self.idle_timeout)
 
         peer = self.transport.getPeer()
-        self.node_state.host = peer.host
-        self.node_state.getInfo(self.default_info, advertise={
-            key: self.local_peer.getInfo(key) for key in self.default_info
-            })
+        peer_state = self.peer_state
+        if peer_state:
+            peer_state.state = CONNECTED
+            peer_state.cnxn = self
+            peer_state.host = peer.host
+
+            if peer_state.role is INITIATOR:
+                peer_state.getInfo()
+        else:
+            self.log.error("{peer} - connectionMade but peer_state is None -- this should never happen outside of unit tests", peer=(peer.host, peer.port))
 
     def connectionLost(self, reason):
         super().connectionLost(reason)
@@ -49,59 +59,68 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
     def stringReceived(self, string):
         self.resetTimeout()
-        KRPCProtocol.stringReceived(string)
-
-    def onQuery(self, txn_id, query_name, args):
-        self.log.info("Query from {addr} (txn {txn}): {name} {args}",
-                      addr=self.transport.getPeer(), name=query_name, txn=txn_id, args=args)
+        KRPCProtocol.stringReceived(self, string)
 
     def find(self, args):
-        pass  # TODO: fill out after making real data store
+        pass  # TODO
 
     def get(self, args):
         pass  # TODO
 
     def info(self, args):
-        supported_keys = set(key.value for key in NodeInfoKeys)
         info = args.get(b'info', {})
         keys = args.get(b'keys', [])
-        local_info = {}
 
         # process remote info
         if type(info) is dict:
             if self.local_peer is not None:
                 for key in info:
-                    self.local_peer.maybeUpdateInfo(self, key, info[key])
+                    if key in self.supported_info_keys:
+                        if self.local_peer.maybeUpdateInfo(self, key, info[key]):
+                            self.log.debug("{peer} - Info update successful: {key}, {val}", peer=self._peer, key=key, val=info[key])
+                        else:
+                            self.log.debug("{peer} - Info update failed: {key}, {val}", peer=self._peer, key=key, val=info[key])
         else:
-            self.log.debug("Malformed query: Expected dict for value of 'info' key, not {type}", type=type(info))
-            return "malformed 'info' value"
+            self.log.debug("{peer} - Malformed query: Expected dict for value of 'info' key, not {type}", peer=self._peer, type=type(info))
+            raise Error201("malformed 'info' argument")
 
-        # collect values for requested info keys
         if type(keys) is list:
-            if supported_keys >= set(type(value) for value in keys):
-                for key in keys:
-                    local_info[key] = self.local_peer.getInfo(key)    # TODO patch getInfo to provide Deferreds for pending results, and patch this to properly handle those
-                deferred_list = DeferredList([d for d in local_info.values() if type(d) is Deferred])
-                deferred_list.addCallback(lambda _: {"info": {
-                    key: (value.result if type(value) is Deferred else value)
-                    for key, value in local_info.items()
-                    }})
-                return deferred_list
-            else:
-                self.log.debug("Unrecognized info key(s) requested. Requested keys: {keys}", keys=keys)
-                return "info key not supported"
+            d = self.getLocalKeys(keys)
+            d.addCallback(lambda info: {"info": info})
+            return d
         else:
-            self.log.debug("Malformed query: Expected list for value of 'keys' key, not {type}", type=type(keys))
-            return "malformed 'keys' value"
+            self.log.debug("{peer} - Malformed query: Expected list for value of 'keys' key, not {type}", peer=self._peer, type=type(keys))
+            raise Error201("malformed 'keys' argument")
 
     def put(self, args):
-        pass  # TODO
+        return args  # TODO
 
     def onGet(self, args):
-        pass  # TODO
+        return args  # TODO
 
     def onInfo(self, args):
-        pass  # TODO
+        return args  # TODO
 
     def onPut(self, args):
-        pass  # TODO
+        return args  # TODO
+
+    def getLocalKeys(self, keys=None):
+        if keys is None:
+            keys = self.supported_info_keys
+
+        if all(key in self.supported_info_keys for key in keys):
+            deferreds = []
+            result = {}
+            for key in keys:
+                def callback(value):
+                    result[key] = value
+
+                d = self.local_peer.getInfo(key)
+                d.addCallback(callback)
+                deferreds.append(d)
+            deferred_list = DeferredList(deferreds)
+            deferred_list.addCallback(lambda _: result)
+            return deferred_list
+        else:
+            self.log.debug("{peer} - Unrecognized info key(s) requested. Requested keys: {keys}", peer=self._peer, keys=keys)
+            raise Error202("info key not supported")
