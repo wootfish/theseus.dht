@@ -14,7 +14,7 @@ from .protocol import DHTProtocol
 from .contactinfo import ContactInfo
 from .nodeid import NodeID
 from .config import config
-from .nodetracker import NodeTracker
+from .peertracker import PeerTracker
 from .routing import RoutingTable
 from .errors import TheseusConnectionError, DuplicateContactError
 from .plugins import IPeerSource, IInfoProvider
@@ -37,7 +37,7 @@ class PeerService(Service):
         self.peer_key = DH("ed25519").generate_keypair()
 
         self.routing_table = RoutingTable(self)
-        self.node_tracker = NodeTracker(self)
+        self.peer_tracker = PeerTracker(self)
 
         self.blacklist = deque(maxlen=self.blacklist_size)
 
@@ -101,7 +101,7 @@ class PeerService(Service):
         Attempts to start listening for cnxns on the given port.
         Throws a CannotListenError if the port is not available.
         """
-        self.listener = reactor.listenTCP(port, self.node_tracker)
+        self.listener = reactor.listenTCP(port, self.peer_tracker)
 
     def addToBlacklist(self, host):
         self.blacklist.append(host)
@@ -113,7 +113,7 @@ class PeerService(Service):
         if contact_info.host in self.blacklist:
             return fail(TheseusConnectionError("Address blacklisted"))
 
-        peer_state = self.node_tracker.registerContact(contact_info)
+        peer_state = self.peer_tracker.registerContact(contact_info)
         return peer_state.connect()
 
     def maybeUpdateInfo(self, cnxn, info_key, new_value):
@@ -131,7 +131,7 @@ class PeerService(Service):
             if not (type(new_value) is int and 1024 <= new_value <= 65535):
                 return False
             addr = peer_state.host, peer_state.info.get(LISTEN_PORT)
-            if (self.node_tracker.getFromAddr(addr) or peer_state) != peer_state:
+            if (self.peer_tracker.getFromAddr(addr) or peer_state) != peer_state:
                 self.log.warn("{peer} - Tried to steal listen addr {addr}!", peer=cnxn._peer, addr=addr)
                 cnxn.transport.loseConnection()
                 return False
@@ -159,7 +159,7 @@ class PeerService(Service):
         if all(peer_state.info.get(key) for key in (LISTEN_PORT, PEER_KEY)):
             contact_info = peer_state.getContactInfo()
             try:
-                self.node_tracker.registerContact(contact_info, cnxn.peer_state)
+                self.peer_tracker.registerContact(contact_info, cnxn.peer_state)
             except DuplicateContactError:
                 self.log.warn("{peer} - DuplicateContactError registering contact info {info}", peer=cnxn._peer, info=contact_info)
                 cnxn.transport.loseConnection()

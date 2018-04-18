@@ -144,7 +144,7 @@ class PeerState(Factory):
         return deferred
 
 
-class NodeTracker(Factory):
+class PeerTracker(Factory):
     log = Logger()
 
     def __init__(self, local_peer):

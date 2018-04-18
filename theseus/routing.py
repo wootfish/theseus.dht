@@ -125,9 +125,9 @@ class RoutingTable:
     @staticmethod
     def getNodeIDs(contact_info):
         from app import peer
-        node = peer.node_tracker.get(contact_info)
+        node = peer.peer_tracker.get(contact_info)
         if node is None:
-            RoutingTable.log.warn("Tried to get node IDs for {contact} but node_tracker has no corresponding record.", contact=contact_info)
+            RoutingTable.log.warn("Tried to get node IDs for {contact} but peer_tracker has no corresponding record.", contact=contact_info)
             return []
         return node.getInfo(IDS)
 
