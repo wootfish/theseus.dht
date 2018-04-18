@@ -61,12 +61,15 @@ class IInfoProvider(Interface):
     provided = Attribute(
             """
             An object enumerating new local info keys this add-on provides.
-            Must be an object supporting __contains__.
-            Must only contain bytestrings.
+            Must support iteration and membership tests.
+            All contained objects must be of type bytes.
             """)
 
     def get(key):
         """
         Returns the value associated with the given info key. This will only
-        ever be invoked with keys contained by the 'provided' attribute.
+        ever be invoked with members of 'provided'.
+
+        May return the value associated with the requested info key, or may
+        return a Deferred which will fire with the same.
         """
