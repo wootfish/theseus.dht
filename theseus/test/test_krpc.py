@@ -1,9 +1,8 @@
-from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 
-from theseus.errors import TheseusProtocolError, BencodeError, KRPCError
+from theseus.errors import TheseusProtocolError, BencodeError
 from theseus.protocol import KRPCProtocol
 from theseus.bencode import bencode, bdecode
 

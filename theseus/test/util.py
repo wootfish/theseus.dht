@@ -9,4 +9,3 @@ def unnetstringify(netstring, asserter):
     string = string[:-1]
     asserter.assertEqual(int(i), len(string))
     return string
-

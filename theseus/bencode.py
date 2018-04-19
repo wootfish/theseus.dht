@@ -1,11 +1,12 @@
+from twisted.logger import Logger
+
+from .errors import BencodeError
+
+
 """
 Provides functionality for encoding Python3 data types to Bencode format and
 vice versa.
 """
-
-from twisted.logger import Logger
-
-from .errors import BencodeError
 
 
 log = Logger()

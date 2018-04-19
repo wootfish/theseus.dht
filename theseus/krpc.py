@@ -1,7 +1,7 @@
-from twisted.protocols.basic import NetstringReceiver
 from twisted.internet.defer import Deferred
-from twisted.python.failure import Failure
 from twisted.logger import Logger
+from twisted.protocols.basic import NetstringReceiver
+from twisted.python.failure import Failure
 
 from .bencode import bencode, bdecode
 from .errors import BencodeError, TheseusProtocolError, errcodes

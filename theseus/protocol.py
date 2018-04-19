@@ -1,11 +1,11 @@
 from twisted.internet import reactor
-from twisted.logger import Logger
 from twisted.internet.defer import DeferredList
+from twisted.logger import Logger
 from twisted.protocols.policies import TimeoutMixin
 
-from .krpc import KRPCProtocol
 from .enums import NodeInfoKeys, INITIATOR, CONNECTED
 from .errors import Error201, Error202
+from .krpc import KRPCProtocol
 
 
 class DHTProtocol(KRPCProtocol, TimeoutMixin):

@@ -1,14 +1,14 @@
-from nacl import pwhash
-
-from twisted.logger import Logger
 from twisted.internet.defer import Deferred, fail
 from twisted.internet.threads import deferToThread
+from twisted.logger import Logger
 
-from time import time
-from heapq import heappush, heappop
-from functools import lru_cache, total_ordering
+from nacl import pwhash
 
 from .enums import UNSET
+
+from functools import lru_cache, total_ordering
+from heapq import heappush, heappop
+from time import time
 
 
 @total_ordering

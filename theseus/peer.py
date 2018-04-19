@@ -1,24 +1,24 @@
-from twisted.internet import reactor
-from twisted.internet.error import CannotListenError
-from twisted.internet.defer import succeed, fail, DeferredList
 from twisted.application.service import Service
+from twisted.internet import reactor
+from twisted.internet.defer import succeed, fail, DeferredList
+from twisted.internet.error import CannotListenError
 from twisted.logger import Logger
 from twisted.plugin import getPlugins
 
 from noise.functions import DH, KeyPair25519
 
-from random import randrange
-from collections import deque
-
-from .protocol import DHTProtocol
-from .contactinfo import ContactInfo
-from .nodeid import NodeID
 from .config import config
-from .peertracker import PeerTracker
-from .routing import RoutingTable
-from .errors import TheseusConnectionError, DuplicateContactError
-from .plugins import IPeerSource, IInfoProvider
+from .contactinfo import ContactInfo
 from .enums import NodeInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS
+from .errors import TheseusConnectionError, DuplicateContactError
+from .nodeid import NodeID
+from .peertracker import PeerTracker
+from .plugins import IPeerSource, IInfoProvider
+from .protocol import DHTProtocol
+from .routing import RoutingTable
+
+from collections import deque
+from random import randrange
 
 
 class PeerService(Service):

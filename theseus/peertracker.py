@@ -1,15 +1,15 @@
 from twisted.internet import reactor
-from twisted.logger import Logger
 from twisted.internet.defer import fail, succeed
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet.protocol import Factory
+from twisted.logger import Logger
 from twisted.protocols.policies import WrappingFactory
 
 from .contactinfo import ContactInfo
-from .errors import RetriesExceededError, DuplicateContactError
-from .enums import INITIATOR, RESPONDER
 from .enums import DISCONNECTED, CONNECTING
+from .enums import INITIATOR, RESPONDER
 from .enums import LISTEN_PORT, PEER_KEY
+from .errors import RetriesExceededError, DuplicateContactError
 from .noisewrapper import NoiseWrapper, NoiseSettings
 from .protocol import DHTProtocol
 

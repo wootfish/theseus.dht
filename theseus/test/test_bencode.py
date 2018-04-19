@@ -34,7 +34,7 @@ class BencodeTests(unittest.TestCase):
 
     def test_errors(self):
         self.assertRaises(BencodeError, bencode, set())
-        self.assertRaises(BencodeError, bencode, {1:2, 3:4})
+        self.assertRaises(BencodeError, bencode, {1: 2, 3: 4})
 
         self.assertRaises(BencodeError, bdecode, b"")
         self.assertRaises(BencodeError, bdecode, b"something other than bencode")

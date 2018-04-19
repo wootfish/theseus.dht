@@ -1,5 +1,5 @@
-from twisted.protocols.policies import ProtocolWrapper
 from twisted.logger import Logger
+from twisted.protocols.policies import ProtocolWrapper
 
 from noise.connection import NoiseConnection
 

@@ -1,3 +1,9 @@
+from twisted.logger import Logger
+
+import json
+import os
+
+
 """
 config.py
 
@@ -18,11 +24,6 @@ Suggested usage:
     config["key"] = newval
 
 """
-
-from twisted.logger import Logger
-
-import os
-import json
 
 
 class Config:
