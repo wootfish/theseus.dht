@@ -25,6 +25,8 @@ class HashJob:
         self.active = False
 
     def __lt__(self, other):
+        if type(other) is not type(self):
+            return NotImplemented
         return self.priority < other.priority or (self.priority == other.priority and self.active and not other.active)
 
     def __repr__(self):

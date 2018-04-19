@@ -24,7 +24,7 @@ for fname in $(ls | grep theseus | grep -v "test\|__init__"); do
     uncovered=$(cat $fname | grep '^>>>>>>' | wc -l)
     covered=$(cat $fname | grep -v '^>>>>>>' | wc -l)
     #echo -n "$fname - "
-    python -c "print('$fname'.ljust(28), end='')"
+    python3 -c "print('$fname'.ljust(28), end='')"
     echo $covered $uncovered | python3 -c "$python_script"
     total_covered=$(( total_covered + covered ))
     total_uncovered=$(( total_uncovered + uncovered ))

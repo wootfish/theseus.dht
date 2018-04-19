@@ -123,8 +123,8 @@ class PeerService(Service):
         peer_state = cnxn.peer_state
 
         if info_key == IDS.value:
-            # check for formatting & uniqueness of all IDs, then set
-            # how do we want to decide when to queue up ID checks?
+            # check for formatting & uniqueness of all IDs, then assign
+            # question: how do we want to decide when to queue up ID checks?
             ...
 
         elif info_key == LISTEN_PORT.value:
