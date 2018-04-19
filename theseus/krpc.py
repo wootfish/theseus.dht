@@ -1,5 +1,6 @@
 from twisted.protocols.basic import NetstringReceiver
 from twisted.internet.defer import Deferred
+from twisted.python.failure import Failure
 from twisted.logger import Logger
 
 from .bencode import bencode, bdecode
@@ -44,11 +45,12 @@ class KRPCProtocol(NetstringReceiver):
             msg_type = krpc.get(b'y')
             if msg_type not in (b'q', b'r', b'e'):
                 raise Exception
+
         except Exception:
             # malformed message, and we don't have enough info for a proper
             # response, so... fuck it
             self.transport.loseConnection()
-            KRPCProtocol.log.failure("{peer} - Received malformed message: {msg}", peer=self._peer, msg=string)
+            KRPCProtocol.log.warn("{peer} - Received malformed message: {msg}", peer=self._peer, msg=string)
             return
 
         #if txn_id in self.deferred_responses:
@@ -71,7 +73,7 @@ class KRPCProtocol(NetstringReceiver):
                 # probably best to give this node a healthy bit of distance
                 self.transport.loseConnection()
                 if deferred:
-                    deferred.errback()
+                    deferred.errback(Exception("Remote peer is broken"))
             else:
                 KRPCProtocol.log.info("{peer} - Query response (txn {txn}): {args}", peer=self._peer, txn=txn_id.hex(), args=args)
                 deferred.callback(args)
@@ -108,7 +110,7 @@ class KRPCProtocol(NetstringReceiver):
             self.onQuery(txn_id, query_name, args)
         except KRPCError as err:
             self.sendError(txn_id, err)
-            KRPCProtocol.log.failure("{peer} - Error in subclass's query event callback", peer=self._peer)
+            KRPCProtocol.log.error("{peer} - Error in subclass's query event hook", peer=self._peer)
             return
 
         KRPCProtocol.log.debug("{peer} - Received query (txn {txn}): {query_name} {args}",
@@ -122,7 +124,7 @@ class KRPCProtocol(NetstringReceiver):
                 try:
                     self.sendResponse(txn_id, result)
                 except BencodeError:
-                    KRPCProtocol.log.failure("{peer} - Internal error trying to bencode the following response (txn {txn}): {result}",
+                    KRPCProtocol.log.error("{peer} - Internal error trying to bencode the following response (txn {txn}): {result}",
                                    peer=self._peer, txn=txn_id, result=result)
                     raise Error102
 
@@ -140,12 +142,13 @@ class KRPCProtocol(NetstringReceiver):
                 raise Error100
 
         except KRPCError as err:
-            KRPCProtocol.log.failure("{peer} - Error {n} encountered", peer=self._peer, n=err.errcode)
+            KRPCProtocol.log.error("{peer} - Error {n} encountered", peer=self._peer, n=err.errcode)
             self.sendError(txn_id, err)
 
         except Exception:
-            KRPCProtocol.log.failure("{peer} - Unexpected error responding to query {name} (txn {txn})",
+            KRPCProtocol.log.warn("{peer} - Unexpected error responding to query {name} (txn {txn})",
                            peer=self._peer, name=query_name, txn=txn_id)
+            KRPCProtocol.log.debug("{f}", f=Failure())
             self.sendError(txn_id, Error300)
 
     def onQuery(self, txn_id, query_name, args):
@@ -185,8 +188,10 @@ class KRPCProtocol(NetstringReceiver):
         self.sendString(bencoded)
 
     def sendError(self, txn_id, err):
-        if isinstance(err, KRPCProtocol):
+        if isinstance(err, KRPCError):
             errtup = (err.errcode, ''.join(err.args) or err.errtext)
+        elif type(err) is type and issubclass(err, KRPCError):
+            errtup = (err.errcode, err.errtext)
         else:
             errtup = (Error300.errcode, Error300.errtext)
         KRPCProtocol.log.info("{peer} - Sending error (txn {txn}) {err}", peer=self._peer, txn=txn_id.hex(), err=errtup)
