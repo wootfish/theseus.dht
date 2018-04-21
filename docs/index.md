@@ -360,6 +360,7 @@ The Twisted implementation is coming along well but is not yet complete. Outstan
 - Node IDs received by `info` queries are not yet stored in the routing table.
 - Have yet to implement a data store. It should track memory overhead of stored data and dynamically adjust storage times based on this. It should perhaps also rate-limit storage queries (or maybe rate-limiting would be better handled within DHTProtocol).
 - The NoiseWrapper protocol wrapper works, but implementing `hs_request` will require extending its functionality by a fair bit.
+- Speaking of Noise, traffic obfuscation during the Noise handshake is not nearly as strong as once the handshake is complete. Still working on a fix for this.
 - Once base features are stable, we'll need to implement node lookups.
 - Once node lookups are implemented, we'll want to set up intermittent automatic lookups to keep the local routing table fresh.
 - We do not yet have Elligator support. We'll either need to get this added into the Noise library or else shim it in at the protocol level.
