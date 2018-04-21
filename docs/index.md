@@ -50,7 +50,9 @@ The Theseus DHT is designed to be very good at bootstrapping overlay networks, a
 # Specification
 
 Version: 1.0
+
 Release date: 4/20/2018
+
 Revision date: n/a
 
 
@@ -211,6 +213,7 @@ So far, the following error codes are defined:
 - `<tag>`: Same as `<bytes>`.
 - `<contact info>`: Info about a node and the peer providing it, as a bytestring. Formed by concatenating the following:
   - Node ID (20 bytes)
+  - ID preimage (10 bytes)
   - IP address (4 bytes)
   - Port (2 bytes)
   - Curve25519 public 'node key' (32 bytes)
@@ -281,8 +284,6 @@ All traffic is encrypted, and all encrypted messages are indistinguishable from 
 
 In order to avoid any fingerprintable protocol preamble, we will specify a default handshake pattern and ciphersuite: `Noise_NK_25519_ChaChaPoly_BLAKE2b`. The `NK` pattern here provides for an exchange of ephemeral public keys to establish an encrypted channel, and for authentication of the responder (using their node key). The initial ephemeral key must be encoded with [Elligator](https://elligator.cr.yp.to/) to keep it from being trivially fingerprintable.
 
-    (TODO: figure out how to get Elligator support with the Python Noise library we're using -- might have to roll our own and shim it in at the protocol object level)
-
 
 ### Subsequent Handshakes
 
@@ -326,7 +327,7 @@ Each message contains an RPC embedded in a netstring. Anything after the end of 
 
 ## Peers and Nodes
 
-Just to clarify: ...
+Just to clarify: Users on the DHT run an individual peer. This peer has a routing table and a number of node IDs. Each node ID represents a specific node being hosted by the peer. When a peer's contact info is returned in a routing query, only the ID of the closest node 
 
 
 ## Sybil Resistance
@@ -348,7 +349,7 @@ Reasonable countermeasures against Sybil attacks would include increasing storag
 
 ## Mathematical Analysis
 
-`TODO: In-depth mathematical analysis based on points outlined above. I have extensive paper notes on this; a detailed write-up is forthcoming.`
+`TODO: Lay out in-depth mathematical analysis based on points outlined above. I have lots of analog notes on this. A detailed write-up is forthcoming.`
 
 
 ## Implementation Status
@@ -361,7 +362,40 @@ The Twisted implementation is coming along well but is not yet complete. Outstan
 - The NoiseWrapper protocol wrapper works, but implementing `hs_request` will require extending its functionality by a fair bit.
 - Once base features are stable, we'll need to implement node lookups.
 - Once node lookups are implemented, we'll want to set up intermittent automatic lookups to keep the local routing table fresh.
+- We do not yet have Elligator support. We'll either need to get this added into the Noise library or else shim it in at the protocol level.
 - We have some unit tests, but not as many as we need. A lot of important components aren't covered yet. This has to change ASAP.
+
+
+### Using TCP
+
+The choice to use TCP rather than UDP is a significant one and is not taken lightly. The essential motivation is that it simplifies the cryptography. For an idea of why, see [here](https://noiseprotocol.org/noise.html#out-of-order-transport-messages). Note in particular that including plaintext nonce values with messages would break our requirement that *all* protocol traffic be indistinguishable from random noise. Persistent connections also provide a convenient abstraction within which to perform multiple consecutive handshakes.
+
+One complication: A TCP connection to a specific port will originate from an arbitrary 'ephemeral' port on the part of the connector. UDP can operate this way but doesn't have to, because it's connectionless. Thus protocols like Kademlia which operate over UDP can and do use their packets' source port to advertise the port they're listening for messages on -- a trick we can't use if our connections have to originate from ephemeral ports. Compensating for this requires provisions at the protocol level for communicating the port we're listening for connections on. This is why `listen_port` is a required datum in the `info` query.
+
+A big issue here that we'll want to spend some time looking hard at once the reference implementation is otherwise mature and stable: NAT traversal. We may be able to work out a scheme for reachable nodes to perform some sort of hole punching to help NATed hosts to reach each other.
+
+If hole punching doesn't pan out, another interesting possibility (which was touched on briefly in some of the Theseus blog posts back on Sohliloquies) would be to see if the network can support an onion routing overlay, and if so, whether it'd be viable for NATed hosts to make themselves available as "hidden services" served from other, publicly accessible hosts. This would also have other benefits for users willing or needing to trade performance for privacy -- but that's a story for another day.
+
+
+### Choice of Ciphersuite
+
+The default algorithm choices specified above were selected to provide as conservative and robust of a default configuration as possible. The only arguable exception is Curve25519, which, while still a fairly conservative choice, is still less so than Curve448. The deciding factor in this case was that the crypto libraries we're using provide good implementations of Curve25519, whereas Curve448 support comes from some native Python which is pretty much guaranteed not to be as well hardened against say side-channel or timing attacks. I'm totally willing to revisit this if we can get nice Curve448 bindings, maybe via OpenSSL or something.
+
+Argon2id was chosen over my earlier favored algorithm, bcrypt, due to its state-of-the-art design and memory-hardness. Bcrypt is a great piece of work which has stood the test of time exceptionally well, but by nature of being CPU-hard rather than memory-hard it is less costly to mount massively parallel attacks on bcrypt using e.g. FPGAs. The memory overhead required for background verification of Argon2id hashes on a user's machine is also likely to be less impactful on performance than the CPU overhead required to verify bcrypt hashes of comparable hardness.
+
+BLAKE2b is favored over SHA512 because it is faster, based on a more modern and robust construction (no length-extension attacks!), and doesn't suffer from any ominous reduced-round preimage resistance breaks like the SHA-2 family has. SHA512 still seems secure enough for the time being, of course, but if I had to bet on which algorithm I think'll be looking better 5 or 10 years from now, I'd bet on BLAKE2b.
+
+
+## Modifying the Protocol
+
+For now, let's just use GitHub issues for discussing potential protocol modifications. We'll probably want to come up with something better down the road, but we can worry about that then.
+
+If you want to develop a protocol extension that doesn't impact core functionality, you don't need any sign-off from me or anyone to do that. Still, I'd like to hear from you! Drop me a line.
+
+If you want to get in touch, you can reach me (Eli) a couple different ways:
+- [Twitter](#https://twitter.com/elisohl): my DMs are open.
+- Email: my first and last name, with no punctuation, at gmail.
+- Signal: Send a Twitter DM or email asking for my number.
 
 
 ## Further Reading
