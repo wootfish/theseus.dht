@@ -91,7 +91,7 @@ We [define a number of errors below](#errors). We specify six KRPC queries: `fin
 ## RPCs
 
 
-### `find`
+### find
 
 This mirrors Kademlia's `find_node` query. Takes a target DHT address as an argument. The queried node returns the closest nodes to that target in its routing table. The precise number of contacts may depend on the state of the queried peer's routing table, but under ideal circumstances it should equal the routing table's value of K.
 
@@ -100,7 +100,7 @@ Arguments: `{"addr": <20-byte address>}`
 Response: `{"nodes": <compact node info>}`
 
 
-### `get`
+### get
 
 Try to retrieve data from a node. Takes a DHT address as an argument. The response differs based on whether the queried node has stored data for that address. If it does, it returns the data. If it doesn't, it returns routing suggestions like with `find_node`.
 
@@ -118,7 +118,7 @@ Response:
 - No data at address: `{"nodes": [<compact node info>, ...]}`
 
 
-### `put`
+### put
 
 Store some data in the DHT. Takes an address as an argument. There are several optional arguments. The response should specify the amount of time, in seconds, for which the remote peer intends to store this data.
 
@@ -132,7 +132,7 @@ Arguments: `{"addr": "<20-byte address>", "data": <bytes>, "tags": ["tag1", "tag
 Response: `{"t": 99999}`
 
 
-### `info`
+### info
 
 Used for metadata exchange between peers. Both arguments are technically optional. If neither is provided, the query should be treated as a no-op and the response should be an empty dictionary.
 
@@ -149,7 +149,7 @@ Arguments: `{"info": {"key1": <data>, "key2": <data>, ...}, "keys": ["key3", "ke
 Response: `{"info": {"key3": <data>, "key4": <data>, ...}}`
 
 
-### `hs_suggest`
+### hs_suggest
 
 Messages of this type are purely informational and may be exchanged any number of times between handshakes. Their purpose is to communicate re-handshake parameters that the sending party would find acceptable.
 
@@ -168,7 +168,7 @@ Arguments: `{"initiator": 1, "handshake": "Noise_KK_25519_ChaChaPoly_BLAKE2b", "
 Response: `{}`
 
 
-### `hs_request`
+### hs_request
 
 Messages of this type specify concrete re-handshake parameters. If the remote peer finds these parameters unacceptable, it may reply with an error code. A non-error response indicates that the remote node accepts the re-handshake parameters.
 
@@ -227,7 +227,7 @@ So far, the following error codes are defined:
 
 Peers must provide at least the following info keys:
 
-* `peer\_key`: A Curve25519 public key used as a static key when responding to incoming Noise connections.
+* `peer_key`: A Curve25519 public key used as a static key when responding to incoming Noise connections.
 * `ids`: A list of node IDs, with preimages.
 
 An `extensions` info key is suggested for DHT-integrated applications that want to advertise extra functionality to their peers. This key should map to a list of short bytestrings enumerating the extensions in use. The namespace for extension names is of course shared between all applications on the DHT, so anyone making use of this feature are strongly encouraged to names that are not likely to give rise to collisions. For instance, when Theseus proper is built upon the Theseus DHT, its peers will advertise `"extensions": ["theseus"]`. Since the namespace for query names is also shared, it is encouraged, wherever reasonable, to prefix query names with a uniform extension name.
