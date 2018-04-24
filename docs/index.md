@@ -357,7 +357,7 @@ Reasonable countermeasures against Sybil attacks would include increasing storag
 `TODO: Lay out in-depth mathematical analysis based on points outlined above. I have lots of analog notes on this. A detailed write-up is forthcoming.`
 
 
-### Using TCP
+## Using TCP
 
 The choice to use TCP rather than UDP is a significant one and is not taken lightly. The essential motivation is that it simplifies the cryptography. For an idea of why, see [here](https://noiseprotocol.org/noise.html#out-of-order-transport-messages). Note in particular that including plaintext nonce values with messages would break our requirement that *all* protocol traffic be indistinguishable from random noise. Persistent connections also provide a convenient abstraction within which to perform multiple consecutive handshakes.
 
@@ -406,7 +406,7 @@ Some good starting points for anyone interested in helping out:
 - Unit tests are direly needed throughout the codebase and anyone who can provide them would be welcomed with open arms.
 
 
-### Choice of Ciphersuite
+## Choice of Ciphersuite
 
 The default algorithm choices specified above were selected to provide as conservative and robust of a default configuration as possible. The only arguable exception is Curve25519, which, while still a fairly conservative choice, is still less so than Curve448. The deciding factor in this case was that the crypto libraries we're using provide good implementations of Curve25519, whereas Curve448 support comes from some native Python which is pretty much guaranteed not to be as well hardened against say side-channel or timing attacks. I'm totally willing to revisit this if we can get nice Curve448 bindings, maybe via OpenSSL or something.
 
@@ -433,7 +433,7 @@ If you want to get in touch with me (Eli), you can reach me a couple different w
 All else being equal, reaching out over Twitter DMs or here on Github are probably the most reliable ways of reaching me.
 
 
-## Further Reading
+# Further Reading
 
 The blog posts listed here are not necessarily up to date, but they reflect my thinking on these topics across the last couple years, and may be helpful to people looking for additional information or context for any of the ideas discussed above.
 
