@@ -41,10 +41,15 @@ The Theseus DHT is designed to be very good at bootstrapping overlay networks, a
     - [Message Sizes](#message-sizes)
     - [Plaintext Format](#plaintext-format)
   - [Brief Discussion](#brief-discussion)
+    - [Peers and Nodes](#peers-and-nodes) 
     - [Sybil Resistance](#sybil-resistance)
     - [Mathematical Analysis](#mathematical-analysis)
+    - [Using TCP](#using-tcp)
     - [Implementation Status](#implementation-status)
-    - [Further Reading](#further-reading)
+    - [Choice of Ciphersuite](#choice-of-ciphersuite)
+    - [Modifying the Protocol](#modifying-the-protocol)
+  - [Contact Info](#contact-info)
+  - [Further Reading](#further-reading)
 
 
 # Specification
@@ -352,21 +357,6 @@ Reasonable countermeasures against Sybil attacks would include increasing storag
 `TODO: Lay out in-depth mathematical analysis based on points outlined above. I have lots of analog notes on this. A detailed write-up is forthcoming.`
 
 
-## Implementation Status
-
-The Twisted implementation is coming along well but is not yet complete. Outstanding TODOs:
-
-- The `info` query is implemented, but the other RPC queries are not yet.
-- Node IDs received by `info` queries are not yet stored in the routing table.
-- Have yet to implement a data store. It should track memory overhead of stored data and dynamically adjust storage times based on this. It should perhaps also rate-limit storage queries (or maybe rate-limiting would be better handled within DHTProtocol).
-- The NoiseWrapper protocol wrapper works, but implementing `hs_request` will require extending its functionality by a fair bit.
-- Speaking of Noise, traffic obfuscation during the Noise handshake is not nearly as strong as once the handshake is complete. Still working on a fix for this.
-- Once base features are stable, we'll need to implement node lookups.
-- Once node lookups are implemented, we'll want to set up intermittent automatic lookups to keep the local routing table fresh.
-- We do not yet have Elligator support. We'll either need to get this added into the Noise library or else shim it in at the protocol level.
-- We have some unit tests, but not as many as we need. A lot of important components aren't covered yet. This has to change ASAP.
-
-
 ### Using TCP
 
 The choice to use TCP rather than UDP is a significant one and is not taken lightly. The essential motivation is that it simplifies the cryptography. For an idea of why, see [here](https://noiseprotocol.org/noise.html#out-of-order-transport-messages). Note in particular that including plaintext nonce values with messages would break our requirement that *all* protocol traffic be indistinguishable from random noise. Persistent connections also provide a convenient abstraction within which to perform multiple consecutive handshakes.
@@ -376,6 +366,44 @@ One complication: A TCP connection to a specific port will originate from an arb
 A big issue here that we'll want to spend some time looking hard at once the reference implementation is otherwise mature and stable: NAT traversal. We may be able to work out a scheme for reachable nodes to perform some sort of hole punching to help NATed hosts to reach each other.
 
 If hole punching doesn't pan out, another interesting possibility (which was touched on briefly in some of the Theseus blog posts back on Sohliloquies) would be to see if the network can support an onion routing overlay, and if so, whether it'd be viable for NATed hosts to make themselves available as "hidden services" served from other, publicly accessible hosts. This would also have other benefits for users willing or needing to trade performance for privacy -- but that's a story for another day.
+
+
+## Implementation Status
+
+The Twisted implementation is coming along well but is not yet complete. Some outstanding TODOs:
+
+- The `info` query is implemented, but the other RPC queries are not yet.
+- Node IDs received by `info` queries are not yet stored in the routing table.
+- Have yet to implement a data store. It should track memory overhead of stored data and dynamically adjust storage times based on this. It should perhaps also rate-limit storage queries (or maybe rate-limiting would be better handled within DHTProtocol). It might make sense to run this in a subprocess so that its memory overhead can be more easily tracked.
+- The NoiseWrapper protocol wrapper works, but implementing `hs_request` will require extending its functionality somewhat.
+- Speaking of Noise, traffic obfuscation during the Noise handshake is not nearly as strong as once the handshake is complete. Still working on a fix for this.
+- Once base features are stable, we'll need to implement node lookups.
+- Once node lookups are implemented, we'll want to set up intermittent automatic lookups to keep the local routing table fresh.
+- We do not yet have Elligator support. We'll either need to get this added into the Noise library or else shim it in at the protocol level.
+- We have some unit tests, but not as many as we need. A lot of important components of the system aren't covered at all yet. This has to change ASAP.
+
+Proposed Roadmap (subject to change):
+
+1. Finish writing up mathematical analysis of network dynamics and Sybil thresholds. (in progress)
+2. Add ID check logic for node IDs received from remote peers.
+3. Add logic for inserting remote node IDs into the local routing table (tho maybe only after their ID checks pass)
+  - One thing to be mindful of here: If we wait for ID checks to succeed before inserting into the routing table, this leaves a decently sized window where multiple peers could try to claim the same node ID.
+  - In situations like this, it is _critical_ that precedence goes to whoever claimed the ID first.
+  - The reasons why will be discussed in the formal analysis of the network.
+4. Implement `find` RPC.
+5. At this point the routing functionality will be complete! Seems like a good time to make a big push on writing unit tests.
+6. Implement node lookup logic.
+7. Implement network size estimation.
+8. Add 'paranoid/non-paranoid' option to lookup logic, and have non-paranoid lookups automatically become paranoid if they detect anomalous peer density at the target address.
+9. Triage and implement other outstanding functionality: Data store, handshake renegotiation, related RPCs for both, and Elligator support.
+
+Some good starting points for anyone interested in helping out:
+
+- If you're into cryptography, maybe look into what it would take to get Elligator support. It might make sense for this to end up being a pull request to the Noise library we use, rather than something that gets taken care of in the Noise wrapper here.
+- The `find` RPC's only dependency should be the routing table, so it should be possible to implement that RPC now, even though the routing table is not yet populated.
+- I'm considering rewriting the routing table to use a binary tree, because I suspect it could speed up queries a lot (though we're not at the point yet where it's possible to profile the code to see how necessary this is). Anyone who wants to take a crack at this rewrite is welcome to.
+- The data store is another stand-alone component that could in theory be implemented right now, though this would be a big undertaking.
+- Unit tests are direly needed throughout the codebase and anyone who can provide them would be welcomed with open arms.
 
 
 ### Choice of Ciphersuite
@@ -393,10 +421,16 @@ For now, let's just use GitHub issues for discussing potential protocol modifica
 
 If you want to develop a protocol extension that doesn't impact core functionality, you don't need any sign-off from me or anyone to do that. Still, I'd like to hear from you! Drop me a line.
 
-If you want to get in touch, you can reach me (Eli) a couple different ways:
+
+# Contact Info
+
+If you want to get in touch with me (Eli), you can reach me a couple different ways:
 - [Twitter](#https://twitter.com/elisohl): my DMs are open.
 - Email: my first and last name, with no punctuation, at gmail.
 - Signal: Send a Twitter DM or email asking for my number.
+- Github: I do keep a close eye on this repo, so opening an issue or pull request would also work to get my attention.
+
+All else being equal, reaching out over Twitter DMs or here on Github are probably the most reliable ways of reaching me.
 
 
 ## Further Reading
