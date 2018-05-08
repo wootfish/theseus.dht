@@ -54,11 +54,11 @@ The Theseus DHT is designed to be very good at bootstrapping overlay networks, a
 
 # Specification
 
-Version: 1.0
-
 Release date: 4/20/2018
 
 Revision date: n/a
+
+Revision number: 0
 
 
 ## Brief Summary
