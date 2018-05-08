@@ -40,16 +40,16 @@ The Theseus DHT is designed to be very good at bootstrapping overlay networks, a
     - [Subsequent Handshakes](#subsequent-handshakes)
     - [Message Sizes](#message-sizes)
     - [Plaintext Format](#plaintext-format)
-  - [Brief Discussion](#brief-discussion)
-    - [Peers and Nodes](#peers-and-nodes) 
-    - [Sybil Resistance](#sybil-resistance)
-    - [Mathematical Analysis](#mathematical-analysis)
-    - [Using TCP](#using-tcp)
-    - [Implementation Status](#implementation-status)
-    - [Choice of Ciphersuite](#choice-of-ciphersuite)
-    - [Modifying the Protocol](#modifying-the-protocol)
-  - [Contact Info](#contact-info)
-  - [Further Reading](#further-reading)
+- [Brief Discussion](#brief-discussion)
+  - [Peers and Nodes](#peers-and-nodes) 
+  - [Sybil Resistance](#sybil-resistance)
+  - [Mathematical Analysis](#mathematical-analysis)
+  - [Using TCP](#using-tcp)
+  - [Implementation Status](#implementation-status)
+  - [Choice of Ciphersuite](#choice-of-ciphersuite)
+  - [Modifying the Protocol](#modifying-the-protocol)
+- [Contact Info](#contact-info)
+- [Further Reading](#further-reading)
 
 
 # Specification
@@ -354,7 +354,7 @@ Reasonable countermeasures against Sybil attacks would include increasing storag
 
 ## Mathematical Analysis
 
-`TODO: Lay out in-depth mathematical analysis based on points outlined above. I have lots of analog notes on this. A detailed write-up is forthcoming.`
+`TODO: Lay out in-depth mathematical analysis based on points outlined above. (I have lots of analog notes on this. A detailed write-up is forthcoming.)`
 
 
 ## Using TCP
