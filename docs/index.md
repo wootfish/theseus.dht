@@ -43,6 +43,7 @@ The Theseus DHT is designed to be very good at bootstrapping overlay networks, a
 - [Brief Discussion](#brief-discussion)
   - [Peers and Nodes](#peers-and-nodes) 
   - [Sybil Resistance](#sybil-resistance)
+    - [Pending Improvements](#pending-improvements)
   - [Mathematical Analysis](#mathematical-analysis)
   - [Using TCP](#using-tcp)
   - [Implementation Status](#implementation-status)
@@ -329,10 +330,16 @@ Each message contains an RPC embedded in a netstring. Anything after the end of 
 
 # Brief Discussion
 
+Release date: 4/20/2018
+
+Revision date: 5/15/2018
+
+Revision number: 1
+
 
 ## Peers and Nodes
 
-Just to clarify: Users on the DHT run an individual peer. This peer has a routing table and a number of node IDs. Each node ID represents a specific node being hosted by the peer. When a peer's contact info is returned in a routing query, only the ID of the closest node 
+Just to clarify: Users on the DHT run an individual peer. This peer has a routing table and a number of node IDs. Each node ID represents a specific node being hosted by the peer. When a peer's contact info is returned in a routing query, only the peer's closest node's ID is included.
 
 
 ## Sybil Resistance
@@ -350,6 +357,37 @@ The size of the entire DHT peer network can be straightforwardly estimated. Prio
 Carrying out a horizontal Sybil attack requires a huge increase in the number of nodes in the network. Carrying out a vertical Sybil attack requires a huge increase in the node density at a specific address. Both of these produce easily-identified signatures which allow the network to identify and take steps to mitigate in-progress Sybil attacks.
 
 Reasonable countermeasures against Sybil attacks would include increasing storage duration for all data, increasing the storage radius for data (e.g. dynamically scaling from storing data at the `k` closest nodes to an address to the `2k` closest nodes.
+
+
+## IPv6
+
+Currently all traffic takes place over IPv4. This is just because it makes my life simpler as a developer -- for now. But there is a good reason to want IPv6 support: Most routers perform NAT on IPv4 traffic, whereas performing NAT on IPv6 is less common (which makes sense, since IPv4's dependence on NAT is one of the problems IPv6 was designed to solve). This general lack of NAT means that IPv6 is much more attractive in a peer-to-peer context, since it allows hosts positioned behind routers (as virtually all personal computers are) to communicate without the need for complications like hole-punching. Thus IPv6 support is a major priority, albeit a deferred one (for now).
+
+
+### Pending Improvements
+
+Presently it is possible for attackers to "steal" observed IDs. It is not hard to imagine a situation where an attacker with significant network presence could listen for IDs close to an address it wants to attack, then start announcing the observed node ID as its own. The peers closest to the address should have already seen an advertisement from the peer who originally generated the ID, and should thus reject the attacker's advertisement of the same ID (and in fact should probably blacklist the attacking peer). However, peers further away from the address could end up attributing this node ID to the attacker if they 1) have room in the relevant routing table bucket and 2) haven't already seen the node ID.
+
+This could result in routing lookups which pass through the further peers leading to the attacker. It is difficult to model precisely how serious of a problem this is, but it should be mitigated nevertheless. It is perhaps worth noting that the attack is trivial to detect (as a lookup would almost certainly end up seeing the stolen ID attributed to both sets of contact info) but that detecting the attacker is much more difficult. Thus detecting the attack is not sufficient to curb its effectiveness.
+
+This problem has a solution, which is simple in principle but challenging to design properly. The core idea is to include a peer's contact info in the calculation of their node IDs. This idea somewhat resembles a drafted extension to Kademlia: [BEP-42](http://bittorrent.org/beps/bep_0042.html).
+
+I see at least four difficulties with this solution in our case.
+
+First: I want to leave the door open to running Theseus peers as Tor onion services. Doing so properly is a nuanced problem. My goal here is to avoid adopting a solution exclusively geared towards peers who know and are comfortable disclosing their public IP. Such a solution would complicate the process of adding support for peers who have more extreme threat models. This is the main reason I'm describing a draft version of this solution here, rather than codifying it in the spec.
+
+Second: I also want to leave the door open to IPv6. The reasons for this are discussed [above](#ipv6). The difficulties posed by making this scheme compatible with IPv6 addresses resemble those to do with supporting Tor onion services.
+
+Third: These different identifiers -- IPv4 address, IPv6 address, Tor onion service descriptors -- contain differing amounts of entropy. My early writings on Sybil attack prevention discussed the idea of limiting node ID entropy as a way of bounding the worst-case impact of a Sybil attack. Lately I've soured on this idea somewhat, since if we're dynamically detecting and compensating for Sybil attacks then we probably don't need that bound after all and in fact we probably care more about address uniqueness than anything else. All the same, it is important from a theory perspective to carefully consider and account for the implications here regarding ID entropy.
+
+Fourth: If we limit ourselves to the IPv4 case momentarily, we still have the problem that peers might not know their public IPs. This would for instance commonly be the case for anyone initiating a connecting from behind NAT. The solution is to allow peers to discover their own IP as reported by remote peers. The most straightforward and elegant way I see of adding this would be to do the following:
+
+- Add a `tags` key to `put` responses, keying a dictionary which maps tag names to the values assigned for them. This key would only be required if the `put` request also had a `tags` key. This would allow the querying peer to see what values the remote peer associates with the given tags.
+- Add an optional 'duration' key (or perhaps some smaller name, like 'ttl') to `put` queries. This would specify a desired storage duration for the data the query is requesting storage of. The remote peer would store the data for whichever is smaller between their default storage duration and the requested duration. Crucially, requesting a storage time of 0 would prevent data from being stored in the first place, but would still cause the remote peer to return a `tags` key if the original query had one.
+
+We could also add a dedicated RPC, but that seems like an uglier solution to me. Both these modifications strike me as reasonable features to have regardless. It just so happens that together they also provide a mechanism for users to discover their own IPs without polluting the network or introducing new queries.
+
+This subject will be addressed further after I have explored the topics of Tor integration and IPv6 support more thoroughly.
 
 
 ## Mathematical Analysis
