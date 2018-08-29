@@ -14,14 +14,9 @@ Default directory is os.path.expanduser("~/.theseus").
 
 Suggested usage:
 
-    # to import correctly:
-    from .config import config
-
-    # to access config values
-    value = config["key"]
-
-    # to set (and save!) a config value
-    config["key"] = newval
+    >>> from .config import config
+    >>> value = config["key"]   # to access a config value
+    >>> config["key"] = newval  # to set (and save!) a config value
 
 """
 
