@@ -2,12 +2,14 @@ from twisted.internet.defer import Deferred
 from twisted.logger import Logger
 from twisted.protocols.basic import NetstringReceiver
 from twisted.python.failure import Failure
+from twisted.plugin import getPlugins
 
+from .plugins import IKRPC
 from .bencode import bencode, bdecode
-from .errors import BencodeError, TheseusProtocolError, errcodes
+from .errors import PluginError, BencodeError, TheseusProtocolError, errcodes
 from .errors import KRPCError, Error100, Error101, Error102, Error103, Error300
 
-import os
+from os import urandom
 
 
 # TODO stare at KRPCProtocol & meditate on whether it can be streamlined
@@ -15,6 +17,7 @@ import os
 
 class KRPCProtocol(NetstringReceiver):
     log = Logger()
+    max_name_size = 32
     _peer = None
 
     def __init__(self, *args, **kwargs):
@@ -25,6 +28,19 @@ class KRPCProtocol(NetstringReceiver):
 
         self.open_queries = {}
         #self.deferred_responses = {}
+
+        for provider in getPlugins(IKRPC):
+            if type(provider.name) is not bytes or len(provider.name > self.max_name_size):
+                raise PluginError("Bad KRPC name in plugin")
+
+            # TODO log this plugin use
+            # FIXME if multiple handlers are present for a given query, the one
+            # that gets registered depends on the iteration order in
+            # getPlugins. Can we make this more deterministic? Sorting by query
+            # name won't be enough.
+
+            self.query_handlers[provider.name] = provider.query_handler
+            self.response_handlers[provider.name] = provider.response_handler
 
     def connectionMade(self):
         super().connectionMade()
@@ -61,9 +77,9 @@ class KRPCProtocol(NetstringReceiver):
             query_name = krpc.get(b'q')
             args = krpc.get(b'a')
             if None in (query_name, args) or type(args) is not dict:
-                self.sendError(txn_id, Error101)
+                self._send_error(txn_id, Error101)
             else:
-                self.handleQuery(txn_id, query_name, args)
+                self._handle_query(txn_id, query_name, args)
 
         elif msg_type == b'r':
             args = krpc.get(b'r')
@@ -99,17 +115,17 @@ class KRPCProtocol(NetstringReceiver):
             else:
                 KRPCProtocol.log.info("{peer} - Error received for unrecognized txn {txn}", peer=self._peer, txn=txn_id.hex())
 
-    def handleQuery(self, txn_id, query_name, args):
+    def _handle_query(self, txn_id, query_name, args):
         if query_name not in self.query_handlers:
             KRPCProtocol.log.debug("{peer} - Unsupported query {name} requested in {proto}", peer=self._peer, name=query_name, proto=self)
-            self.sendError(txn_id, Error103)
+            self._send_error(txn_id, Error103)
             return
 
         try:
             # event callback for subclasses
-            self.onQuery(txn_id, query_name, args)
+            self.on_query(txn_id, query_name, args)
         except KRPCError as err:
-            self.sendError(txn_id, err)
+            self._send_error(txn_id, err)
             KRPCProtocol.log.error("{peer} - Error in subclass's query event hook", peer=self._peer)
             return
 
@@ -122,7 +138,7 @@ class KRPCProtocol(NetstringReceiver):
             if type(result) is dict:
                 #self.deferred_responses.pop(txn_id, None)
                 try:
-                    self.sendResponse(txn_id, result)
+                    self._send_response(txn_id, result)
                 except BencodeError:
                     KRPCProtocol.log.error("{peer} - Internal error trying to bencode the following response (txn {txn}): {result}",
                                    peer=self._peer, txn=txn_id, result=result)
@@ -134,7 +150,7 @@ class KRPCProtocol(NetstringReceiver):
 
                 def callback(retval):
                     KRPCProtocol.log.debug("{peer} - Sending deferred response (txn {txn_id}) {retval}", peer=self._peer, txn_id=txn_id.hex(), retval=retval)
-                    self.sendResponse(txn_id, retval)
+                    self._send_response(txn_id, retval)
                 result.addCallback(callback)
 
             else:
@@ -143,15 +159,15 @@ class KRPCProtocol(NetstringReceiver):
 
         except KRPCError as err:
             KRPCProtocol.log.error("{peer} - Error {n} encountered", peer=self._peer, n=err.errcode)
-            self.sendError(txn_id, err)
+            self._send_error(txn_id, err)
 
         except Exception:
             KRPCProtocol.log.warn("{peer} - Unexpected error responding to query {name} (txn {txn})",
                            peer=self._peer, name=query_name, txn=txn_id)
             KRPCProtocol.log.debug("{f}", f=Failure())
-            self.sendError(txn_id, Error300)
+            self._send_error(txn_id, Error300)
 
-    def onQuery(self, txn_id, query_name, args):
+    def on_query(self, txn_id, query_name, args):
         """
         To be overridden in subclasses wishing to hook the query event. Raise a
         TheseusProtocolError in this function to abort the query and send the
@@ -159,35 +175,35 @@ class KRPCProtocol(NetstringReceiver):
         TheseusProtocolError, to the remote node.
         """
 
-    def onError(self, failure):
+    def _on_error(self, failure):
         """
         To be overridden in subclasses wishing to hook the error event.
         """
         return failure
 
-    def sendQuery(self, query_name, args):
+    def send_query(self, query_name, args):
         if type(query_name) is str:
             query_name = query_name.encode("ascii")  # make sure type(query_name) is bytes
 
-        txn_id = os.urandom(2)
+        txn_id = urandom(2)
         KRPCProtocol.log.info("{peer} - Sending query (txn {txn}): {query} {args}", peer=self._peer, txn=txn_id.hex(), query=query_name, args=args)
         self.sendString(bencode({b't': txn_id, b'y': b'q', b'q': query_name, b'a': args}))
 
         deferred = Deferred()
         if query_name in self.response_handlers:
             deferred.addCallback(self.response_handlers.get(query_name))
-        deferred.addErrback(self.onError)
+        deferred.addErrback(self._on_error)
 
         self.open_queries[txn_id] = deferred
         return deferred
 
-    def sendResponse(self, txn_id, retval):
+    def _send_response(self, txn_id, retval):
         response = {b't': txn_id, b'y': b'r', b'r': retval}
         bencoded = bencode(response)
         KRPCProtocol.log.info("{peer} - Sending response: {response}", peer=self._peer, response=response)
         self.sendString(bencoded)
 
-    def sendError(self, txn_id, err):
+    def _send_error(self, txn_id, err):
         if isinstance(err, KRPCError):
             errtup = (err.errcode, ''.join(err.args) or err.errtext)
         elif type(err) is type and issubclass(err, KRPCError):

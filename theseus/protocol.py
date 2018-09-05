@@ -3,7 +3,7 @@ from twisted.internet.defer import DeferredList
 from twisted.logger import Logger
 from twisted.protocols.policies import TimeoutMixin
 
-from .enums import NodeInfoKeys, INITIATOR, CONNECTED
+from .enums import DHTInfoKeys, INITIATOR, CONNECTED
 from .errors import Error201, Error202
 from .krpc import KRPCProtocol
 
@@ -15,7 +15,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     peer_state = None
     local_peer = None
 
-    supported_info_keys = set(key.value for key in NodeInfoKeys)
+    supported_info_keys = set(key.value for key in DHTInfoKeys)
 
     _reactor = reactor
 
@@ -49,7 +49,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             peer_state.host = peer.host
 
             if peer_state.role is INITIATOR:
-                peer_state.getInfo()
+                peer_state.get_info()
         else:
             self.log.error("{peer} - connectionMade but peer_state is None -- this should never happen outside of unit tests", peer=(peer.host, peer.port))
 
@@ -76,7 +76,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             if self.local_peer is not None:
                 for key in info:
                     if key in self.supported_info_keys:
-                        if self.local_peer.maybeUpdateInfo(self, key, info[key]):
+                        if self.local_peer.maybe_update_info(self, key, info[key]):
                             self.log.debug("{peer} - Info update successful: {key}, {val}", peer=self._peer, key=key, val=info[key])
                         else:
                             self.log.debug("{peer} - Info update failed: {key}, {val}", peer=self._peer, key=key, val=info[key])
@@ -85,7 +85,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             raise Error201("malformed 'info' argument")
 
         if type(keys) is list:
-            d = self.getLocalKeys(keys)
+            d = self.get_local_keys(keys)
             d.addCallback(lambda info: {"info": info})
             return d
         else:
@@ -104,7 +104,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     def onPut(self, args):
         return args  # TODO
 
-    def getLocalKeys(self, keys=None):
+    def get_local_keys(self, keys=None):
         if keys is None:
             keys = self.supported_info_keys
 
@@ -115,7 +115,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
                 def callback(value):
                     result[key] = value
 
-                d = self.local_peer.getInfo(key)
+                d = self.local_peer.get_info(key)
                 d.addCallback(callback)
                 deferreds.append(d)
             deferred_list = DeferredList(deferreds)

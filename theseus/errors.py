@@ -104,3 +104,7 @@ class RetriesExceededError(Exception):
 
 class DuplicateContactError(Exception):
     pass
+
+
+class PluginError(Exception):
+    pass

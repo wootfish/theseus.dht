@@ -18,8 +18,8 @@ class ContactInfo:
     def __repr__(self):
         return "ContactInfo({}, {}, {})".format(self.host, self.port, self.key)
 
-    def asBytes(self):
+    def as_bytes(self):
         ...  # TODO
 
-    def getAddr(self):
+    def get_addr(self):
         return IPv4Address("TCP", self.host, self.port)

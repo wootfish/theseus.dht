@@ -16,22 +16,22 @@ NoiseProtoRoles = Enum("NoiseProtoRoles", "INITIATOR RESPONDER")
 INITIATOR, RESPONDER = NoiseProtoRoles.INITIATOR, NoiseProtoRoles.RESPONDER
 
 
-# NodeCnxnStates are the possible values associated with PeerStateKeys.STATE
-NodeCnxnStates = Enum("NodeCnxnStates", "DISCONNECTED CONNECTING CONNECTED")
-DISCONNECTED, CONNECTING, CONNECTED = (NodeCnxnStates.DISCONNECTED,
-        NodeCnxnStates.CONNECTING, NodeCnxnStates.CONNECTED)
+# PeerCnxnStates are the possible values associated with PeerStateKeys.STATE
+PeerCnxnStates = Enum("NodeCnxnStates", "DISCONNECTED CONNECTING CONNECTED")
+DISCONNECTED, CONNECTING, CONNECTED = (PeerCnxnStates.DISCONNECTED,
+        PeerCnxnStates.CONNECTING, PeerCnxnStates.CONNECTED)
 
 
-# NodeInfoKeys enum members have their associated ASCII key as member.value
-class NodeInfoKeys(Enum):
+# DHTInfoKeys enum members have their associated ASCII key bytes as values
+class DHTInfoKeys(Enum):
     MAX_VERSION = b'max_version'
     LISTEN_PORT = b'listen_port'
     PEER_KEY = b'peer_key'
     IDS = b'ids'
 
 
-MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS = (NodeInfoKeys.MAX_VERSION,
-        NodeInfoKeys.LISTEN_PORT, NodeInfoKeys.PEER_KEY, NodeInfoKeys.IDS)
+MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS = (DHTInfoKeys.MAX_VERSION,
+        DHTInfoKeys.LISTEN_PORT, DHTInfoKeys.PEER_KEY, DHTInfoKeys.IDS)
 
 
 # IDCheckPriorities allows prioritization of hash computation for different

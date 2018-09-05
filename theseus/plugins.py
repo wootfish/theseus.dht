@@ -1,6 +1,55 @@
 from zope.interface import Interface, Attribute
 
 
+"""
+TODO: Look into security of this scheme. Should our threat model include the
+possibility of malicious plugins?
+
+If validation fails for any plugin attributes, `theseus.errors.PluginError`
+will be raised.
+"""
+
+
+class IKRPC(Interface):
+    """
+    Interface for plugins that add support for new KRPCs. These will get loaded
+    by KRPCProtocol instances on __init__. As such, they cannot override the
+    handlers added by DHTProtocol. If you need to override these, you will need
+    to subclass DHTProtocol and update PeerTracker instead.
+    """
+
+    name = Attribute(
+            "The name of the KRPC that this object is adding support for. "
+            "KRPCProtocol enforces a 32-byte limit on KRPC names. "
+            "This may be raised by raising `KRPCProtocol.max_name_size`. "
+            "Type: bytes"
+            )
+
+    def query_handler(args):
+        """
+        Called to generate a response to incoming queries.
+
+        `args` contains the KRPC message's exact query arguments.
+
+        Return value: Any of,
+        * The exact dictionary to bencode and send as a response.
+        * A `TheseusProtocolError` instance to send as a response.
+          (TODO: If a message is passed to the error's __init__, will this
+          message be sent as well?)
+        * A Deferred which will either callback with a response dictionary or
+          errback with a `TheseusProtocolError`.
+        """
+
+    def response_handler(args):
+        """
+        Called to process data received from responses to outgoing queries.
+
+        `args` contains the KRPC message's exact response arguments.
+
+        Return value: None
+        """
+
+
 class IPeerSource(Interface):
     """
     Interface for plugins that provide additional sources of peers. These will
@@ -59,11 +108,10 @@ class IInfoProvider(Interface):
     """
 
     provided = Attribute(
-            """
-            An object enumerating new local info keys this add-on provides.
-            Must support iteration and membership tests.
-            All contained objects must be of type bytes.
-            """)
+            "An object enumerating new local info keys this add-on provides. "
+            "Must support iteration and membership tests. "
+            "All contained objects must be of type bytes."
+            )
 
     def get(key):
         """

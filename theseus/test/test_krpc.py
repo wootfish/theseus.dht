@@ -80,7 +80,7 @@ class KRPCTests(unittest.TestCase):
                 )
 
     def _start_info_query(self):
-        d = self.proto.sendQuery("info", {"info": "cash rules everything around me"})
+        d = self.proto.send_query("info", {"info": "cash rules everything around me"})
         actual = unnetstringify(self.transport.value(), self)
         self.transport.clear()
 
@@ -192,7 +192,7 @@ class KRPCTests(unittest.TestCase):
     def test_internal_error_in_query_hook(self):
         def oh_no(*args):
             raise TheseusProtocolError("oh no!")
-        self.proto.onQuery = oh_no
+        self.proto.on_query = oh_no
         self._test_query(
                 {"t": "17", "y": "q", "q": "echo", "a": {"arg1": 1, "arg2": 2}},
                 {"t": "17", "y": "e", "e": (200, "oh no!")}
@@ -210,7 +210,7 @@ class KRPCTests(unittest.TestCase):
     def test_bencode_error_in_query_responder(self):
         def oh_no(*args):
             raise BencodeError("oh no!")
-        self.proto.sendResponse = oh_no
+        self.proto._send_response = oh_no
         self._test_query(
                 {"t": "17", "y": "q", "q": "echo", "a": {"arg1": 1, "arg2": 2}},
                 {"t": "17", "y": "e", "e": (102, "Internal error (KRPC)")}
@@ -230,10 +230,10 @@ class KRPCTests(unittest.TestCase):
     #        )))
 
     def test_errback_on_disconnect(self):
-        d = self.proto.sendQuery("info", {"info": "smoke weed every day"})
+        d = self.proto.send_query("info", {"info": "smoke weed every day"})
         self.transport.loseConnection()
         self.failureResultOf(d).trap(ConnectionDone)
 
-    def test_rejecting_gibberish(self):
+    def test_rejecting_garbage(self):
         self.proto.stringReceived(b"it's like no cheese i've ever tasted")
         self.assertFalse(self.proto.transport.connected)

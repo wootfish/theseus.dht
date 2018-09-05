@@ -28,7 +28,7 @@ class PeerState(Factory):
         self.info = {}
 
     @classmethod
-    def fromContact(cls, contact_info):
+    def from_contact(cls, contact_info):
         PeerState.log.debug("Building new PeerState from contact: {contact}", contact=contact_info)
         instance = cls()
         instance.state = DISCONNECTED
@@ -38,7 +38,7 @@ class PeerState(Factory):
         return instance
 
     @classmethod
-    def fromProto(cls, protocol):
+    def from_proto(cls, protocol):
         PeerState.log.debug("Building new PeerState from protocol: {proto}", proto=protocol)
         instance = cls()
         instance.state = CONNECTING
@@ -50,7 +50,7 @@ class PeerState(Factory):
         if self.role is None or self.info.get(PEER_KEY) is None:
             return
         p = self.subfactory.buildProtocol(addr)
-        p.settings = NoiseSettings.forPeerState(self)
+        p.settings = NoiseSettings.for_peer_state(self)
         return p
 
     def connect(self, reactor=reactor):
@@ -94,11 +94,11 @@ class PeerState(Factory):
         d.addErrback(errback)
         return d
 
-    def getContactInfo(self):
+    def get_contact_info(self):
         # note that there may not be a guarantee of LISTEN_PORT and PEER_KEY being populated
         return ContactInfo(self.host, self.info.get(LISTEN_PORT), self.info.get(PEER_KEY))
 
-    def getInfo(self, info_keys=None, advertise_keys=None, ignore_local=False):
+    def get_info(self, info_keys=None, advertise_keys=None, ignore_local=False):
         # info_keys should be a list of desired info keys
         # advertise should be a list of local keys to advertise (you do not need to provide values)
         # for both args, keys must be passed as bytes
@@ -115,14 +115,14 @@ class PeerState(Factory):
             info_keys = tuple(DHTProtocol.supported_info_keys)
 
         if type(info_keys) not in (list, tuple) or not {str, bytes}.issuperset(set(type(key) for key in info_keys)):
-            self.log.warn("Malformed info_keys argument to getInfo. args: {a}, {b}, {c}", a=info_keys, b=advertise_keys, c=ignore_local)
+            self.log.warn("Malformed info_keys argument to get_info. args: {a}, {b}, {c}", a=info_keys, b=advertise_keys, c=ignore_local)
             return fail(Exception("malformed info_keys argument"))
 
         def callback(advertise_dict):
             if type(advertise_dict) is not dict or not {str, bytes}.issuperset(set(type(key) for key in advertise_dict)):
                 if advertise_dict is not None:
-                    self.log.warn("Malformed advertise_dict argument in getInfo callback. Advertise keys: {keys}", keys=advertise_keys)
-                    self.log.debug("Full getInfo arguments and advertise dict: {a}, {b}, {c}, {d}", a=info_keys, b=advertise_keys, c=ignore_local, d=advertise_dict)
+                    self.log.warn("Malformed advertise_dict argument in get_info callback. Advertise keys: {keys}", keys=advertise_keys)
+                    self.log.debug("Full get_info arguments and advertise dict: {a}, {b}, {c}, {d}", a=info_keys, b=advertise_keys, c=ignore_local, d=advertise_dict)
                     return fail(Exception("malformed advertise_dict argument"))
 
             query = {"keys": info_keys}
@@ -135,9 +135,9 @@ class PeerState(Factory):
             return query_d
 
         if info_keys is None and advertise_keys is None:
-            deferred = self.cnxn.getLocalKeys()
+            deferred = self.cnxn.get_local_keys()
         elif advertise_keys is not None:
-            deferred = self.cnxn.getLocalKeys(advertise_keys)
+            deferred = self.cnxn.get_local_keys(advertise_keys)
         else:
             deferred = succeed(None)
         deferred.addCallback(callback)
@@ -146,6 +146,7 @@ class PeerState(Factory):
 
 class PeerTracker(Factory):
     log = Logger()
+    protocol = DHTProtocol
 
     def __init__(self, local_peer):
         self.local_peer = local_peer
@@ -153,17 +154,17 @@ class PeerTracker(Factory):
         self.addr_to_contact = {}  # NOTE what's going on with this? where should we be populating it?
         self.contact_to_state = {}
 
-        self.subfactory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(DHTProtocol))
+        self.subfactory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(self.protocol))
 
     def buildProtocol(self, addr):
         p = self.subfactory.buildProtocol(addr)
         contact = self.addr_to_contact.get((addr.host, addr.port))
-        peer_state = self.contact_to_state.get(contact) or PeerState.fromProto(p.wrappedProtocol)
+        peer_state = self.contact_to_state.get(contact) or PeerState.from_proto(p.wrappedProtocol)
         p.wrappedProtocol.peer_state = peer_state
         p.wrappedProtocol.local_peer = self.local_peer
         return p
 
-    def registerContact(self, contact_info, state=None):
+    def register_contact(self, contact_info, state=None):
         addr_tup = (contact_info.host, contact_info.port)
         if self.addr_to_contact.get(addr_tup, contact_info) != contact_info:
             self.log.warn("Tried to re-register {addr_tup} to {contact}", addr_tup=addr_tup, contact=contact_info)
@@ -174,7 +175,7 @@ class PeerTracker(Factory):
         if contact_info not in self.contact_to_state:
             self.log.debug("Registering contact {contact}", contact=contact_info)
             if state is None:
-                state = PeerState.fromContact(contact_info)
+                state = PeerState.from_contact(contact_info)
                 state.subfactory = self
             self.contact_to_state[contact_info] = state
 
@@ -183,7 +184,7 @@ class PeerTracker(Factory):
     def get(self, contact_info):
         return self.contact_to_state.get(contact_info)
 
-    def getFromAddr(self, addr):
+    def get_from_addr(self, addr):
         if addr not in self.addr_to_contact:
             return
         return self.contact_to_state[self.addr_to_contact[addr]]

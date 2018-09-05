@@ -67,20 +67,20 @@ class NodeID:
                 self.verify_address()
 
     def generate_address(self, preimage=None):
-        self.preimage = self.preimage or self._getHashInput()
+        self.preimage = self.preimage or self._get_hash_input()
 
         def callback(node_id):
             self.address = node_id
             return node_id
 
         self.on_id_hash.addCallback(callback)
-        hasher.getNodeID(self.preimage, self.priority).chainDeferred(self.on_id_hash)
+        hasher.get_node_ID(self.preimage, self.priority).chainDeferred(self.on_id_hash)
 
     def verify_address(self):
-        hasher.checkNodeID(self.address, self.preimage, self.priority).chainDeferred(self.on_id_hash)
+        hasher.check_node_ID(self.address, self.preimage, self.priority).chainDeferred(self.on_id_hash)
 
     @staticmethod
-    def timestampIntToBytes(t):
+    def _ts_int_to_bytes(t):
         bytestring = b''
         while t > 0:
             bytestring = bytes([t & 0xFF]) + bytestring
@@ -88,7 +88,7 @@ class NodeID:
         return bytestring
 
     @staticmethod
-    def _getHashInput():
-        timestamp = NodeID.timestampIntToBytes(int(time()))
+    def _get_hash_input():
+        timestamp = NodeID._ts_int_to_bytes(int(time()))
         bytestring = urandom(6)
         return timestamp + bytestring

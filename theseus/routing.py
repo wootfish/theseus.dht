@@ -13,7 +13,7 @@ class RoutingTable:
     Maintains a Kademlia-style routing table.
     The actual entities stored are ContactInfo objects.
     The buckets storing these are determined by NodeIDs.
-    A ContactInfo's NodeIDs are retrieved through RoutingTable.getNodeIDs.
+    A ContactInfo's NodeIDs are retrieved through RoutingTable.get_node_IDs.
     """
 
     log = Logger()
@@ -30,7 +30,7 @@ class RoutingTable:
             return False
 
     def _bucketLookup(self, node_address):
-        addr_int = self.bytesToInt(node_address)
+        addr_int = self.bytes_to_int(node_address)
         for bucket in self.buckets:
             if bucket[0] <= addr_int <= bucket[1]:
                 return bucket
@@ -38,7 +38,7 @@ class RoutingTable:
 
     def _bucketIsSplitCandidate(self, bucket):
         for node_id in self.local_peer.node_ids:
-            if bucket[0] <= self.bytesToInt(node_id.node_id) <= bucket[1]:
+            if bucket[0] <= self.bytes_to_int(node_id.node_id) <= bucket[1]:
                 return True
         return False
 
@@ -69,7 +69,7 @@ class RoutingTable:
         contact_info to their associated buckets.
         """
 
-        node_ids = self.getNodeIDs(contact_info)
+        node_ids = self.get_node_IDs(contact_info)
         self.log.debug("Attempting to insert {contact} into routing table. (IDs: {node_ids})", contact=contact_info, node_ids=node_ids)
 
         for node_id in node_ids:
@@ -123,16 +123,16 @@ class RoutingTable:
         return pretty
 
     @staticmethod
-    def getNodeIDs(contact_info):
+    def get_node_IDs(contact_info):
         from app import peer
         node = peer.peer_tracker.get(contact_info)
         if node is None:
             RoutingTable.log.warn("Tried to get node IDs for {contact} but peer_tracker has no corresponding record.", contact=contact_info)
             return []
-        return node.getInfo(IDS)
+        return node.get_info(IDS)
 
     @staticmethod
-    def bytesToInt(node_id):
+    def bytes_to_int(node_id):
         n = 0
         for byte in node_id:
             n <<= 8

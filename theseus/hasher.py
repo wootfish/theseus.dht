@@ -39,6 +39,7 @@ class HashJob:
 class Hasher:
     log = Logger()
 
+    # TODO
     OPSLIMIT = pwhash.argon2id.OPSLIMIT_MODERATE
     MEMLIMIT = pwhash.argon2id.MEMLIMIT_MODERATE
     #OPSLIMIT = pwhash.argon2id.OPSLIMIT_INTERACTIVE
@@ -50,18 +51,18 @@ class Hasher:
         self.priority_queue = []
         self.curr_jobs = []
 
-    def checkNodeID(self, node_id, preimage, priority, check_timestamp=True):
+    def check_node_ID(self, node_id, preimage, priority, check_timestamp=True):
         self.log.debug("Checking node ID {node_id} ({priority})", node_id=node_id, priority=priority)
 
-        if check_timestamp and time() - self.timestampBytesToInt(preimage[:4]) > 2**16:
+        if check_timestamp and time() - self._ts_bytes_to_int(preimage[:4]) > 2**16:
             self.log.debug("ID check for {node_id} failed: timestamp expired", node_id=node_id)
             return fail(Exception("timestamp expired"))
 
-        d = self.getNodeID(preimage, priority)
+        d = self.get_node_ID(preimage, priority)
         d.addCallback(lambda result: result == node_id)
         return d
 
-    def getNodeID(self, preimage, priority=UNSET):
+    def get_node_ID(self, preimage, priority=UNSET):
         # if there's already a pending job with this preimage w/ a lower
         # priority, deactivate it & steal the associated Deferred
         for job in self.priority_queue:
@@ -75,7 +76,7 @@ class Hasher:
             self.log.debug("Adding {job}", job=new_job)
 
         heappush(self.priority_queue, new_job)
-        self._maybeAddJobs()
+        self._maybe_add_jobs()
         return new_job.d
 
     def _callback(self, result, preimage):
@@ -83,12 +84,12 @@ class Hasher:
 
         # swap out the completed job
         self.curr_jobs = [job for job in self.curr_jobs if job.preimage != preimage]
-        self._maybeAddJobs()
+        self._maybe_add_jobs()
 
         # pass the result on to other callbacks
         return result
 
-    def _maybeAddJobs(self):
+    def _maybe_add_jobs(self):
         job = None
 
         # loop for as long as we have both unclaimed jobs and free threads
@@ -111,7 +112,7 @@ class Hasher:
         return pwhash.argon2id.kdf(20, input_data, salt, opslimit=Hasher.OPSLIMIT, memlimit=Hasher.MEMLIMIT)
 
     @staticmethod
-    def timestampBytesToInt(timestamp):
+    def _ts_bytes_to_int(timestamp):
         n = 0
         for byte in timestamp:
             n <<= 8

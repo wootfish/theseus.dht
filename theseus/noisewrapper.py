@@ -50,21 +50,21 @@ class NoiseWrapper(ProtocolWrapper):
         self._peer = peer.host + ":" + str(peer.port)
         self.transport = transport
         if self.settings is None:
-            self.settings = self.getDefaultConfig()
+            self.settings = self._get_default_config()
         self.factory.registerProtocol(self)
-        self.startHandshake()
+        self._start_handshake()
 
     def connectionLost(self, reason):
         self.log.info('{peer} - Connection lost. Details: "{reason}"', peer=self._peer, reason=reason.getErrorMessage())
         super().connectionLost(reason)
 
-    def startHandshake(self):
+    def _start_handshake(self):
         if self._noise is not None:
-            self.log.warn("{peer} - startHandshake called with pre-existing Noise state", peer=self._peer)
+            self.log.warn("{peer} - _start_handshake called with pre-existing Noise state", peer=self._peer)
             return
 
         if self.settings is None:
-            self.log.warn("{peer} - Tried to startHandshake while self.settings is None!", peer=self._peer)
+            self.log.warn("{peer} - Tried to _start_handshake while self.settings is None!", peer=self._peer)
             raise Exception("Can't start handshake without parameters")
 
         self.log.info("{peer} - Noise handshake settings: {ctxt}", peer=self._peer, ctxt=self.settings)
@@ -107,13 +107,13 @@ class NoiseWrapper(ProtocolWrapper):
             try:
                 if self._len_msg_pending is None:
                     self.log.debug("{peer} - Consuming Noise handshake message", peer=self._peer)
-                    self._processHandshake(data)
+                    self._process_handshake(data)
                 elif self._len_msg_pending:
                     self.log.debug("{peer} - Consuming length announcement message", peer=self._peer)
-                    self._processLength(data)
+                    self._process_length(data)
                 else:
                     self.log.debug("{peer} - Consuming protocol message", peer=self._peer)
-                    self._processMessage(data)
+                    self._process_message(data)
 
             except Exception as e:
                 self.log.error("Unexpected exception {e} caused by received data {data}", e=e, data=data)
@@ -121,7 +121,7 @@ class NoiseWrapper(ProtocolWrapper):
                 self.transport.loseConnection()
                 return
 
-    def _processHandshake(self, data):
+    def _process_handshake(self, data):
         self._noise.read_message(data)  # discard any payload
 
         if not self._noise.handshake_finished:
@@ -140,7 +140,7 @@ class NoiseWrapper(ProtocolWrapper):
             self.log.info("{peer} - Noise handshake complete.", peer=self._peer)
             super().makeConnection(self.transport)
 
-    def _processLength(self, data):
+    def _process_length(self, data):
         msg = self._noise.decrypt(data)
         length = self._len_bytes_to_int(msg)
         self.log.debug("{peer} - Length announcement: {length}.", peer=self._peer, length=length)
@@ -148,7 +148,7 @@ class NoiseWrapper(ProtocolWrapper):
         self._bytes_needed = length + 16
         self._len_msg_pending = not self._len_msg_pending
 
-    def _processMessage(self, data):
+    def _process_message(self, data):
         msg = self._noise.decrypt(data)
         super().dataReceived(msg)
 
@@ -175,7 +175,7 @@ class NoiseWrapper(ProtocolWrapper):
         return struct.unpack(">L", b)[0]
 
     @staticmethod
-    def getDefaultConfig():
+    def _get_default_config():
         from .app import peer
         return NoiseSettings(RESPONDER, local_static=peer.peer_key)
 
@@ -191,5 +191,5 @@ class NoiseSettings:
         return "NoiseSettings({}, {}, {}, {})".format(self.role, self.noise_name, self.local_static, self.remote_static)
 
     @classmethod
-    def forPeerState(cls, peer_state):
+    def for_peer_state(cls, peer_state):
         return cls(peer_state.role, remote_static=peer_state.info[PEER_KEY])
