@@ -77,6 +77,23 @@ lead to slower lookups but will fare better against Sybil attacks.
 `encoding`.
 
 
+### `do_lookup(addr, k=8)`
+
+`TODO: don't leave k hardcoded`
+`TODO: should it be do_lookup or lookup or look_up? There should be a style
+rule to decide this sort of thing.`
+
+Looks up the `k` peers with node IDs closest to `addr`.
+
+`addr: bytes` Must be of length `L`.  (TODO: L)
+
+`k: int` Lookup set size.
+
+Returns a `Deferred` which will fire with up to `k` `ContactInfo`s.
+
+`TODO: Should it be a set? A sorted list/tuple? etc?`
+
+
 ### `make_cnxn(contact_info)`
 
 For use with peer-to-peer applications wanting to create their own connections
@@ -156,8 +173,3 @@ introduction to the peer swarm.
 
 The plugin interface for this is `theseus.plugins.IPeerSource`. For a sample
 implementation, see `scripts/twisted/plugins/tmpsource.py`.
-
-
-# Notes
-
-[preferred style (TODO)](https://twistedmatrix.com/documents/current/api/twisted.internet.defer.html#inlineCallbacks)

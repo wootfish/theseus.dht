@@ -33,3 +33,29 @@ KRPCProtocol will be forced to mix the two method naming styles. However, this
 is seen as the least-worst reconciliation. It also provides an easy way of
 finding out at a glance whether or not a given method is part of a Twisted
 interface.
+
+
+## Capitalization
+
+In methods such as `Hasher.check_node_ID`, "ID" should always be capitalized.
+The alternative, `check_node_id`, sounds a bit too psychoanalytic. `node_ID`
+should also always be rendered as two words rather than one.
+
+
+# Linting
+
+This project uses flake8 to lint the source code. However, several issues
+flagged by flake8 are ignored; for instance, lines running over 120 characters
+are not uncommon, and we differ from flake8's preference on indentation for
+line continuations.
+
+A tiny bash script, `scripts/flake8_generous.sh`, is included in this repo.
+This script runs flake8 and filters down the output.
+
+
+# Deferred Callbacks
+
+Callbacks should be written in whatever style seems best locally.
+That said, use of the [@inlineCallbacks
+decorator](https://twistedmatrix.com/documents/current/api/twisted.internet.defer.html#inlineCallbacks)
+is encouraged wherever it would be reasonable.
