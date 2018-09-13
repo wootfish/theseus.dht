@@ -27,11 +27,11 @@ class DHTInfoKeys(Enum):
     MAX_VERSION = b'max_version'
     LISTEN_PORT = b'listen_port'
     PEER_KEY = b'peer_key'
-    IDS = b'ids'
+    ADDRS = b'addrs'
 
 
-MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS = (DHTInfoKeys.MAX_VERSION,
-        DHTInfoKeys.LISTEN_PORT, DHTInfoKeys.PEER_KEY, DHTInfoKeys.IDS)
+MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS = (DHTInfoKeys.MAX_VERSION,
+        DHTInfoKeys.LISTEN_PORT, DHTInfoKeys.PEER_KEY, DHTInfoKeys.ADDRS)
 
 
 # IDCheckPriorities are used in the hasher's internal priority queue. They are

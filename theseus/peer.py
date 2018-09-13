@@ -11,7 +11,7 @@ from .config import config
 from .contactinfo import ContactInfo
 from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS
 from .errors import PluginError, TheseusConnectionError, DuplicateContactError
-from .nodeid import NodeID
+from .nodeaddr import NodeAddress
 from .peertracker import PeerTracker
 from .plugins import IPeerSource, IInfoProvider
 from .protocol import DHTProtocol
@@ -28,7 +28,6 @@ class PeerService(Service):
     blacklist_size = 500
 
     _randrange = randrange  # broken out for tests
-    _ids_deferred = None
 
     def __init__(self, num_nodes=8):
         super().__init__()
@@ -36,27 +35,20 @@ class PeerService(Service):
         self.peer_key = self._generate_keypair()
 
         self.num_nodes = num_nodes
-        self.node_ids = []
+        self.node_addrs = []
 
         self.routing_table = RoutingTable(self)
         self.peer_tracker = PeerTracker(self)
 
         self.blacklist = deque(maxlen=self.blacklist_size)
 
-        def callback(dl_result):
-            ids = [t[1] for t in dl_result]
-            self.log.info("Local node IDs set: {ids}", ids=[node_id.hex() for node_id in ids])
-            return ids
-
-        self._ids_deferred = DeferredList([node_id.on_id_hash for node_id in self.node_ids])
-        self._ids_deferred.addCallback(callback)
-
     def startService(self):
         super().startService()
 
         for _ in range(self.num_nodes):
+            # FIXME this is not gonna be enough for generating node addrs but it'll have to do for now
             # TODO handle timeouts for these nodes gracefully somehow
-            NodeID.new(b'127.0.0.1').addCallback(self.node_ids.append)  # FIXME hard-coding 127.0.0.1 here is not ideal
+            NodeAddress.new(b'127.0.0.1').addCallback(self.node_addrs.append)  # FIXME hard-coding 127.0.0.1 here is not ideal
 
         self.listen_port = self._start_listening()
 
@@ -196,7 +188,8 @@ class PeerService(Service):
         if key == PEER_KEY.value:
             return succeed(self.peer_key.public_bytes)
         if key == IDS.value:
-            return self._ids_deferred
+            #return self._ids_deferred
+            return succeed(self.node_addrs)  # TODO maybe defer if we're still generating em?
 
         # check plugins to see if any provide this info
         for provider in getPlugins(IInfoProvider):

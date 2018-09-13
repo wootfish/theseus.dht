@@ -1,20 +1,15 @@
 from twisted.logger import Logger
 
-from .enums import IDS
+from .enums import ADDRS
 from .constants import k, L
-
-
-# TODO there are a lot of places where it's ambiguous whether a function takes
-# a raw node ID (i.e. bytes) or a NodeID object, including several places where
-# annotations might be wrong-- review, correct, and disambiguate!
 
 
 class RoutingTable:
     """
     Maintains a Kademlia-style routing table.
     The actual entities stored are ContactInfo objects.
-    The buckets storing these are determined by NodeIDs.
-    A ContactInfo's NodeIDs are retrieved through RoutingTable.get_node_IDs.
+    The buckets storing these are determined by NodeAddrs.
+    A ContactInfo's NodeAddrs are retrieved through RoutingTable.get_node_addrs.
     """
 
     log = Logger()
@@ -43,8 +38,8 @@ class RoutingTable:
         raise Exception("node_address out of bounds")
 
     def _bucketIsSplitCandidate(self, bucket):
-        for node_id in self.local_peer.node_ids:
-            if bucket[0] <= self.bytes_to_int(node_id.node_id) <= bucket[1]:
+        for node_addr in self.local_peer.node_addrs:
+            if bucket[0] <= self.bytes_to_int(node_addr.node_addr) <= bucket[1]:
                 return True
         return False
 
@@ -63,26 +58,26 @@ class RoutingTable:
         self.buckets[lower] = {}
         self.buckets[upper] = {}
 
-        for listen_addr, node_id in self.buckets.pop(bucket).items():
-            self._insert(listen_addr, node_id)
+        for listen_addr, node_addr in self.buckets.pop(bucket).items():
+            self._insert(listen_addr, node_addr)
 
         self.log.info("Routing table bucket {bucket} split. Current table state: {pretty}", bucket=(hex(bucket[0]), hex(bucket[1])), pretty=self.pretty())
         return True
 
     def insert(self, contact_info):
         """
-        Retrieves the node IDs associated with contact_info and tries to insert
-        contact_info to their associated buckets.
+        Retrieves the node addrs associated with contact_info and tries to
+        insert contact_info to their associated buckets.
         """
 
-        node_ids = self.get_node_IDs(contact_info)
-        self.log.debug("Attempting to insert {contact} into routing table. (IDs: {node_ids})", contact=contact_info, node_ids=node_ids)
+        node_addrs = self.get_node_addrs(contact_info)
+        self.log.debug("Attempting to insert {contact} into routing table. (Addrs: {node_addrs})", contact=contact_info, node_addrs=node_addrs)
 
-        for node_id in node_ids:
-            self._insert(contact_info, node_id)
+        for node_addr in node_addrs:
+            self._insert(contact_info, node_addr)
 
-    def _insert(self, contact_info, node_id):
-        bucket_key = self._bucketLookup(node_id)
+    def _insert(self, contact_info, node_addr):
+        bucket_key = self._bucketLookup(node_addr)
         bucket = self.buckets[bucket_key]
 
         if contact_info in bucket:
@@ -94,7 +89,7 @@ class RoutingTable:
 
         # bucket is full, but maybe we can split it & then retry the insert
         if self._bucketSplit(bucket_key):
-            self._insert(contact_info, node_id)
+            self._insert(contact_info, node_addr)
 
     def discard(self, contact_info):
         for bucket in self.buckets.values():
@@ -119,28 +114,28 @@ class RoutingTable:
             key = "{}~{}".format(lower_padded, upper_padded)
             pretty[key] = []
 
-            for node_addr, node_id in self.table.buckets[bucket].items():
-                pretty_nodeid = "0x" + node_id.address.hex()
-                pretty_ipaddr = node_addr.host + ":" + str(node_addr.port)
-                pretty[key].append((pretty_nodeid, pretty_ipaddr))
+            for node_contact, node_addr in self.table.buckets[bucket].items():
+                pretty_addr = "0x" + node_addr.addr.hex()
+                pretty_ip = node_contact.host + ":" + str(node_contact.port)
+                pretty[key].append((pretty_addr, pretty_ip))
 
             pretty[key].sort()  # lex ordering naturally sorts addrs ascending
 
         return pretty
 
     @staticmethod
-    def get_node_IDs(contact_info):
+    def get_node_addrs(contact_info):
         from app import peer
-        node = peer.peer_tracker.get(contact_info)
-        if node is None:
-            RoutingTable.log.warn("Tried to get node IDs for {contact} but peer_tracker has no corresponding record.", contact=contact_info)
+        peer = peer.peer_tracker.get(contact_info)
+        if peer is None:
+            RoutingTable.log.warn("Tried to get node addrs for {contact} but peer_tracker has no corresponding record.", contact=contact_info)
             return []
-        return node.get_info(IDS)
+        return peer.get_info(ADDRS)
 
     @staticmethod
-    def bytes_to_int(node_id):
+    def bytes_to_int(node_addr):
         n = 0
-        for byte in node_id:
+        for byte in node_addr:
             n <<= 8
             n += byte
         return n

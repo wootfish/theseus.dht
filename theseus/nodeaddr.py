@@ -38,16 +38,16 @@ class Preimage:
                 salt: self.entropy+bytes(10)}
 
 
-class NodeID:
+class NodeAddress:
     timeout_window = timeout_window
 
-    def __init__(self, node_addr, preimage, verified=True):
-        self.node_addr = node_addr
+    def __init__(self, addr, preimage, verified=True):
+        self.addr = addr
         self.preimage = preimage
         self.verified = verified
 
     def __repr__(self):
-        return "NodeID(({}, {}))".format(self.node_addr, self.preimage)
+        return "NodeAddress(({}, {}))".format(self.addr, self.preimage)
 
     @inlineCallbacks
     @classmethod
@@ -77,7 +77,7 @@ class NodeID:
 
     @staticmethod
     def check_timestamp(ts, curr_time=None, timeout_window=None):
-        timeout_window = timeout_window or NodeID.timeout_window
+        timeout_window = timeout_window or NodeAddr.timeout_window
         curr_time = curr_time or time()
         return 0 <= curr_time - ts <= timeout_window
 
