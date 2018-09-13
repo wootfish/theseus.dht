@@ -34,10 +34,9 @@ MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS = (DHTInfoKeys.MAX_VERSION,
         DHTInfoKeys.LISTEN_PORT, DHTInfoKeys.PEER_KEY, DHTInfoKeys.IDS)
 
 
-# IDCheckPriorities allows prioritization of hash computation for different
-# node IDs. It is IntEnum so that we can do numeric comparisons on different
-# priority values. This allows them to be used unadorned in the hasher's
-# priority queue heap.
+# IDCheckPriorities are used in the hasher's internal priority queue. They are
+# IntEnum so that direct comparisons can be made between enum elements (lower
+# values are higher priority)
 IDCheckPriorities = IntEnum("IDCheckPriorities", "CRITICAL HIGH MEDIUM LOW UNSET")
 CRITICAL, HIGH, MEDIUM, LOW, UNSET = (IDCheckPriorities.CRITICAL,
         IDCheckPriorities.HIGH, IDCheckPriorities.MEDIUM,
