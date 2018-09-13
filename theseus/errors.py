@@ -108,3 +108,7 @@ class DuplicateContactError(Exception):
 
 class PluginError(Exception):
     pass
+
+
+class ValidationError(Exception):
+    pass

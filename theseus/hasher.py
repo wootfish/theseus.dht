@@ -1,123 +1,60 @@
-from twisted.internet.defer import Deferred, fail
+from twisted.internet.defer import Deferred, fail, inlineCallbacks
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
-from nacl import pwhash
-
-from .enums import UNSET
+from nacl.pwhash import argon2id
 
 from functools import lru_cache, total_ordering
 from heapq import heappush, heappop
 from time import time
 
+from queue import PriorityQueue
 
-@total_ordering
-class HashJob:
-    log = Logger()
-    active = True
-
-    def __init__(self, priority, preimage, d=None):
-        self.priority = priority
-        self.preimage = preimage
-        self.d = d or Deferred()
-
-    def deactivate(self):
-        self.active = False
-
-    def __lt__(self, other):
-        if type(other) is not type(self):
-            return NotImplemented
-        return self.priority < other.priority or (self.priority == other.priority and self.active and not other.active)
-
-    def __repr__(self):
-        if self.active:
-            return "HashJob({pre}, {pri})".format(pre=self.preimage, pri=self.priority.name)
-        else:
-            return "HashJob({pre}, {pri}, False)".format(pre=self.preimage, pri=self.priority.name)
+from .enums import UNSET
 
 
 class Hasher:
-    log = Logger()
+    # TODO: can we get away with pushing these higher? (particularly memlimit)
+    # NOTE: OPSLIMIT and MEMLIMIT must be left constant once hashing has begun,
+    # to maintain accuracy of LRU cache contents
+    OPSLIMIT = argon2id.OPSLIMIT_INTERACTIVE
+    MEMLIMIT = argon2id.MEMLIMIT_INTERACTIVE
 
-    # TODO
-    OPSLIMIT = pwhash.argon2id.OPSLIMIT_MODERATE
-    MEMLIMIT = pwhash.argon2id.MEMLIMIT_MODERATE
-    #OPSLIMIT = pwhash.argon2id.OPSLIMIT_INTERACTIVE
-    #MEMLIMIT = pwhash.argon2id.MEMLIMIT_INTERACTIVE
-    MAX_THREADS = 3
+    MAX_THREADS = 3  # should these be worker processes instead? does the GIL mess us up here?
     LRU_CACHE_SIZE = 500
 
     def __init__(self):
-        self.priority_queue = []
-        self.curr_jobs = []
+        self.queue = PriorityQueue()
+        self.callbacks = {}
+        self.active_jobs = 0
 
-    def check_node_ID(self, node_id, preimage, priority, check_timestamp=True):
-        self.log.debug("Checking node ID {node_id} ({priority})", node_id=node_id, priority=priority)
-
-        if check_timestamp and time() - self._ts_bytes_to_int(preimage[:4]) > 2**16:
-            self.log.debug("ID check for {node_id} failed: timestamp expired", node_id=node_id)
-            return fail(Exception("timestamp expired"))
-
-        d = self.get_node_ID(preimage, priority)
-        d.addCallback(lambda result: result == node_id)
+    def do_hash(self, message, salt, priority):
+        inputs = (message, salt)
+        self.queue.put((priority, inputs))
+        d = Deferred()
+        self.callbacks.setdefault(inputs, []).append(d)
+        self._update_jobs()
         return d
 
-    def get_node_ID(self, preimage, priority=UNSET):
-        # if there's already a pending job with this preimage w/ a lower
-        # priority, deactivate it & steal the associated Deferred
-        for job in self.priority_queue:
-            if job.preimage == preimage and job.active and job.priority < priority:
-                self.log.debug("Upgrading hash job for {preimage} from priority {old} to {new}", preimage=preimage, old=job.priority, new=priority)
-                job.deactivate()
-                new_job = HashJob(priority, preimage, job.d)
-                break
-        else:
-            new_job = HashJob(priority, preimage)
-            self.log.debug("Adding {job}", job=new_job)
+    @inlineCallbacks
+    def _update_jobs(self):
+        if self.queue.empty() or self.active_jobs == self.MAX_THREADS:
+            return
 
-        heappush(self.priority_queue, new_job)
-        self._maybe_add_jobs()
-        return new_job.d
+        job = self.queue.get()
+        while job[1] not in callbacks:
+            job = self.queue.get()
+        self.active_jobs += 1
+        image = yield deferToThread(self._kdf, *job[1])
+        for d in self.callbacks.pop(job[1], []):
+            d.callback(image)
+        self.active_jobs -= 1
+        self._update_jobs()
 
-    def _callback(self, result, preimage):
-        self.log.debug("Hash job for {preimage} complete. Result: {result}", preimage=preimage, result=result)
-
-        # swap out the completed job
-        self.curr_jobs = [job for job in self.curr_jobs if job.preimage != preimage]
-        self._maybe_add_jobs()
-
-        # pass the result on to other callbacks
-        return result
-
-    def _maybe_add_jobs(self):
-        job = None
-
-        # loop for as long as we have both unclaimed jobs and free threads
-        while (len(self.curr_jobs) < self.MAX_THREADS) and self.priority_queue:
-            job = heappop(self.priority_queue)
-            if not job.active:
-                continue
-
-            self.log.info("Starting {job}", job=job)
-            d_thread = deferToThread(Hasher._kdf, job.preimage, bytes(16))
-            d_thread.addCallback(self._callback, job.preimage)
-            d_thread.chainDeferred(job.d)
-            self.curr_jobs.append(job)
-
-        self.log.info("Active hash jobs: {n} ({m} in queue)", n=len(self.curr_jobs), m=len(self.priority_queue))
-
-    @staticmethod
     @lru_cache(maxsize=LRU_CACHE_SIZE)
-    def _kdf(input_data, salt):
-        return pwhash.argon2id.kdf(20, input_data, salt, opslimit=Hasher.OPSLIMIT, memlimit=Hasher.MEMLIMIT)
-
     @staticmethod
-    def _ts_bytes_to_int(timestamp):
-        n = 0
-        for byte in timestamp:
-            n <<= 8
-            n += byte
-        return n
+    def _kdf(message, salt):
+        return argon2id.kdf(20, input_data, salt, Hasher.OPSLIMIT, Hasher.MEMLIMIT)
 
 
 hasher = Hasher()

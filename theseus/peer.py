@@ -33,8 +33,10 @@ class PeerService(Service):
     def __init__(self, num_nodes=8):
         super().__init__()
 
-        self.node_ids = [NodeID() for _ in range(num_nodes)]
-        self.peer_key = DH("ed25519").generate_keypair()
+        self.peer_key = self._generate_keypair()
+
+        self.num_nodes = num_nodes
+        self.node_ids = []
 
         self.routing_table = RoutingTable(self)
         self.peer_tracker = PeerTracker(self)
@@ -51,6 +53,11 @@ class PeerService(Service):
 
     def startService(self):
         super().startService()
+
+        for _ in range(self.num_nodes):
+            # TODO handle timeouts for these nodes gracefully somehow
+            NodeID.new(b'127.0.0.1').addCallback(self.node_ids.append)  # FIXME hard-coding 127.0.0.1 here is not ideal
+
         self.listen_port = self._start_listening()
 
         for peer_source in getPlugins(IPeerSource):
@@ -69,12 +76,16 @@ class PeerService(Service):
         for info_provider in getPlugins(IInfoProvider):
             DHTProtocol.supported_info_keys.update(info_provider.provided)
 
+    @staticmethod
+    def _generate_keypair():
+        return DH("ed25519").generate_keypair()
+
     def _start_listening(self):
         """
         Starts listening on a reasonable port.
         """
 
-        # maybe we should add the option to take a user-specified port (and exit cleanly if it's not available)?
+        # maybe we should add the option to take a user-specified port (and exit cleanly if it's not available?)
 
         listen_port_range = config["listen_port_range"]
         ports_to_avoid = config["ports_to_avoid"]
