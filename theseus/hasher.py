@@ -51,8 +51,8 @@ class Hasher:
         self.active_jobs -= 1
         self._update_jobs()
 
-    @lru_cache(maxsize=LRU_CACHE_SIZE)
     @staticmethod
+    @lru_cache(maxsize=LRU_CACHE_SIZE)
     def _kdf(message, salt):
         return argon2id.kdf(20, input_data, salt, Hasher.OPSLIMIT, Hasher.MEMLIMIT)
 
