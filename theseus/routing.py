@@ -1,6 +1,7 @@
 from twisted.logger import Logger
 
 from .enums import IDS
+from .constants import k, L
 
 
 # TODO there are a lot of places where it's ambiguous whether a function takes
@@ -17,11 +18,16 @@ class RoutingTable:
     """
 
     log = Logger()
-    k = 8
+
+    # rebind relevant constants so we can reference them as members of bound
+    # methods' self namespace rather than the global namespace
+
+    k = k
+    L = L
 
     def __init__(self, local_peer):
         self.local_peer = local_peer
-        self.buckets = {(0, 2**160-1): set()}
+        self.buckets = {(0, 2**self.L - 1): set()}
 
     def __contains__(self, contact):
         for bucket in self.buckets.values():
@@ -107,8 +113,8 @@ class RoutingTable:
 
         pretty = {}
         for bucket in self.table.buckets:
-            lower_padded = "0x" + hex(bucket[0])[2:].rjust(40, '0')
-            upper_padded = "0x" + hex(bucket[1])[2:].rjust(40, '0')
+            lower_padded = "0x" + hex(bucket[0])[2:].rjust(self.L//8, '0')
+            upper_padded = "0x" + hex(bucket[1])[2:].rjust(self.L//8, '0')
 
             key = "{}~{}".format(lower_padded, upper_padded)
             pretty[key] = []
