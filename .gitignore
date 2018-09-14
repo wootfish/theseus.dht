@@ -6,3 +6,4 @@ theseus.dht.egg-info
 _trial_temp
 .mypy_cache
 twistd.log
+dropin.cache
