@@ -1,6 +1,6 @@
 from twisted.application.service import Service
 from twisted.internet import reactor
-from twisted.internet.defer import succeed, fail, DeferredList
+from twisted.internet.defer import succeed, fail
 from twisted.internet.error import CannotListenError
 from twisted.logger import Logger
 from twisted.plugin import getPlugins
@@ -10,7 +10,7 @@ from noise.functions import DH, KeyPair25519
 from .config import config
 from .contactinfo import ContactInfo
 from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS
-from .errors import PluginError, TheseusConnectionError, DuplicateContactError
+from .errors import TheseusConnectionError, DuplicateContactError
 from .nodeaddr import NodeAddress
 from .peertracker import PeerTracker
 from .plugins import IPeerSource, IInfoProvider

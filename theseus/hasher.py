@@ -1,19 +1,16 @@
-from twisted.internet.defer import Deferred, fail, inlineCallbacks
+from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
 from nacl.pwhash import argon2id
 
-from functools import lru_cache, total_ordering
-from heapq import heappush, heappop
-from time import time
-
+from functools import lru_cache
 from queue import PriorityQueue
-
-from .enums import UNSET
 
 
 class Hasher:
+    log = Logger()
+
     # TODO: can we get away with pushing these higher? (particularly memlimit)
     # NOTE: OPSLIMIT and MEMLIMIT must be left constant once hashing has begun,
     # to maintain accuracy of LRU cache contents
@@ -42,7 +39,7 @@ class Hasher:
             return
 
         job = self.queue.get()
-        while job[1] not in callbacks:
+        while job[1] not in self.callbacks:
             job = self.queue.get()
         self.active_jobs += 1
         image = yield deferToThread(self._kdf, *job[1])
@@ -54,7 +51,7 @@ class Hasher:
     @staticmethod
     @lru_cache(maxsize=LRU_CACHE_SIZE)
     def _kdf(message, salt):
-        return argon2id.kdf(20, input_data, salt, Hasher.OPSLIMIT, Hasher.MEMLIMIT)
+        return argon2id.kdf(20, message, salt, Hasher.OPSLIMIT, Hasher.MEMLIMIT)
 
 
 hasher = Hasher()

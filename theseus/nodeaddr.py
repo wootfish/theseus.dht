@@ -1,4 +1,4 @@
-from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.defer import inlineCallbacks
 
 from .enums import CRITICAL, UNSET
 from .hasher import hasher
@@ -29,13 +29,13 @@ class Preimage:
         if preimage_bytes not in cls.instances:
             ts_bytes = preimage_bytes[:4]
             ip_addr = preimage_bytes[4:8]
-            salt = preimage_bytes[8:14]
+            entropy = preimage_bytes[8:14]
             cls.instances[preimage_bytes] = cls(ts_bytes, ip_addr, entropy)
         return cls.instances[preimage_bytes]
 
     def to_hash_inputs(self):
-        return {input_data: self.ts_bytes + self.ip_addr,
-                salt: self.entropy+bytes(10)}
+        return {"input_data": self.ts_bytes + self.ip_addr,
+                "salt": self.entropy+bytes(10)}
 
 
 class NodeAddress:
@@ -52,7 +52,7 @@ class NodeAddress:
     @inlineCallbacks
     @classmethod
     def new(cls, ip_addr, priority=CRITICAL):
-        preimage = Preimage(self._ts_bytes_to_int(time()), ip_addr, urandom(6))
+        preimage = Preimage(cls._ts_bytes_to_int(time()), ip_addr, urandom(6))
         image = yield hasher.do_hash(*preimage.to_hash_inputs(), priority)
         return cls(image, preimage)
 
@@ -73,11 +73,11 @@ class NodeAddress:
         if False and 'the node address bytes are not valid':  # TODO
             raise ValidationError("Address does not match preimage")
 
-        return cls(node_addr, preimage, verified=True)
+        return cls(image, preimage, verified=True)
 
     @staticmethod
     def check_timestamp(ts, curr_time=None, timeout_window=None):
-        timeout_window = timeout_window or NodeAddr.timeout_window
+        timeout_window = timeout_window or NodeAddress.timeout_window
         curr_time = curr_time or time()
         return 0 <= curr_time - ts <= timeout_window
 
