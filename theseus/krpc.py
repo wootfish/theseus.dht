@@ -30,14 +30,15 @@ class KRPCProtocol(NetstringReceiver):
         #self.deferred_responses = {}
 
         for provider in getPlugins(IKRPC):
+            # TODO does raising an exception return control to the event loop?
+            # if so, any plugins loaded after the first failing one would be
+            # skipped, which would be a bug.
             if type(provider.name) is not bytes or len(provider.name > self.max_name_size):
-                raise PluginError("Bad KRPC name in plugin")
+                raise PluginError("Bad RPC name in plugin")
+            if provider.name in self.query_handlers:
+                raise PluginError("Multiple plugins tried to claim same RPC")
 
             # TODO log this plugin use
-            # FIXME if multiple handlers are present for a given query, the one
-            # that gets registered depends on the iteration order in
-            # getPlugins. Can we make this more deterministic? Sorting by query
-            # name won't be enough.
 
             self.query_handlers[provider.name] = provider.query_handler
             self.response_handlers[provider.name] = provider.response_handler

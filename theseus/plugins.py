@@ -12,16 +12,23 @@ will be raised.
 
 class IKRPC(Interface):
     """
-    Interface for plugins that add support for new KRPCs. These will get loaded
+    Interface for plugins that add support for new RPCs. These will get loaded
     by KRPCProtocol instances on __init__. As such, they cannot override the
     handlers added by DHTProtocol. If you need to override these, you will need
-    to subclass DHTProtocol and update PeerTracker instead.
+    to subclass DHTProtocol (and update PeerTracker's reference) instead.
+
+    If multiple plugins try to register query handlers for the same RPC, an
+    exception will be raised.
     """
 
+    # TODO will zope.interface.Interface let implementers leave these methods
+    # as None? if so, should document that as an option and add logic in
+    # KRPCProtocol to handle it.
+
     name = Attribute(
-            "The name of the KRPC that this object is adding support for. "
+            "The name of the RPC that this plugin adds support for. "
             "KRPCProtocol enforces a 32-byte limit on KRPC names. "
-            "This may be raised by raising `KRPCProtocol.max_name_size`. "
+            "This limit may be changed through `KRPCProtocol.max_name_size`. "
             "Type: bytes"
             )
 
