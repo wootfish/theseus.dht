@@ -34,8 +34,7 @@ class Preimage:
         return cls.instances[preimage_bytes]
 
     def to_hash_inputs(self):
-        return {"input_data": self.ts_bytes + self.ip_addr,
-                "salt": self.entropy+bytes(10)}
+        return (self.ts_bytes + self.ip_addr, self.entropy+bytes(10))
 
 
 class NodeAddress:

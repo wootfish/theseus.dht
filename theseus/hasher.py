@@ -27,6 +27,7 @@ class Hasher:
 
     def do_hash(self, message, salt, priority):
         inputs = (message, salt)
+        self.log.debug("Adding priority {priority} hash job for {inputs}", priority=priority.name, inputs=inputs)
         self.queue.put((priority, inputs))
         d = Deferred()
         self.callbacks.setdefault(inputs, []).append(d)
@@ -46,6 +47,7 @@ class Hasher:
         for d in self.callbacks.pop(job[1], []):
             d.callback(image)
         self.active_jobs -= 1
+        self.log.debug("Hash job complete:", job, image)
         self._update_jobs()
 
     @staticmethod

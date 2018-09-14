@@ -189,7 +189,7 @@ class PeerService(Service):
             return succeed(self.peer_key.public_bytes)
         if key == ADDRS.value:
             #return self._ids_deferred
-            return succeed(self.node_addrs)  # TODO maybe defer if we're still generating em?
+            return succeed([addr.addr for addr in self.node_addrs])  # TODO maybe defer if we're still generating em?
 
         # check plugins to see if any provide this info
         for provider in getPlugins(IInfoProvider):
