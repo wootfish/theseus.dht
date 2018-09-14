@@ -9,7 +9,7 @@ from noise.functions import DH, KeyPair25519
 
 from .config import config
 from .contactinfo import ContactInfo
-from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, IDS
+from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS
 from .errors import TheseusConnectionError, DuplicateContactError
 from .nodeaddr import NodeAddress
 from .peertracker import PeerTracker
@@ -126,7 +126,7 @@ class PeerService(Service):
         # redundant updates always succeed
         peer_state = cnxn.peer_state
 
-        if info_key == IDS.value:
+        if info_key == ADDRS.value:
             # check for formatting & uniqueness of all IDs, then assign
             # question: how do we want to decide when to queue up ID checks?
             ...
@@ -187,7 +187,7 @@ class PeerService(Service):
             return succeed(self.listen_port)
         if key == PEER_KEY.value:
             return succeed(self.peer_key.public_bytes)
-        if key == IDS.value:
+        if key == ADDRS.value:
             #return self._ids_deferred
             return succeed(self.node_addrs)  # TODO maybe defer if we're still generating em?
 
