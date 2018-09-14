@@ -89,7 +89,7 @@ class PeerState(Factory):
             d = self.connect()
             d.addCallback(lambda _: self.query(query_name, args, retries-1))
         else:
-            d = self.cnxn.sendQuery(query_name, args)
+            d = self.cnxn.send_query(query_name, args)
 
         d.addErrback(errback)
         return d

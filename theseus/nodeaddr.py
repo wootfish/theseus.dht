@@ -49,15 +49,15 @@ class NodeAddress:
     def __repr__(self):
         return "NodeAddress(({}, {}))".format(self.addr, self.preimage)
 
-    @inlineCallbacks
     @classmethod
+    @inlineCallbacks
     def new(cls, ip_addr, priority=CRITICAL):
-        preimage = Preimage(cls._ts_bytes_to_int(time()), ip_addr, urandom(6))
+        preimage = Preimage(cls._ts_int_to_bytes(int(time())), ip_addr, urandom(6))
         image = yield hasher.do_hash(*preimage.to_hash_inputs(), priority)
         return cls(image, preimage)
 
-    @inlineCallbacks
     @classmethod
+    @inlineCallbacks
     def from_preimage(cls, node_addr, preimage, trusted=False, priority=UNSET):
         ts = cls._ts_bytes_to_int(preimage.ts_bytes)
 
