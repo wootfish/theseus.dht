@@ -7,6 +7,7 @@ from .errors import ValidationError
 
 from os import urandom
 from time import time
+from socket import inet_aton
 
 
 class Preimage:
@@ -40,6 +41,9 @@ class NodeAddress:
     @classmethod
     @inlineCallbacks
     def new(cls, ip_addr, priority=CRITICAL):
+        # allows passing in ip_addr as raw bytes or as a string in dotted form
+        if type(ip_addr) is str:
+            ip_addr = inet_aton(ip_addr)
         preimage = Preimage(cls._ts_int_to_bytes(int(time())), ip_addr, urandom(6))
         image = yield hasher.do_hash(*preimage.to_hash_inputs(), priority)
         return cls(image, preimage)
