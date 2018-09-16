@@ -93,25 +93,25 @@ class RoutingTable:
                 return self.contents
             return self.left_child.get_contents() + self.right_child.get_contents()
 
-        def show(self, indent=0):
-            # convenience function for troubleshooting
-            spacing = ' '*4*indent
+        # def show(self, indent=0):
+        #     # convenience function for troubleshooting
+        #     spacing = ' '*4*indent
 
-            lower = '0x'+hex(self.lower)[2:].rjust(RoutingTable.L//4, '0')
-            upper = '0x'+hex(self.upper)[2:].rjust(RoutingTable.L//4, '0')
-            print(spacing, end='')
-            print('\n' + spacing + lower + ' - ' + upper)
+        #     lower = '0x'+hex(self.lower)[2:].rjust(RoutingTable.L//4, '0')
+        #     upper = '0x'+hex(self.upper)[2:].rjust(RoutingTable.L//4, '0')
+        #     print(spacing, end='')
+        #     print('\n' + spacing + lower + ' - ' + upper)
 
-            if self.contents is None:
-                self.left_child.show(indent+1)
-                self.right_child.show(indent+1)
-            else:
-                if len(self.contents) == 0:
-                    print(spacing, end='')
-                    print("Empty")
-                for entry in self.contents:
-                    print(spacing, end='')
-                    print(entry)
+        #     if self.contents is None:
+        #         self.left_child.show(indent+1)
+        #         self.right_child.show(indent+1)
+        #     else:
+        #         if len(self.contents) == 0:
+        #             print(spacing, end='')
+        #             print("Empty")
+        #         for entry in self.contents:
+        #             print(spacing, end='')
+        #             print(entry)
 
 
     def __init__(self, local_peer=None):
