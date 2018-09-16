@@ -11,7 +11,6 @@ from time import time
 
 class Preimage:
     # data class for hash preimages
-    # TODO there has got to be a better way of making this a singleton class
 
     instances = {}
 
@@ -22,16 +21,6 @@ class Preimage:
 
     def __repr__(self):
         return "Preimage({}, {}, {})".format(self.ts_bytes, self.ip_addr, self.entropy)
-
-    @classmethod
-    def from_bytes(cls, preimage_bytes):
-        # TODO validate length of preimage_bytes, warn/bail if not right
-        if preimage_bytes not in cls.instances:
-            ts_bytes = preimage_bytes[:4]
-            ip_addr = preimage_bytes[4:8]
-            entropy = preimage_bytes[8:14]
-            cls.instances[preimage_bytes] = cls(ts_bytes, ip_addr, entropy)
-        return cls.instances[preimage_bytes]
 
     def to_hash_inputs(self):
         return (self.ts_bytes + self.ip_addr, self.entropy+bytes(10))

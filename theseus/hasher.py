@@ -49,7 +49,7 @@ class Hasher:
         for d in self.callbacks.pop(job[1], []):
             d.callback(image)
         self.active_jobs -= 1
-        self.log.debug("Hash job complete:", job, image)
+        self.log.debug("Hash job complete: {job} {image}", job=job, image=image)
         self._update_jobs()
 
     @staticmethod
