@@ -7,6 +7,8 @@ from nacl.pwhash import argon2id
 from functools import lru_cache
 from queue import PriorityQueue
 
+from .enums import UNSET
+
 
 class Hasher:
     log = Logger()
@@ -17,7 +19,7 @@ class Hasher:
     OPSLIMIT = argon2id.OPSLIMIT_INTERACTIVE
     MEMLIMIT = argon2id.MEMLIMIT_INTERACTIVE
 
-    MAX_THREADS = 3  # should these be worker processes instead? does the GIL mess us up here?
+    MAX_THREADS = 3  # TODO should these be worker processes instead? does the GIL mess us up here?
     LRU_CACHE_SIZE = 500
 
     def __init__(self):
@@ -25,7 +27,7 @@ class Hasher:
         self.callbacks = {}
         self.active_jobs = 0
 
-    def do_hash(self, message, salt, priority):
+    def do_hash(self, message, salt, priority=UNSET):
         inputs = (message, salt)
         self.log.debug("Adding priority {priority} hash job for {inputs}", priority=priority.name, inputs=inputs)
         self.queue.put((priority, inputs))

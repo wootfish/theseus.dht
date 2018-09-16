@@ -38,6 +38,8 @@ class RoutingTable:
         raise Exception("node_address out of bounds")
 
     def _bucketIsSplitCandidate(self, bucket):
+        #if not self.local_peer:
+        #    return False
         for node_addr in self.local_peer.node_addrs:
             if bucket[0] <= self.bytes_to_int(node_addr.node_addr) <= bucket[1]:
                 return True
