@@ -67,20 +67,20 @@ class RoutingTable:
             return self.lower <= RoutingTable.bytes_to_int(addr) <= self.upper
 
         def query(self, addr, lookup_size):
-            addr_int = self.bytes_to_int(addr)
+            addr_int = RoutingTable.bytes_to_int(addr)
 
             if self.contents:
                 if len(self.contents) <= lookup_size:
                     return self.contents
                 return sorted(
                         self.contents,
-                        key=lambda entry: addr_int ^ self.bytes_to_int(entry.addr)
+                        key=lambda entry: addr_int ^ RoutingTable.bytes_to_int(entry.node_addr.addr)
                         )[:lookup_size]
 
-            if self.left_child.covers(addr):
-                closer, further = self.left_child, self.right_child
-            else:
+            if addr_int & (self.left_child.lower ^ self.right_child.lower):
                 closer, further = self.right_child, self.left_child
+            else:
+                closer, further = self.left_child, self.right_child
 
             results = closer.query(addr, lookup_size)
             num_results = len(results)
@@ -93,25 +93,25 @@ class RoutingTable:
                 return self.contents
             return self.left_child.get_contents() + self.right_child.get_contents()
 
-        # def show(self, indent=0):
-        #     # convenience function for troubleshooting
-        #     spacing = ' '*4*indent
+        def show(self, indent=0):
+            # convenience function for troubleshooting
+            spacing = ' '*4*indent
 
-        #     lower = '0x'+hex(self.lower)[2:].rjust(RoutingTable.L//4, '0')
-        #     upper = '0x'+hex(self.upper)[2:].rjust(RoutingTable.L//4, '0')
-        #     print(spacing, end='')
-        #     print(lower, '-', upper)
+            lower = '0x'+hex(self.lower)[2:].rjust(RoutingTable.L//4, '0')
+            upper = '0x'+hex(self.upper)[2:].rjust(RoutingTable.L//4, '0')
+            print(spacing, end='')
+            print('\n' + spacing + lower + ' - ' + upper)
 
-        #     if self.contents is None:
-        #         self.left_child.show(indent+1)
-        #         self.right_child.show(indent+1)
-        #     else:
-        #         if len(self.contents) == 0:
-        #             print(spacing, end='')
-        #             print("Empty")
-        #         for entry in self.contents:
-        #             print(spacing, end='')
-        #             print(entry)
+            if self.contents is None:
+                self.left_child.show(indent+1)
+                self.right_child.show(indent+1)
+            else:
+                if len(self.contents) == 0:
+                    print(spacing, end='')
+                    print("Empty")
+                for entry in self.contents:
+                    print(spacing, end='')
+                    print(entry)
 
 
     def __init__(self, local_peer=None):
