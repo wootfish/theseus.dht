@@ -61,6 +61,10 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         self.resetTimeout()
         KRPCProtocol.stringReceived(self, string)
 
+    def timeoutConnection(self):
+        self.log.debug("Connection to {peer} timed out after {s} seconds.", peer=self._peer, s=self.idle_timeout)
+        super().timeoutConnection()
+
     def find(self, args):
         pass  # TODO
 
