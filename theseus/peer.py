@@ -24,12 +24,14 @@ from random import randrange
 class PeerService(Service):
     log = Logger()
     listener = None
+    listen_port = None
 
     blacklist_size = 500
 
     _randrange = randrange  # broken out for tests
+    _local_node_addr_workers = []
 
-    def __init__(self, num_nodes=8):
+    def __init__(self, num_nodes=5):
         super().__init__()
 
         self.peer_key = self._generate_keypair()
@@ -46,9 +48,7 @@ class PeerService(Service):
         super().startService()
 
         for _ in range(self.num_nodes):
-            # FIXME this is not gonna be enough for generating node addrs but it'll have to do for now
-            # TODO handle timeouts for these nodes gracefully somehow
-            NodeAddress.new(b'127.0.0.1').addCallback(self.node_addrs.append)  # FIXME hard-coding 127.0.0.1 here is not ideal
+            self._node_addr_adder()  # FIXME once we have local IP discovery, perform that before doing this
 
         self.listen_port = self._start_listening()
 
@@ -71,6 +71,17 @@ class PeerService(Service):
     @staticmethod
     def _generate_keypair():
         return DH("ed25519").generate_keypair()
+
+    def _node_addr_adder(self, local_ip='127.0.0.1'):
+        d = NodeAddress.new(local_ip)
+        self._local_node_addr_workers.append(d)
+        def cb(val):
+            self._local_node_addr_workers.remove(d)
+            self.node_addrs.append(val)
+            # TODO add a timer for replacing this addr or something
+            self.log.debug("Local node addr generated: {addr}", addr=val)
+            return val
+        d.addCallback(cb)
 
     def _start_listening(self):
         """
