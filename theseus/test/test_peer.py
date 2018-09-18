@@ -9,6 +9,7 @@ class PeerTests(unittest.TestCase):
     def test_startup(self):
         def fake_randrange(_, lower, upper):
             return 1337
+
         def fake_listen(_, port):
             self.assertEqual(port, 1337)
             return _FakePort('127.0.0.1')

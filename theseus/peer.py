@@ -75,6 +75,7 @@ class PeerService(Service):
     def _node_addr_adder(self, local_ip='127.0.0.1'):
         d = NodeAddress.new(local_ip)
         self._local_node_addr_workers.append(d)
+
         def cb(val):
             self._local_node_addr_workers.remove(d)
             self.node_addrs.append(val)

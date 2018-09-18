@@ -15,6 +15,7 @@ class NodeAddressTests(unittest.TestCase):
     def test_vector(self):
         def fake_urandom(n):
             return bytes(n)
+
         def fake_time():
             return 0x69696969  # = 1768515945 = Jan 15 2026
 

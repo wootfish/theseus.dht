@@ -1,9 +1,11 @@
-from twisted.logger import Logger 
+from twisted.logger import Logger
 
 from .constants import k, L
 
 
 class RoutingTable:
+    log = Logger()
+
     k = k
     L = L
 
@@ -112,7 +114,6 @@ class RoutingTable:
         #         for entry in self.contents:
         #             print(spacing, end='')
         #             print(entry)
-
 
     def __init__(self, local_peer=None):
         self.local_peer = local_peer
