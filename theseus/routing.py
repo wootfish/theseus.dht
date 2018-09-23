@@ -44,6 +44,7 @@ class RoutingTable:
                 # bucket has room
                 if entry not in self.contents:
                     self.contents.append(entry)
+                RoutingTable.log.debug("Routing insert for {entry} succeeded.", entry=entry)
                 return True
 
             if local_addrs:
@@ -52,16 +53,16 @@ class RoutingTable:
                 self.split()
                 return self.insert(entry, local_addrs)
 
+            RoutingTable.log.debug("Routing insert for {entry} failed.", entry=entry)
             return False
 
         def split(self):
+            bisector = (self.lower + self.upper) // 2
+            RoutingTable.log.debug("Splitting bucket 0x{low}~0x{high} into 0x{low}~0x{mid} and 0x{mid}~0x{high}", low=hex(self.lower), mid=hex(bisector), high=hex(self.upper))
             contents = self.contents
             self.contents = None
-
-            bisector = (self.lower + self.upper) // 2
             self.left_child = RoutingTable.Bucket(self.lower, bisector, self.k)
             self.right_child = RoutingTable.Bucket(bisector + 1, self.upper, self.k)
-
             for entry in contents:
                 self.insert(entry)
 
@@ -124,6 +125,7 @@ class RoutingTable:
 
     def insert(self, contact_info, node_addr):
         entry = self.Entry(contact_info, node_addr)
+        self.log.debug("Attempting to insert {entry} into routing table.", entry=entry)
         return self.root.insert(entry, self._get_local_addrs())
 
     def reload(self, local_addrs=None):
