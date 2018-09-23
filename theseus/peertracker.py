@@ -6,7 +6,7 @@ from twisted.logger import Logger
 from twisted.protocols.policies import WrappingFactory
 
 from .contactinfo import ContactInfo
-from .enums import DISCONNECTED, CONNECTING
+from .enums import DISCONNECTED, CONNECTING, CONNECTED
 from .enums import INITIATOR, RESPONDER
 from .enums import LISTEN_PORT, PEER_KEY
 from .errors import RetriesExceededError, DuplicateContactError
@@ -67,6 +67,14 @@ class PeerState(Factory):
         self._endpoint_deferred = endpoint.connect(self)
         self._endpoint_deferred.addCallback(lambda wrapper: wrapper.wrappedProtocol)
         return self._endpoint_deferred
+
+    def onConnect(self, proto):
+        # called by DHTProtocol
+        self.state = CONNECTED
+        self.cnxn = proto
+        self.host = proto.transport.getPeer().host
+        if self.role is INITIATOR:
+            self.get_info()
 
     def disconnect(self):
         self.log.info("{peer} - Initiating disconnection", addr=self.cnxn.transport.getPeer())

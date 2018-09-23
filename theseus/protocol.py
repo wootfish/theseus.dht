@@ -41,17 +41,11 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         super().connectionMade()
         self.setTimeout(self.idle_timeout)
 
-        peer = self.transport.getPeer()
-        peer_state = self.peer_state
-        if peer_state:
-            peer_state.state = CONNECTED
-            peer_state.cnxn = self
-            peer_state.host = peer.host
-
-            if peer_state.role is INITIATOR:
-                peer_state.get_info()
+        if self.peer_state:
+            self.peer_state.onConnect(self)
         else:
-            self.log.error("{peer} - connectionMade but peer_state is None -- this should never happen outside of unit tests", peer=(peer.host, peer.port))
+            peer = self.transport.getPeer()
+            self.log.error("{peer} - connectionMade but peer_state is None -- this should have been populated by the factory", peer=(peer.host, peer.port))
 
     def connectionLost(self, reason):
         super().connectionLost(reason)
