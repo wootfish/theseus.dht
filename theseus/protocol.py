@@ -104,8 +104,10 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         result = {}
         try:
             for key in keys:
+                if self.local_peer is None:
+                    raise UnsupportedInfoError()  # no info supported if local_peer is None
                 result[key] = yield self.local_peer.get_info(key)
         except UnsupportedInfoError:
-            self.log.debug("{peer} - Unrecognized info key(s) requested. Requested keys: {keys}", peer=self._peer, keys=keys)
+            self.log.debug("{peer} - Unsupported info key(s) requested. Requested keys: {keys}", peer=self._peer, keys=keys)
             raise Error202("info key not supported")
         return result
