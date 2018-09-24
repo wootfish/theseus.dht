@@ -85,7 +85,7 @@ class PeerTests(unittest.TestCase):
         self.assertEqual(len(self.memory_reactor.tcpClients), 1)
         return self.peer.node_manager.get_addrs()
 
-    def test_cnxn_attempt(self):
+    def test_doomed_cnxn_attempt(self):
         PeerState._reactor = RaisingMemoryReactor()
         # this is lazy & recycles the peer's key as the remote key, but... hey
         self.peer.startService()
