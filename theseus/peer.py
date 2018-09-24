@@ -71,6 +71,10 @@ class PeerService(Service):
         for info_provider in getPlugins(IInfoProvider):
             DHTProtocol.supported_info_keys.update(info_provider.provided)
 
+    def stopService(self):
+        super().stopService()
+        # TODO are we allowed to return a deferred here to block on things like finishing up hash jobs?
+
     @staticmethod
     def _generate_keypair():
         return DH("ed25519").generate_keypair()

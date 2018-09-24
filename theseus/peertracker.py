@@ -57,7 +57,7 @@ class PeerState(Factory):
     def connect(self, reactor=None):
         reactor = reactor or self._reactor
 
-        if self.state is not DISCONNECTED:
+        if self.state is not DISCONNECTED:  # TODO should this be "if self.state is CONNECTING"? and should we add more logic for other cases if so?
             return self._endpoint_deferred
 
         if not self.info.get(LISTEN_PORT):
@@ -69,6 +69,7 @@ class PeerState(Factory):
         endpoint = TCP4ClientEndpoint(reactor, self.host, self.info[LISTEN_PORT])
         self._endpoint_deferred = endpoint.connect(self)
         self._endpoint_deferred.addCallback(lambda wrapper: wrapper.wrappedProtocol)
+        # TODO maybe add an errback for updating peer state on cnxn failure?
         return self._endpoint_deferred
 
     def onConnect(self, proto):
