@@ -70,12 +70,13 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         keys = args.get(b'keys', [])
 
         # process remote info
-        if type(info) is dict and self.local_peer is not None:
-            for key, val in info.items():
-                result = "Successful" if self.local_peer.maybe_update_info(self, key, val) else "Failed"
-                self.log.debug("{peer} - {result} info update: {key}, {val}", peer=self._peer, result=result, key=key, val=val)
+        if type(info) is dict:
+            if self.local_peer is not None:
+                for key, val in info.items():
+                    result = "Successful" if self.local_peer.maybe_update_info(self, key, val) else "Failed"
+                    self.log.debug("{peer} - {result} info update: {key}, {val}", peer=self._peer, result=result, key=key, val=val)
         else:
-            self.log.debug("{peer} - Malformed query: Expected dict for value of 'info' key, not {type}", peer=self._peer, type=type(info))
+            self.log.debug("{peer} - Malformed query: Expected dict for value of 'info' key, not {t}", peer=self._peer, t=type(info))
             raise Error201("malformed 'info' argument")
 
         if type(keys) is list:
