@@ -1,10 +1,10 @@
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, inlineCallbacks
 from twisted.logger import Logger
 from twisted.protocols.policies import TimeoutMixin
 
 from .enums import DHTInfoKeys, INITIATOR, CONNECTED
-from .errors import Error201, Error202
+from .errors import Error201, Error202, UnsupportedInfoError
 from .krpc import KRPCProtocol
 
 
@@ -70,14 +70,10 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         keys = args.get(b'keys', [])
 
         # process remote info
-        if type(info) is dict:
-            if self.local_peer is not None:
-                for key in info:
-                    if key in self.supported_info_keys:
-                        if self.local_peer.maybe_update_info(self, key, info[key]):
-                            self.log.debug("{peer} - Info update successful: {key}, {val}", peer=self._peer, key=key, val=info[key])
-                        else:
-                            self.log.debug("{peer} - Info update failed: {key}, {val}", peer=self._peer, key=key, val=info[key])
+        if type(info) is dict and self.local_peer is not None:
+            for key, val in info.items():
+                result = "Successful" if self.local_peer.maybe_update_info(self, key, val) else "Failed"
+                self.log.debug("{peer} - {result} info update: {key}, {val}", peer=self._peer, result=result, key=key, val=val)
         else:
             self.log.debug("{peer} - Malformed query: Expected dict for value of 'info' key, not {type}", peer=self._peer, type=type(info))
             raise Error201("malformed 'info' argument")
@@ -102,23 +98,14 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     def onPut(self, args):
         return args  # TODO
 
+    @inlineCallbacks
     def get_local_keys(self, keys=None):
-        if keys is None:
-            keys = self.supported_info_keys
-
-        if all(key in self.supported_info_keys for key in keys):
-            deferreds = []
-            result = {}
+        keys = self.supported_info_keys if keys is None else keys
+        result = {}
+        try:
             for key in keys:
-                def callback(value):
-                    result[key] = value
-
-                d = self.local_peer.get_info(key)
-                d.addCallback(callback)
-                deferreds.append(d)
-            deferred_list = DeferredList(deferreds)
-            deferred_list.addCallback(lambda _: result)
-            return deferred_list
-        else:
+                result[key] = yield self.local_peer.get_info(key)
+        except UnsupportedInfoError:
             self.log.debug("{peer} - Unrecognized info key(s) requested. Requested keys: {keys}", peer=self._peer, keys=keys)
             raise Error202("info key not supported")
+        return result

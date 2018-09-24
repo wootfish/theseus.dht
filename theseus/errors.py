@@ -112,3 +112,7 @@ class PluginError(Exception):
 
 class ValidationError(Exception):
     pass
+
+
+class UnsupportedInfoError(Exception):
+    pass

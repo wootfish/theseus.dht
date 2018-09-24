@@ -1,6 +1,6 @@
 from twisted.application.service import Service
 from twisted.internet import reactor
-from twisted.internet.defer import succeed, fail
+from twisted.internet.defer import succeed, fail, maybeDeferred
 from twisted.internet.error import CannotListenError
 from twisted.logger import Logger
 from twisted.plugin import getPlugins
@@ -10,18 +10,27 @@ from noise.functions import DH, KeyPair25519
 from .config import config
 from .contactinfo import ContactInfo
 from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS
-from .errors import TheseusConnectionError, DuplicateContactError
+from .errors import TheseusConnectionError, DuplicateContactError, UnsupportedInfoError
 from .nodeaddr import NodeAddress
 from .peertracker import PeerTracker
 from .plugins import IPeerSource, IInfoProvider
 from .protocol import DHTProtocol
 from .routing import RoutingTable
+from .nodemanager import NodeManager
 
 from collections import deque
 from random import randrange
 
 
 class PeerService(Service):
+    """
+    Responsible for creating and maintaining all the major components required
+    to run a DHT peer. These components are:
+    - A routing table
+    - A registry and state tracker for remote peers
+    - A manager for local node state
+    - A peer blacklist
+    """
     log = Logger()
     listener = None
     listen_port = None
@@ -29,27 +38,21 @@ class PeerService(Service):
     blacklist_size = 500
 
     _randrange = randrange  # broken out for tests
-    _local_node_addr_workers = []
 
     def __init__(self, num_nodes=5):
         super().__init__()
 
+        self.node_addrs = []
+        self.blacklist = deque(maxlen=self.blacklist_size)
         self.peer_key = self._generate_keypair()
 
-        self.num_nodes = num_nodes
-        self.node_addrs = []
-
-        self.routing_table = RoutingTable(self)
+        self.routing_table = RoutingTable()
         self.peer_tracker = PeerTracker(self)
-
-        self.blacklist = deque(maxlen=self.blacklist_size)
+        self.node_manager = NodeManager(num_nodes)
 
     def startService(self):
         super().startService()
-
-        for _ in range(self.num_nodes):
-            self._node_addr_adder()  # FIXME once we have local IP discovery, perform that before doing this
-
+        self.node_manager.start()
         self.listen_port = self._start_listening()
 
         for peer_source in getPlugins(IPeerSource):
@@ -72,24 +75,12 @@ class PeerService(Service):
     def _generate_keypair():
         return DH("ed25519").generate_keypair()
 
-    def _node_addr_adder(self, local_ip='127.0.0.1'):
-        d = NodeAddress.new(local_ip)
-        self._local_node_addr_workers.append(d)
-
-        def cb(val):
-            self._local_node_addr_workers.remove(d)
-            self.node_addrs.append(val)
-            # TODO add a timer for replacing this addr or something
-            self.log.debug("Local node addr generated: {addr}", addr=val)
-            return val
-        d.addCallback(cb)
-
     def _start_listening(self):
         """
         Starts listening on a reasonable port.
         """
 
-        # maybe we should add the option to take a user-specified port (and exit cleanly if it's not available?)
+        # TODO maybe we should add the option to take a user-specified port (and exit cleanly somehow if it's not available?)
 
         listen_port_range = config["listen_port_range"]
         ports_to_avoid = config["ports_to_avoid"]
@@ -115,6 +106,7 @@ class PeerService(Service):
         """
         Attempts to start listening for cnxns on the given port.
         Throws a CannotListenError if the port is not available.
+        Broken out to simplify tests.
         """
         self.listener = reactor.listenTCP(port, self.peer_tracker)
 
@@ -167,24 +159,27 @@ class PeerService(Service):
             self._maybe_register_contact(cnxn)
 
         else:
+            self.log.debug("Info update attempted for unrecognized key {key}", key=info_key)
             return False
         return True
 
     def _maybe_register_contact(self, cnxn):
+        """
+        Checks if we have enough peer info to register cnxn.peer_state in the
+        peer tracker, and registers it if so.
+        """
         peer_state = cnxn.peer_state
         if all(peer_state.info.get(key) for key in (LISTEN_PORT, PEER_KEY)):
             contact_info = peer_state.get_contact_info()
             try:
-                self.peer_tracker.register_contact(contact_info, cnxn.peer_state)
+                self.peer_tracker.register_contact(contact_info, peer_state)
             except DuplicateContactError:
                 self.log.warn("{peer} - DuplicateContactError registering contact info {info}", peer=cnxn._peer, info=contact_info)
                 cnxn.transport.loseConnection()
-                return False
 
     def get_info(self, key):
         """
-        Gets *local* info. To get info from a remote peer, connect to it and
-        use `PeerState.get_info`.
+        Gets local info. To get a remote peer's info, use `PeerState.get_info`.
         """
 
         # returns a Deferred in all cases. the Deferred may or may not come
@@ -200,14 +195,15 @@ class PeerService(Service):
         if key == PEER_KEY.value:
             return succeed(self.peer_key.public_bytes)
         if key == ADDRS.value:
-            #return self._ids_deferred
-            return succeed([addr.addr for addr in self.node_addrs])  # TODO maybe defer if we're still generating em?
+            return maybeDeferred(self.node_manager.get_addrs())
 
         # check plugins to see if any provide this info
         for provider in getPlugins(IInfoProvider):
             if key in provider.provided:
                 # TODO log this plugin use
-                return succeed(provider.get(key))
+                return maybeDeferred(provider.get(key))
+
+        return fail(UnsupportedInfoError())
 
     def do_lookup(self, addr, k=8):  # TODO don't leave k hardcoded
         ...

@@ -96,28 +96,8 @@ class RoutingTable:
                 return self.contents
             return self.left_child.get_contents() + self.right_child.get_contents()
 
-        # def show(self, indent=0):
-        #     # convenience function for troubleshooting
-        #     spacing = ' '*4*indent
-
-        #     lower = '0x'+hex(self.lower)[2:].rjust(RoutingTable.L//4, '0')
-        #     upper = '0x'+hex(self.upper)[2:].rjust(RoutingTable.L//4, '0')
-        #     print(spacing, end='')
-        #     print('\n' + spacing + lower + ' - ' + upper)
-
-        #     if self.contents is None:
-        #         self.left_child.show(indent+1)
-        #         self.right_child.show(indent+1)
-        #     else:
-        #         if len(self.contents) == 0:
-        #             print(spacing, end='')
-        #             print("Empty")
-        #         for entry in self.contents:
-        #             print(spacing, end='')
-        #             print(entry)
-
-    def __init__(self, local_peer=None):
-        self.local_peer = local_peer
+    def __init__(self, local_addrs=None):
+        self.local_addrs = local_addrs or []
         self.root = self.Bucket(0, 2**self.L - 1, self.k)
 
     def query(self, addr, lookup_size=None):
@@ -126,17 +106,22 @@ class RoutingTable:
     def insert(self, contact_info, node_addr):
         entry = self.Entry(contact_info, node_addr)
         self.log.debug("Attempting to insert {entry} into routing table.", entry=entry)
-        return self.root.insert(entry, self._get_local_addrs())
+        return self.root.insert(entry, self.local_addrs)
 
-    def reload(self, local_addrs=None):
+    def reload(self, new_addrs=None, new_peers=None):
         # to be called after a local addr is replaced
-        if local_addrs is None:
-            local_addrs = self._get_local_addrs()
+        self.local_addrs = new_addrs or []
 
-        contents = self.root.get_contents()  # TODO would there be any reason to shuffle this? just so that it's not predetermined which IDs from cut buckets survive? is there any good reason to want that?
+        contents = self.root.get_contents()  # TODO would there be any reason to shuffle this? just so that it's not predetermined which IDs from cut buckets survive? is there any good reason to want that, maybe security-related -- complicating any sort of malicious interference, etc?
         self.root = self.Bucket(0, 2**self.L - 1, self.k)
         for entry in contents:
-            self.root.insert(entry, local_addrs)
+            self.root.insert(entry, self.local_addrs)
+
+        # TODO figure out how new_peers will be formatted. loop through values and (try to) insert them
+        # (to support this, make sure that we gracefully handle attempted duplicate inserts)
+        # this allows us to catch peers whose inserts were previously denied but which we might accept now
+        for peer in new_peers or []:
+            pass # TODO
 
     def _get_local_addrs(self):
         if self.local_peer is not None:

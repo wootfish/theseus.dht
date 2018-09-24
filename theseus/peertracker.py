@@ -153,13 +153,18 @@ class PeerState(Factory):
 
 
 class PeerTracker(Factory):
+    """
+    Responsible for maintaining a registry of PeerState instances corresponding
+    to remote peers.
+    """
+
     log = Logger()
     protocol = DHTProtocol
 
     def __init__(self, local_peer):
         self.local_peer = local_peer
 
-        self.addr_to_contact = {}  # NOTE what's going on with this? where should we be populating it?
+        self.addr_to_contact = {}
         self.contact_to_state = {}
 
         self.subfactory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(self.protocol))
@@ -177,7 +182,7 @@ class PeerTracker(Factory):
         if self.addr_to_contact.get(addr_tup, contact_info) != contact_info:
             self.log.warn("Tried to re-register {addr_tup} to {contact}", addr_tup=addr_tup, contact=contact_info)
             self.log.debug("new contact: {contact}   addr_to_contact: {val}", contact=contact_info, val=self.addr_to_contact)
-            raise DuplicateContactError
+            raise DuplicateContactError()
 
         self.addr_to_contact.setdefault(addr_tup, contact_info)
         if contact_info not in self.contact_to_state:
