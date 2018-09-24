@@ -1,11 +1,26 @@
 from twisted.trial import unittest
 from twisted.test.proto_helpers import _FakePort
 from twisted.internet.defer import DeferredList
+from twisted.internet.task import Clock
 
 from theseus.peer import PeerService
+from theseus.nodemanager import NodeManager
 
 
 class PeerTests(unittest.TestCase):
+    def setUp(self):
+        self.clock = Clock()
+        self._callLater = NodeManager.callLater
+        NodeManager.callLater = self.clock.callLater
+
+        self._randrange = PeerService._randrange
+        self._listen = PeerService._listen
+
+    def tearDown(self):
+        NodeManager.callLater = self._callLater
+        PeerService._randrange = self._randrange
+        PeerService._listen = self._listen
+
     def test_startup(self):
         def fake_randrange(_, lower, upper):
             return 1337
@@ -20,13 +35,12 @@ class PeerTests(unittest.TestCase):
         peer = PeerService()
         peer.startService()
         self.assertEqual(peer.listen_port, 1337)
-        self.assertEqual(len(peer.node_addrs), 0)
+        self.assertEqual(len(self.clock.getDelayedCalls()), 0)
 
+        d = peer.node_manager.get_addrs()
         def cb(results):
-            self.assertEqual(len(results), peer.num_nodes)
-            self.assertTrue(all(status for status, result in results))
+            self.assertEqual(len(results), peer.node_manager.num_nodes)
+            self.assertEqual(len(self.clock.getDelayedCalls()), 5)
+        d.addCallback(cb)
 
-        dl = DeferredList(peer._local_node_addr_workers)
-        dl.addCallback(cb)
-
-        return dl
+        return d

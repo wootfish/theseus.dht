@@ -17,11 +17,8 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(good_addrs, [entry.node_addr.addr for entry in table.root.get_contents()])
 
     def test_basic_splits(self):
-        class DummyPeer:
-            node_addrs = [NodeAddress(b'\x00'*20, None), NodeAddress(b'\xFF' + b'\x00'*19, None)]
-
         k = 8
-        table = RoutingTable(DummyPeer())
+        table = RoutingTable([NodeAddress(b'\x00'*20, None), NodeAddress(b'\xFF' + b'\x00'*19, None)])
         table.k = k
 
         low_addrs = [bytes([i])*20 for i in range(k)]
@@ -43,11 +40,8 @@ class RoutingTests(unittest.TestCase):
                 )
 
     def test_basic_queries(self):
-        class DummyPeer:
-            node_addrs = [NodeAddress(b'\x00'*20, None), NodeAddress(b'\xFF' + b'\x00'*19, None)]
-
         k = 8
-        table = RoutingTable(DummyPeer())
+        table = RoutingTable([NodeAddress(b'\x00'*20, None), NodeAddress(b'\xFF' + b'\x00'*19, None)])
         table.k = k
 
         low_addrs = [bytes([i])*20 for i in range(k)]
