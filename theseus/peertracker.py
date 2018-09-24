@@ -23,6 +23,7 @@ class PeerState(Factory):
     state = None
 
     _endpoint_deferred = None
+    _reactor = reactor
 
     def __init__(self):
         self.info = {}
@@ -53,7 +54,9 @@ class PeerState(Factory):
         p.settings = NoiseSettings.for_peer_state(self)
         return p
 
-    def connect(self, reactor=reactor):
+    def connect(self, reactor=None):
+        reactor = reactor or self._reactor
+
         if self.state is not DISCONNECTED:
             return self._endpoint_deferred
 
