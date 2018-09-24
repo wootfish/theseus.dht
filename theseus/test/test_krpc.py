@@ -234,6 +234,6 @@ class KRPCTests(unittest.TestCase):
         self.transport.loseConnection()
         self.failureResultOf(d).trap(ConnectionDone)
 
-    def test_rejecting_garbage(self):
+    def test_rejecting_nonsense(self):
         self.proto.stringReceived(b"it's like no cheese i've ever tasted")
         self.assertFalse(self.proto.transport.connected)
