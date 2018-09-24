@@ -38,6 +38,12 @@ class NodeAddress:
     def __repr__(self):
         return "NodeAddress(({}, {}))".format(self.addr, self.preimage)
 
+    def as_bytes(self):
+        """
+        Returns a wire-friendly representation of the NodeAddress.
+        """
+        return b'ah fuck'  # TODO
+
     @classmethod
     @inlineCallbacks
     def new(cls, ip_addr, priority=CRITICAL):

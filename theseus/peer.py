@@ -195,13 +195,15 @@ class PeerService(Service):
         if key == PEER_KEY.value:
             return succeed(self.peer_key.public_bytes)
         if key == ADDRS.value:
-            return maybeDeferred(self.node_manager.get_addrs())
+            d = maybeDeferred(self.node_manager.get_addrs)
+            d.addCallback(lambda result: [addr.as_bytes() for addr in result])
+            return d
 
         # check plugins to see if any provide this info
         for provider in getPlugins(IInfoProvider):
             if key in provider.provided:
                 # TODO log this plugin use
-                return maybeDeferred(provider.get(key))
+                return maybeDeferred(provider.get, key)
 
         return fail(UnsupportedInfoError())
 

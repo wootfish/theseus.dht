@@ -43,6 +43,7 @@ class NodeManager:
         self.log.debug("New node addr added. Current {n} node addrs: {addrs}", n=len(self.node_addrs), addrs=self.node_addrs)
 
         if len(self.node_addrs) == self.num_nodes:
+            self.log.info("All local node addresses generated.")
             while self.backlog:
                 self.backlog.pop().callback(self.node_addrs)
 
