@@ -5,6 +5,7 @@ from twisted.internet.task import Clock
 
 from theseus.peer import PeerService
 from theseus.nodemanager import NodeManager
+from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS
 
 
 class PeerTests(unittest.TestCase):
@@ -43,4 +44,24 @@ class PeerTests(unittest.TestCase):
             self.assertEqual(len(self.clock.getDelayedCalls()), 5)
         d.addCallback(cb)
 
+        return d
+
+    def test_get_info(self):
+        peer = PeerService()
+
+        self.assertEqual(
+                self.successResultOf(peer.get_info(MAX_VERSION)),
+                "n/a")
+        self.assertEqual(
+                self.successResultOf(peer.get_info(LISTEN_PORT)),
+                None)
+        self.assertEqual(
+                self.successResultOf(peer.get_info(PEER_KEY)),
+                peer.peer_key.public_bytes)
+
+        d = peer.get_info(ADDRS)
+        self.assertFalse(d.called)
+        d.addCallback(lambda addrs: self.assertEqual(
+            addrs, [addr.as_bytes() for addr in peer.node_manager.node_addrs]))
+        peer.node_manager.start()
         return d
