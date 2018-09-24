@@ -100,7 +100,12 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
     @inlineCallbacks
     def get_local_keys(self, keys=None):
-        keys = self.supported_info_keys if keys is None else keys
+        if keys is None:
+            keys = self.supported_info_keys
+        else:
+            keys = [key if type(key) is bytes else key.value for key in keys]
+
+        self.log.debug("{peer} - Getting local keys {keys}", peer=self._peer, keys=keys)
         result = {}
         try:
             for key in keys:
@@ -108,6 +113,6 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
                     raise UnsupportedInfoError()  # no info supported if local_peer is None
                 result[key] = yield self.local_peer.get_info(key)
         except UnsupportedInfoError:
-            self.log.debug("{peer} - Unsupported info key(s) requested. Requested keys: {keys}", peer=self._peer, keys=keys)
+            self.log.debug("{peer} - Unsupported info key {key} requested.", peer=self._peer, key=key)
             raise Error202("info key not supported")
         return result
