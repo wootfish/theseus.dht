@@ -23,6 +23,12 @@ class Preimage:
     def __repr__(self):
         return "Preimage({}, {}, {})".format(self.ts_bytes, self.ip_addr, self.entropy)
 
+    def as_bytes(self):
+        """
+        Returns a wire-friendly representation of the Preimage.
+        """
+        return self.ts_bytes + bytes(self.ip_addr) + bytes(self.entropy)
+
     def to_hash_inputs(self):
         return (self.ts_bytes + self.ip_addr, self.entropy+bytes(10))
 
@@ -42,7 +48,8 @@ class NodeAddress:
         """
         Returns a wire-friendly representation of the NodeAddress.
         """
-        return b'ah fuck'  # TODO
+        #return b'ah fuck'  # TODO
+        return self.preimage.as_bytes() + self.addr
 
     @classmethod
     @inlineCallbacks
@@ -72,6 +79,14 @@ class NodeAddress:
             raise ValidationError("Address does not match preimage")
 
         return cls(image, preimage, verified=True)
+
+    @classmethod
+    def from_bytes(cls, addr_bytes, trusted=False, priority=UNSET):
+        ts_bytes, addr_bytes = addr_bytes[:4], addr_bytes[4:]
+        ip_addr, addr_bytes = addr_bytes[:4], addr_bytes[4:]
+        entropy, addr_bytes = addr_bytes[:6], addr_bytes[6:]
+        preimage = Preimage(ts_bytes, ip_addr, entropy)
+        return cls.from_preimage(addr_bytes, preimage, trusted, priority)
 
     @staticmethod
     def check_timestamp(ts, curr_time=None, timeout_window=None):
