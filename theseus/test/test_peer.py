@@ -3,13 +3,13 @@ from twisted.test.proto_helpers import _FakePort
 from twisted.internet.defer import DeferredList
 from twisted.internet.task import Clock
 from twisted.internet.address import IPv4Address
-from twisted.test.proto_helpers import MemoryReactor, RaisingMemoryReactor
+from twisted.test.proto_helpers import MemoryReactor, RaisingMemoryReactor, StringTransportWithDisconnection
 
 from theseus.contactinfo import ContactInfo
 from theseus.peer import PeerService
 from theseus.peertracker import PeerState
 from theseus.nodemanager import NodeManager
-from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS
+from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, CONNECTING, INITIATOR
 
 
 class PeerTests(unittest.TestCase):
@@ -76,21 +76,33 @@ class PeerTests(unittest.TestCase):
         return d
 
     def test_cnxn_attempt(self):
-        # this is lazy & recycles the peer's key as the remote key, but... hey
         self.peer.startService()
-        target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key)
+        self.addCleanup(self.peer.node_manager.get_addrs)
+        target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key) # this is lazy & recycles the peer's key as the remote key, but... hey
         d = self.peer.make_cnxn(target)
         d2 = self.peer.make_cnxn(target)
         self.assertEqual(d, d2)
         self.assertEqual(len(self.memory_reactor.tcpClients), 1)
-        return self.peer.node_manager.get_addrs()
 
     def test_doomed_cnxn_attempt(self):
         PeerState._reactor = RaisingMemoryReactor()
-        # this is lazy & recycles the peer's key as the remote key, but... hey
         self.peer.startService()
+        self.addCleanup(self.peer.node_manager.get_addrs)
         target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key)
         d = self.peer.make_cnxn(target)
         self.failureResultOf(d)
 
-        return self.peer.node_manager.get_addrs()
+    def test_cnxn_success(self):
+        self.test_cnxn_attempt()
+        target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key) # this is lazy & recycles the peer's key as the remote key, but... hey
+        d = self.peer.make_cnxn(target)
+        self.assertEqual(len(self.memory_reactor.tcpClients), 1)
+
+        factory = self.memory_reactor.tcpClients[0][2]
+        transport = StringTransportWithDisconnection()
+        factory.buildProtocol(IPv4Address("TCP", target.host, target.port)).makeConnection(transport)
+        p = self.successResultOf(d)
+        self.assertEqual(p.connected, 0)  # this won't connect until after noise handshake completion
+        self.assertEqual(p.transport, None)
+        self.assertEqual(p.peer_state.state, CONNECTING)
+        self.assertEqual(p.peer_state.role, INITIATOR)
