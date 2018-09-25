@@ -42,7 +42,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         self.setTimeout(self.idle_timeout)
 
         if self.peer_state:
-            self.peer_state.onConnect(self)
+            self.peer_state.on_connect(self)
         else:
             peer = self.transport.getPeer()
             self.log.error("{peer} - connectionMade but peer_state is None -- this should have been populated by the factory", peer=(peer.host, peer.port))
@@ -94,7 +94,8 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         return args  # TODO
 
     def onInfo(self, args):
-        return args  # TODO
+        ...
+        return args  # has to return args to support anything further down on the Deferred callback chain
 
     def onPut(self, args):
         return args  # TODO

@@ -72,7 +72,7 @@ class PeerState(Factory):
         # TODO maybe add an errback for updating peer state on cnxn failure?
         return self._endpoint_deferred
 
-    def onConnect(self, proto):
+    def on_connect(self, proto):
         # called by DHTProtocol
         self.state = CONNECTED
         self.cnxn = proto
