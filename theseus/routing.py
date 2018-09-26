@@ -44,7 +44,7 @@ class RoutingTable:
                 # bucket has room
                 if entry not in self.contents:
                     self.contents.append(entry)
-                RoutingTable.log.debug("Routing insert for {entry} succeeded.", entry=entry)
+                RoutingTable.log.debug("Routing insert succeeded for {entry}", entry=entry)
                 return True
 
             if local_addrs:
@@ -53,7 +53,7 @@ class RoutingTable:
                 self.split()
                 return self.insert(entry, local_addrs)
 
-            RoutingTable.log.debug("Routing insert for {entry} failed.", entry=entry)
+            RoutingTable.log.debug("Routing insert failed for {entry}", entry=entry)
             return False
 
         def split(self):
