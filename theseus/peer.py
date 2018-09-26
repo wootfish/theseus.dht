@@ -1,6 +1,6 @@
 from twisted.application.service import Service
 from twisted.internet import reactor
-from twisted.internet.defer import succeed, fail, maybeDeferred
+from twisted.internet.defer import succeed, fail, maybeDeferred, DeferredList
 from twisted.internet.error import CannotListenError
 from twisted.logger import Logger
 from twisted.plugin import getPlugins
@@ -20,6 +20,7 @@ from .nodemanager import NodeManager
 
 from collections import deque
 from random import randrange
+from socket import inet_aton
 
 
 class PeerService(Service):
@@ -49,6 +50,7 @@ class PeerService(Service):
         self.routing_table = RoutingTable()
         self.peer_tracker = PeerTracker(self)
         self.node_manager = NodeManager(num_nodes)
+        self.node_manager.add_listener(self.on_addr_change)
 
     def startService(self):
         super().startService()
@@ -74,6 +76,10 @@ class PeerService(Service):
     def stopService(self):
         super().stopService()
         # TODO are we allowed to return a deferred here to block on things like finishing up hash jobs?
+
+    def on_addr_change(self, new_addrs):
+        self.routing_table.reload(new_addrs)  # TODO provide full list of eligible peers?
+        # TODO advertise this info change over all active cnxns
 
     @staticmethod
     def _generate_keypair():
@@ -115,6 +121,7 @@ class PeerService(Service):
         self.listener = reactor.listenTCP(port, self.peer_tracker)
 
     def add_to_blacklist(self, host):
+        self.log.info("Blacklisting {host}", host=host)
         # TODO add logic to terminate any existing cnxns with blacklisted host
         self.blacklist.append(host)
 
@@ -132,12 +139,38 @@ class PeerService(Service):
         # returns whether the info update succeeded (true) or failed (false)
         # update attempts on unrecognized keys always fail
         # redundant updates always succeed
+        # updates which may succeed or fail in the future return True out of sheer optimism
+        self.log.debug("Considering updating {peer} data, {key}: {val}", peer=cnxn.transport.getPeer(), key=info_key, val=new_value)
         peer_state = cnxn.peer_state
 
         if info_key == ADDRS.value:
             # check for formatting & uniqueness of all IDs, then assign
-            # question: how do we want to decide when to queue up ID checks?
-            ...
+            if type(new_value) is not list:
+                return False
+            for addr in new_value:
+                if type(addr) is not bytes:
+                    break
+                if len(addr) != 34:  # TODO don't hardcode this, make it a package-scoped constant or something
+                    break
+                if addr[4:8] != inet_aton(cnxn.transport.transport.getPeer().host):
+                    break
+            else:
+                self.log.debug("Node ID sanity checks passed.")
+                deferreds = [NodeAddress.from_bytes(addr) for addr in new_value]
+                dl = DeferredList(deferreds)
+                def cb(l):
+                    if all(t[0] for t in l):
+                        self.log.debug("Updating node IDs for {peer}", peer=cnxn.transport.getPeer())
+                        addrs = [t[1] for t in l]
+                        peer_state.info[ADDRS] = addrs
+                        self._maybe_do_routing_insert(cnxn)
+                    else:
+                        self.log.debug("Bad node ID(s) from {peer}", peer=cnxn.transport.getPeer())
+                        self.add_to_blacklist(cnxn.transport.transport.getPeer())
+                dl.addCallback(cb)
+                return True
+            self.log.debug("Node ID sanity checks failed.")
+            return False
 
         elif info_key == LISTEN_PORT.value:
             if not (type(new_value) is int and 1024 <= new_value <= 65535):
@@ -149,6 +182,7 @@ class PeerService(Service):
                 return False
             peer_state.info[LISTEN_PORT] = new_value
             self._maybe_register_contact(cnxn)
+            self._maybe_do_routing_insert(cnxn)
 
         elif info_key == MAX_VERSION.value:
             pass  # we'll only need this once we break backwards compatibility
@@ -161,11 +195,19 @@ class PeerService(Service):
             self.log.debug("Updating {key} for {peer} to {val}", key=info_key, peer=cnxn._peer, val=new_value)
             peer_state.info[PEER_KEY] = key
             self._maybe_register_contact(cnxn)
+            self._maybe_do_routing_insert(cnxn)
 
         else:
             self.log.debug("Info update attempted for unrecognized key {key}", key=info_key)
             return False
         return True
+
+    def _maybe_do_routing_insert(self, cnxn):
+        info = cnxn.peer_state.info
+        if LISTEN_PORT in info and PEER_KEY in info and ADDRS in info:
+            contact = cnxn.peer_state.get_contact_info()
+            for addr in info[ADDRS]:
+                self.routing_table.insert(contact, addr)
 
     def _maybe_register_contact(self, cnxn):
         """

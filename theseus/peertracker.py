@@ -1,5 +1,5 @@
 from twisted.internet import reactor
-from twisted.internet.defer import fail, succeed
+from twisted.internet.defer import fail, succeed, inlineCallbacks
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet.protocol import Factory
 from twisted.logger import Logger
@@ -78,7 +78,11 @@ class PeerState(Factory):
         self.cnxn = proto
         self.host = proto.transport.getPeer().host
         if self.role is INITIATOR:
-            self.get_info()
+            # make an introduction
+            info_keys = tuple(DHTProtocol.supported_info_keys)
+            def cb(local_info):
+                self.query("info", {"keys": info_keys, "info": local_info})
+            self.cnxn.get_local_keys().addCallback(cb)
 
     def disconnect(self):
         self.log.info("{peer} - Initiating disconnection", addr=self.cnxn.transport.getPeer())
@@ -110,50 +114,19 @@ class PeerState(Factory):
         # note that there may not be a guarantee of LISTEN_PORT and PEER_KEY being populated
         return ContactInfo(self.host, self.info.get(LISTEN_PORT), self.info.get(PEER_KEY))
 
-    def get_info(self, info_keys=None, advertise_keys=None, ignore_local=False):
-        # info_keys should be a list of desired info keys
-        # advertise should be a list of local keys to advertise (you do not need to provide values)
-        # for both args, keys must be passed as bytes
-        # if True, ignore_local forces a new request for all info keys rather
-        # than locally looking up any that've already been requested
-
-        # if info_keys and advertise are both None, they will both be assigned
-        # sensible default values based on what we have and haven't talked to
-        # this peer about so far
-
-        # this function will always return a Deferred
-
-        if info_keys is None:
-            info_keys = tuple(DHTProtocol.supported_info_keys)
-
-        if type(info_keys) not in (list, tuple) or not {str, bytes}.issuperset(set(type(key) for key in info_keys)):
-            self.log.warn("Malformed info_keys argument to get_info. args: {a}, {b}, {c}", a=info_keys, b=advertise_keys, c=ignore_local)
-            return fail(Exception("malformed info_keys argument"))
-
-        def callback(advertise_dict):
-            if type(advertise_dict) is not dict or not {str, bytes}.issuperset(set(type(key) for key in advertise_dict)):
-                if advertise_dict is not None:
-                    self.log.warn("Malformed advertise_dict argument in get_info callback. Advertise keys: {keys}", keys=advertise_keys)
-                    self.log.debug("Full get_info arguments and advertise dict: {a}, {b}, {c}, {d}", a=info_keys, b=advertise_keys, c=ignore_local, d=advertise_dict)
-                    return fail(Exception("malformed advertise_dict argument"))
-
-            query = {"keys": info_keys}
-            if advertise_dict:
-                query["info"] = advertise_dict
-            query_d = self.query("info", query)
-            query_d.addCallback(lambda response: {
-                key: response.get(b'info', {}).get(key) for key in info_keys
-                })
-            return query_d
-
-        if info_keys is None and advertise_keys is None:
-            deferred = self.cnxn.get_local_keys()
-        elif advertise_keys is not None:
-            deferred = self.cnxn.get_local_keys(advertise_keys)
+    @inlineCallbacks
+    def get_info(self, keys, ignore_cache=False):
+        if ignore_cache:
+            result = {}
         else:
-            deferred = succeed(None)
-        deferred.addCallback(callback)
-        return deferred
+            result = {key: self.info[key] for key in keys if key in self.info}
+
+        todo = [key for key in keys if key not in result]
+        if todo:
+            answer = yield self.query("info", {"keys": todo})
+            result.update(answer.get(b'info', {}))
+
+        return result
 
 
 class PeerTracker(Factory):
