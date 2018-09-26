@@ -71,10 +71,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
         # process remote info
         if type(info) is dict:
-            if self.local_peer is not None:
-                for key, val in info.items():
-                    result = "Successful" if self.local_peer.maybe_update_info(self, key, val) else "Failed"
-                    self.log.debug("{peer} - {result} info update: {key}, {val}", peer=self._peer, result=result, key=key, val=val)
+            self.on_advertise(info)
         else:
             self.log.debug("{peer} - Malformed query: Expected dict for value of 'info' key, not {t}", peer=self._peer, t=type(info))
             raise Error201("malformed 'info' argument")
@@ -94,7 +91,11 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         return args  # TODO
 
     def onInfo(self, args):
-        ...
+        info = args.get(b'info')
+        if type(info) is dict:
+            self.on_advertise(info)
+        else:
+            self.log.debug("{peer} - Malformed response: Expected dict for value of 'info' key, not {t}", peer=self._peer, t=type(info))
         return args  # has to return args to support anything further down on the Deferred callback chain
 
     def onPut(self, args):
@@ -118,3 +119,9 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             self.log.debug("{peer} - Unsupported info key {key} requested.", peer=self._peer, key=key)
             raise Error202("info key not supported")
         return result
+
+    def on_advertise(self, info):
+        if self.local_peer is not None:
+            for key, val in info.items():
+                result = "Successful" if self.local_peer.maybe_update_info(self, key, val) else "Failed"
+                self.log.debug("{peer} - {result} info update: {key}, {val}", peer=self._peer, result=result, key=key, val=val)
