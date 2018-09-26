@@ -1,5 +1,5 @@
 from twisted.trial import unittest
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, DeferredList
 
 from theseus.hasher import Hasher
 
@@ -7,6 +7,12 @@ from theseus.hasher import Hasher
 class HasherTests(unittest.TestCase):
     def setUp(self):
         self.hasher = Hasher()
+
+    def tearDown(self):
+        pending = []
+        for job in self.hasher.callbacks.values():
+            pending += job
+        return DeferredList(pending)
 
     def test_vector(self):
         message = b'secret'
@@ -17,4 +23,3 @@ class HasherTests(unittest.TestCase):
         self.assertIsInstance(d, Deferred)
         #self.assertEqual(expected, self.successResultOf(d))
         d.addCallback(lambda result: self.assertEqual(result, expected))
-        return d
