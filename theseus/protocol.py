@@ -60,7 +60,12 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         super().timeoutConnection()
 
     def find(self, args):
-        pass  # TODO
+        addr = args.get(b'addr')
+        if addr is None:
+            raise Error201("missing 'addr' argument")
+        if self.local_peer is None:
+            return {"nodes": []}
+        return {"nodes": self.local_peer.query(addr)}
 
     def get(self, args):
         pass  # TODO
