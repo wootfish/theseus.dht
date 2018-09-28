@@ -19,7 +19,7 @@ from .routing import RoutingTable
 from .nodemanager import NodeManager
 
 from collections import deque
-from random import randrange
+from random import SystemRandom
 from socket import inet_aton
 
 
@@ -38,7 +38,7 @@ class PeerService(Service):
 
     blacklist_size = 500
 
-    _randrange = randrange  # broken out for tests
+    _rng = SystemRandom()  # broken out for tests
 
     def __init__(self, num_nodes=5):
         super().__init__()
@@ -96,7 +96,7 @@ class PeerService(Service):
         ports_to_avoid = config["ports_to_avoid"]
 
         while True:
-            port = self._randrange(*listen_port_range)
+            port = self._rng.randrange(*listen_port_range)
             if port in ports_to_avoid:
                 continue
 
@@ -132,6 +132,7 @@ class PeerService(Service):
         if contact_info.host in self.blacklist:
             return fail(TheseusConnectionError("Address blacklisted"))
 
+        self.log.info("Attempting cnxn to {contact}", contact=contact_info)
         peer_state = self.peer_tracker.register_contact(contact_info)
         return peer_state.connect()
 
