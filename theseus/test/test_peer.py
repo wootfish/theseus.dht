@@ -14,22 +14,23 @@ from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, CONNECTING,
 
 class PeerTests(unittest.TestCase):
     def setUp(self):
-        def fake_randrange(_, lower, upper):
-            return 1337
+        class Fake_RNG:
+            def randrange(self, lower, upper):
+                return 1337
 
         def fake_listen(_, port):
             self.assertEqual(port, 1337)
             return _FakePort(IPv4Address("TCP", "127.0.0.1", 1337))
 
         self._callLater = NodeManager.callLater
-        self._randrange = PeerService._randrange
+        self._rng = PeerService._rng
         self._listen = PeerService._listen
         self._reactor = PeerState._reactor
 
         self.clock = Clock()
         self.memory_reactor = MemoryReactor()
         NodeManager.callLater = self.clock.callLater
-        PeerService._randrange = fake_randrange
+        PeerService._rng = Fake_RNG()
         PeerService._listen = fake_listen
         PeerState._reactor = self.memory_reactor
 
@@ -37,7 +38,7 @@ class PeerTests(unittest.TestCase):
 
     def tearDown(self):
         NodeManager.callLater = self._callLater
-        PeerService._randrange = self._randrange
+        PeerService._rng = self._rng
         PeerService._listen = self._listen
         PeerState._reactor = self._reactor
 
