@@ -42,7 +42,7 @@ class NodeAddress:
         self.verified = verified
 
     def __repr__(self):
-        return "NodeAddress(({}, {}))".format(self.addr, self.preimage)
+        return "NodeAddress({}, {})".format(self.addr, self.preimage)
 
     def as_bytes(self):
         """

@@ -68,7 +68,7 @@ class PeerService(Service):
 
             self.log.info("Loading plugin for peer source {source}", source=peer_source)
             peer_source.get().addCallback(cb)
-            peer_source.put(ContactInfo(None, self.listen_port, self.peer_key))
+            # peer_source.put(ContactInfo(None, self.listen_port, self.peer_key))  # what's the point in trying to put w/ host=None?
 
         for info_provider in getPlugins(IInfoProvider):
             DHTProtocol.supported_info_keys.update(info_provider.provided)
@@ -141,7 +141,7 @@ class PeerService(Service):
         # update attempts on unrecognized keys always fail
         # redundant updates always succeed
         # updates which may succeed or fail in the future return True out of sheer optimism
-        self.log.debug("Considering updating {peer} data, {key}: {val}", peer=cnxn.transport.getPeer(), key=info_key, val=new_value)
+        self.log.debug("Considering updating {peer} data, {key}: {val}", peer=cnxn._peer, key=info_key, val=new_value)
         peer_state = cnxn.peer_state
 
         if info_key == ADDRS.value:
@@ -153,7 +153,7 @@ class PeerService(Service):
                     break
                 if len(addr) != 34:  # TODO don't hardcode this, make it a package-scoped constant or something
                     break
-                if addr[4:8] != inet_aton(cnxn.transport.transport.getPeer().host):
+                if cnxn.transport is None or addr[4:8] != inet_aton(cnxn.transport.getPeer().host):
                     break
             else:
                 self.log.debug("Node ID sanity checks passed.")
@@ -161,13 +161,13 @@ class PeerService(Service):
                 dl = DeferredList(deferreds)
                 def cb(l):
                     if all(t[0] for t in l):
-                        self.log.debug("Updating node IDs for {peer}", peer=cnxn.transport.getPeer())
+                        self.log.debug("Updating node IDs for {peer}", peer=cnxn._peer)
                         addrs = [t[1] for t in l]
                         peer_state.info[ADDRS] = addrs
                         self._maybe_do_routing_insert(cnxn)
                     else:
-                        self.log.debug("Bad node ID(s) from {peer}", peer=cnxn.transport.getPeer())
-                        self.add_to_blacklist(cnxn.transport.transport.getPeer())
+                        self.log.debug("Bad node ID(s) from {peer}", peer=cnxn._peer)
+                        self.add_to_blacklist(cnxn.transport.getPeer())
                 dl.addCallback(cb)
                 return True
             self.log.debug("Node ID sanity checks failed.")
