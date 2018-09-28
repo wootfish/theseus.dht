@@ -68,7 +68,7 @@ class PeerService(Service):
 
             self.log.info("Loading plugin for peer source {source}", source=peer_source)
             peer_source.get().addCallback(cb)
-            # peer_source.put(ContactInfo(None, self.listen_port, self.peer_key))  # what's the point in trying to put w/ host=None?
+            peer_source.put(ContactInfo(None, self.listen_port, self.peer_key))
 
         for info_provider in getPlugins(IInfoProvider):
             DHTProtocol.supported_info_keys.update(info_provider.provided)
