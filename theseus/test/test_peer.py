@@ -1,15 +1,21 @@
 from twisted.trial import unittest
 from twisted.test.proto_helpers import _FakePort
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, succeed
 from twisted.internet.task import Clock
 from twisted.internet.address import IPv4Address
 from twisted.test.proto_helpers import MemoryReactor, RaisingMemoryReactor, StringTransportWithDisconnection
+from twisted.plugin import IPlugin
+from twisted import plugins
+
+from zope.interface import implementer
 
 from theseus.contactinfo import ContactInfo
 from theseus.peer import PeerService
 from theseus.peertracker import PeerState
 from theseus.nodemanager import NodeManager
 from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, CONNECTING, INITIATOR
+from theseus.plugins import IPeerSource
+from theseus.nodeaddr import NodeAddress, Preimage
 
 
 class PeerTests(unittest.TestCase):
@@ -102,8 +108,32 @@ class PeerTests(unittest.TestCase):
         factory = self.memory_reactor.tcpClients[0][2]
         transport = StringTransportWithDisconnection()
         factory.buildProtocol(IPv4Address("TCP", target.host, target.port)).makeConnection(transport)
-        p = self.successResultOf(d)
-        self.assertEqual(p.connected, 0)  # this won't connect until after noise handshake completion
-        self.assertEqual(p.transport, None)
-        self.assertEqual(p.peer_state.state, CONNECTING)
-        self.assertEqual(p.peer_state.role, INITIATOR)
+        self.p = self.successResultOf(d)
+        self.assertEqual(self.p.connected, 0)  # this won't connect until after noise handshake completion
+        self.assertEqual(self.p.transport, None)
+        self.assertEqual(self.p.peer_state.state, CONNECTING)
+        self.assertEqual(self.p.peer_state.role, INITIATOR)
+
+    def test_info_updates(self):
+        self.test_cnxn_success()
+        self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value, []))
+
+        # get five fresh node addresses
+        node_manager = NodeManager(3)
+        node_manager.start()
+        d = node_manager.get_addrs()
+
+        def callback(addrs):
+            # install a dummy transport (side note: good god this code is ugly)
+            self.p.transport = type("Transp", (object,), {
+                "getPeer": (lambda: type("Peer", (object,), {"host": "127.0.0.1"}))
+                })
+
+            self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value,
+                [addr.as_bytes() for addr in addrs]
+                ))
+
+            self.p.transport = None
+
+        d.addCallback(callback)
+        return d
