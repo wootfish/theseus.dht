@@ -19,7 +19,7 @@ class Hasher:
     OPSLIMIT = argon2id.OPSLIMIT_INTERACTIVE
     MEMLIMIT = argon2id.MEMLIMIT_INTERACTIVE
 
-    MAX_THREADS = 3  # TODO should these be worker processes instead? does the GIL mess us up here?
+    MAX_THREADS = 3  # TODO should these be worker processes instead? does the GIL keep these threads from actually being useful?
     LRU_CACHE_SIZE = 500
 
     def __init__(self):
