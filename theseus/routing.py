@@ -2,12 +2,16 @@ from twisted.logger import Logger
 
 from .constants import k, L
 
+from random import SystemRandom
+
 
 class RoutingTable:
     log = Logger()
 
     k = k
     L = L
+
+    _rng = SystemRandom()
 
     class Entry:
         # TODO these need to be singletons (or to have an equality check based on their data field contents)
@@ -88,13 +92,33 @@ class RoutingTable:
             results = closer.query(addr, lookup_size)
             num_results = len(results)
             if num_results < lookup_size:
-                results += further.query(addr, lookup_size - num_results)
+                results = results + further.query(addr, lookup_size - num_results)
             return results
 
         def get_contents(self):
-            if self.contents:
-                return self.contents
+            if self.contents is not None:
+                return sorted(self.contents, key=lambda entry: entry.node_addr.addr)
             return self.left_child.get_contents() + self.right_child.get_contents()
+
+#        def show(self, indent=0):
+#            # convenience function for troubleshooting
+#            spacing = ' '*4*indent
+#            lower = '0x'+hex(self.lower)[2:].rjust(RoutingTable.L//4, '0')
+#            upper = '0x'+hex(self.upper)[2:].rjust(RoutingTable.L//4, '0')
+#            print(spacing, end='')
+#            print('\n' + spacing + lower + ' - ' + upper)
+#            if self.contents is None:
+#                self.left_child.show(indent+1)
+#                self.right_child.show(indent+1)
+#            else:
+#                if len(self.contents) == 0:
+#                    print(spacing, end='')
+#                    print("Empty")
+#                else:
+#                    for entry in self.get_contents():
+#                        print(spacing, end='')
+#                        print(entry)
+#                    print(spacing + "({} entries)".format(len(self.contents)))
 
     def __init__(self, local_addrs=None):
         self.local_addrs = local_addrs or []
@@ -105,14 +129,16 @@ class RoutingTable:
 
     def insert(self, contact_info, node_addr):
         entry = self.Entry(contact_info, node_addr)
-        self.log.debug("Attempting to insert {entry} into routing table.", entry=entry)
         return self.root.insert(entry, self.local_addrs)
 
     def reload(self, new_addrs=None, new_peers=None):
         # to be called after a local addr is replaced
+        self.log.debug("Reloading routing table.")
+        self.log.debug("New addrs: {new}", new=new_addrs)
         self.local_addrs = new_addrs or []
 
-        contents = self.root.get_contents()  # TODO would there be any reason to shuffle this? just so that it's not predetermined which IDs from cut buckets survive? is there any good reason to want that, maybe security-related -- complicating any sort of malicious interference, etc?
+        contents = self.root.get_contents()
+        self._rng.shuffle(contents)
         self.root = self.Bucket(0, 2**self.L - 1, self.k)
         for entry in contents:
             self.root.insert(entry, self.local_addrs)
