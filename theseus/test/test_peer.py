@@ -86,8 +86,8 @@ class PeerTests(unittest.TestCase):
         self.peer.startService()
         self.addCleanup(self.peer.node_manager.get_addrs)
         target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key) # this is lazy & recycles the peer's key as the remote key, but... hey
-        d = self.peer.make_cnxn(target)
-        d2 = self.peer.make_cnxn(target)
+        d = self.peer.get_peer(target).connect()
+        d2 = self.peer.get_peer(target).connect()
         self.assertEqual(d, d2)
         self.assertEqual(len(self.memory_reactor.tcpClients), 1)
 
@@ -96,13 +96,13 @@ class PeerTests(unittest.TestCase):
         self.peer.startService()
         self.addCleanup(self.peer.node_manager.get_addrs)
         target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key)
-        d = self.peer.make_cnxn(target)
+        d = self.peer.get_peer(target).connect()
         self.failureResultOf(d)
 
     def test_cnxn_success(self):
         self.test_cnxn_attempt()
         target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key) # this is lazy & recycles the peer's key as the remote key, but... hey
-        d = self.peer.make_cnxn(target)
+        d = self.peer.get_peer(target).connect()
         self.assertEqual(len(self.memory_reactor.tcpClients), 1)
 
         factory = self.memory_reactor.tcpClients[0][2]

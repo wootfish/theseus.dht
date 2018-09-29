@@ -62,7 +62,7 @@ class PeerService(Service):
                 self.log.info("Peers from {source}: {peers}", source=peer_source, peers=peers)
                 for peer in peers:
                     try:
-                        self.make_cnxn(peer)
+                        self.get_peer(peer).connect()
                     except DuplicateContactError:
                         self.log.warn("Differing contact info records encountered for {host}:{port}", host=peer.host, port=peer.port)
 
@@ -125,7 +125,7 @@ class PeerService(Service):
         # TODO add logic to terminate any existing cnxns with blacklisted host
         self.blacklist.append(host)
 
-    def make_cnxn(self, contact_info):
+    def get_peer(self, contact_info):
         if not self.running:
             return fail(TheseusConnectionError("Service must be running to make connections"))
 
@@ -134,7 +134,6 @@ class PeerService(Service):
 
         self.log.info("Attempting cnxn to {contact}", contact=contact_info)
         peer_state = self.peer_tracker.register_contact(contact_info)
-        peer_state.connect()
         return peer_state
 
     def maybe_update_info(self, cnxn, info_key, new_value):
