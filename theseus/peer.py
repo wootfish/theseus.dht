@@ -134,7 +134,8 @@ class PeerService(Service):
 
         self.log.info("Attempting cnxn to {contact}", contact=contact_info)
         peer_state = self.peer_tracker.register_contact(contact_info)
-        return peer_state.connect()
+        peer_state.connect()
+        return peer_state
 
     def maybe_update_info(self, cnxn, info_key, new_value):
         # returns whether the info update succeeded (true) or failed (false)

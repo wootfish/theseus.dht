@@ -57,7 +57,7 @@ class PeerState(Factory):
     def connect(self, reactor=None):
         reactor = reactor or self._reactor
 
-        if self.state is not DISCONNECTED:  # TODO should this be "if self.state is CONNECTING"? and should we add more logic for other cases if so?
+        if self.state is not DISCONNECTED:  # FIXME should this be "if self.state is CONNECTING"? and should we add more logic for other cases if so?
             return self._endpoint_deferred
 
         if not self.info.get(LISTEN_PORT):
@@ -90,7 +90,8 @@ class PeerState(Factory):
         self.cnxn = None
         self._endpoint_deferred = None
 
-    def query(self, query_name, args, retries=2):
+    def query(self, query_name, args, retries=2, timeout=None):
+        # TODO implement timeout
         def errback(failure):
             if failure.check(RetriesExceededError):
                 failure.raiseException()  # so we don't retry on errors that come from running out of retries
