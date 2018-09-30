@@ -49,7 +49,10 @@ class NodeManager:
         if len(self.node_addrs) == self.num_nodes:
             self.log.info("All local node addresses generated.")
             for listener in self.listeners:
-                listener(self.node_addrs)
+                try:
+                    listener(self.node_addrs)
+                except Exception as e:
+                    self.log.failure("Error in NodeManager listener callback")
             while self.backlog:
                 self.backlog.pop().callback(self.node_addrs)
 

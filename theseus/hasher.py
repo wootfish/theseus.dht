@@ -48,7 +48,10 @@ class Hasher:
         image = yield deferToThread(self._kdf, *job[1])
         self.log.debug("Priority {priority} hash job complete. {inputs} -> {output}", priority=job[0].name, inputs=job[1], output=image)
         for d in self.callbacks.pop(job[1], []):
-            d.callback(image)
+            try:
+                d.callback(image)
+            except Exception:
+                self.log.failure("Error in hash job callback")
         self.active_jobs -= 1
         self._update_jobs()
 
