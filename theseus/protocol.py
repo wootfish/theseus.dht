@@ -4,7 +4,7 @@ from twisted.logger import Logger
 from twisted.protocols.policies import TimeoutMixin
 
 from .enums import DHTInfoKeys, INITIATOR, CONNECTED
-from .errors import Error201, Error202, UnsupportedInfoError
+from .errors import Error201, Error202
 from .krpc import KRPCProtocol
 
 
@@ -65,7 +65,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             raise Error201("missing 'addr' argument")
         if self.local_peer is None:
             return {"nodes": []}
-        return {"nodes": self.local_peer.query(addr)}
+        return {"nodes": [entry.as_bytes() for entry in self.local_peer.query(addr)]}
 
     def get(self, args):
         pass  # TODO
@@ -115,14 +115,14 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
         self.log.debug("{peer} - Getting local keys {keys}", peer=self._peer, keys=keys)
         result = {}
-        try:
-            for key in keys:
-                if self.local_peer is None:
-                    raise UnsupportedInfoError()  # no info supported if local_peer is None
-                result[key] = yield self.local_peer.get_info(key)
-        except UnsupportedInfoError:
-            self.log.debug("{peer} - Unsupported info key {key} requested.", peer=self._peer, key=key)
-            raise Error202("info key not supported")
+
+        for key in keys:
+            if self.local_peer is None:  # no info available if local_peer is None
+                self.log.debug("{peer} - Unsupported info key {key} requested.", peer=self._peer, key=key)
+                raise Error202("info key not supported")
+            result[key] = yield self.local_peer.get_info(key)
+
+        self.log.debug("{peer} - Keys: {keys}", peer=self._peer, keys=result)
         return result
 
     def on_advertise(self, info):
