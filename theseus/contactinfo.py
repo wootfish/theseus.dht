@@ -21,5 +21,9 @@ class ContactInfo:
     def as_bytes(self):
         ...  # TODO
 
+    @classmethod
+    def from_bytes(cls, bytestring):
+        ...  # TODO
+
     def get_addr(self):
         return IPv4Address("TCP", self.host, self.port)
