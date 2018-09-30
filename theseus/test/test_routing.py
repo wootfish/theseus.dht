@@ -48,6 +48,8 @@ class RoutingTests(unittest.TestCase):
         self.table = RoutingTable([NodeAddress(b'\x00'*20, None), NodeAddress(b'\xFF' + b'\x00'*19, None)])
         self.table.k = k
 
+        self.assertEqual(self.table.query(bytes(20)), [])
+
         low_addrs = [bytes([i])*20 for i in range(k)]
         med_addrs = [b'\xA0\x00' + bytes([i])*18 for i in range(k)]
         high_addrs = [b'\xFF' + bytes([i])*19 for i in range(k)]

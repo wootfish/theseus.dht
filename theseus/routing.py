@@ -5,6 +5,26 @@ from .constants import k, L
 from random import SystemRandom
 
 
+class RoutingEntry:
+    def __init__(self, contact_info, node_addr):
+        self.contact_info = contact_info
+        self.node_addr = node_addr
+
+    def __repr__(self):
+        return "RoutingEntry({}, {})".format(self.contact_info, self.node_addr)
+
+    def __eq__(self, other):
+        return other.__class__ == self.__class__ and \
+               other.__repr__() == self.__repr__()
+
+    def as_bytes(self):
+        ...  # TODO
+
+    @classmethod
+    def from_bytes(cls):
+        ...  # TODO
+
+
 class RoutingTable:
     log = Logger()
 
@@ -12,15 +32,6 @@ class RoutingTable:
     L = L
 
     _rng = SystemRandom()
-
-    class Entry:
-        # TODO these need to be singletons (or to have an equality check based on their data field contents)
-        def __init__(self, contact_info, node_addr):
-            self.contact_info = contact_info
-            self.node_addr = node_addr
-
-        def __repr__(self):
-            return "RoutingTable.Entry({}, {})".format(self.contact_info, self.node_addr)
 
     class Bucket:
         def __init__(self, lower, upper, k):
@@ -76,7 +87,7 @@ class RoutingTable:
         def query(self, addr, lookup_size):
             addr_int = RoutingTable.bytes_to_int(addr)
 
-            if self.contents:
+            if self.contents is not None:
                 if len(self.contents) <= lookup_size:
                     return self.contents
                 return sorted(
@@ -128,7 +139,7 @@ class RoutingTable:
         return self.root.query(addr, lookup_size or self.k)
 
     def insert(self, contact_info, node_addr):
-        entry = self.Entry(contact_info, node_addr)
+        entry = RoutingEntry(contact_info, node_addr)
         return self.root.insert(entry, self.local_addrs)
 
     def reload(self, new_addrs=None, new_peers=None):
