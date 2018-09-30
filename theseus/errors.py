@@ -114,5 +114,5 @@ class ValidationError(Exception):
     pass
 
 
-class UnsupportedInfoError(Exception):
+class AddrLookupConfigError(Exception):
     pass
