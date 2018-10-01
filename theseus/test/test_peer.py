@@ -1,6 +1,6 @@
 from twisted.trial import unittest
 from twisted.test.proto_helpers import _FakePort
-from twisted.internet.defer import DeferredList, succeed
+from twisted.internet.defer import DeferredList, succeed, inlineCallbacks
 from twisted.internet.task import Clock
 from twisted.internet.address import IPv4Address
 from twisted.test.proto_helpers import MemoryReactor, RaisingMemoryReactor, StringTransportWithDisconnection
@@ -119,26 +119,39 @@ class PeerTests(unittest.TestCase):
         self.assertEqual(self.p.peer_state.state, CONNECTING)
         self.assertEqual(self.p.peer_state.role, INITIATOR)
 
-    def test_info_updates(self):
+    @inlineCallbacks
+    def test_info_updates_1(self):
         self.test_cnxn_success()
         self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value, []))
+        _ = yield self.peer.node_manager.get_addrs()
 
         # get some fresh node addresses
         node_manager = NodeManager(3)
         node_manager.start()
-        d = node_manager.get_addrs()
+        addrs = yield node_manager.get_addrs()
 
-        def callback(addrs):
-            # install a dummy transport (side note: good god this code is ugly)
-            self.p.transport = type("DummyTransport", (object,), {
-                "getPeer": (lambda: type("DummyPeer", (object,), {"host": "127.0.0.1"}))
-                })
+        # install a dummy transport (good god this code is ugly)
+        self.p.transport = type("DummyTransport", (object,), {
+            "getPeer": (lambda: type("DummyPeer", (object,), {"host": "127.0.0.1"}))
+            })
+        self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value,
+            [addr.as_bytes() for addr in addrs]
+            ))
 
-            self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value,
-                [addr.as_bytes() for addr in addrs]
-                ))
+    @inlineCallbacks
+    def test_info_updates_2(self):
+        # get some fresh node addresses, this time _before_ generating the local peer's addrs
+        node_manager = NodeManager(3)
+        node_manager.start()
+        addrs = yield node_manager.get_addrs()
 
-            self.p.transport = None
+        self.test_cnxn_success()
+        self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value, []))
 
-        d.addCallback(callback)
-        return d
+        # install a dummy transport (good god this code is ugly)
+        self.p.transport = type("DummyTransport", (object,), {
+            "getPeer": (lambda: type("DummyPeer", (object,), {"host": "127.0.0.1"}))
+            })
+        self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value,
+            [addr.as_bytes() for addr in addrs]
+            ))
