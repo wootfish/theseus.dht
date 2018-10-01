@@ -72,20 +72,22 @@ class PeerState(Factory):
         # TODO maybe add an errback for updating peer state on cnxn failure?
         return self._endpoint_deferred
 
+    @inlineCallbacks
     def on_connect(self, proto):
         # called by DHTProtocol
+        self.log.debug("{peer} - Updating state: connected", peer=proto.transport.getPeer())
         self.state = CONNECTED
         self.cnxn = proto
         self.host = proto.transport.getPeer().host
         if self.role is INITIATOR:
             # make an introduction
+            self.log.debug("{peer} - Making introduction", peer=self.cnxn.transport.getPeer())
             info_keys = tuple(DHTProtocol.supported_info_keys)
-            def cb(local_info):
-                self.query("info", {"keys": info_keys, "info": local_info})
-            self.cnxn.get_local_keys().addCallback(cb)
+            local_info = yield self.cnxn.get_local_keys()
+            self.query("info", {"keys": info_keys, "info": local_info})
 
     def disconnect(self):
-        self.log.info("{peer} - Initiating disconnection", addr=self.cnxn.transport.getPeer())
+        self.log.info("{peer} - Initiating disconnection", peer=self.cnxn.transport.getPeer())
         self.cnxn.transport.loseConnection()
         self.cnxn = None
         self._endpoint_deferred = None
