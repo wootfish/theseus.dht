@@ -48,12 +48,7 @@ class PeerTests(unittest.TestCase):
         PeerService._listen = self._listen
         PeerState._reactor = self._reactor
         self.peer.stopService()
-
-        def cb(_):
-            return DeferredList(self.peer._addr_lookups[:])
-        d = self.peer.node_manager.get_addrs()
-        d.addCallback(cb)
-        return d
+        return self.peer.node_manager.get_addrs()
 
     def test_startup(self):
         self.peer.startService()
