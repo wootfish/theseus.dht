@@ -47,8 +47,13 @@ class PeerTests(unittest.TestCase):
         PeerService._rng = self._rng
         PeerService._listen = self._listen
         PeerState._reactor = self._reactor
-
         self.peer.stopService()
+
+        def cb(_):
+            return DeferredList(self.peer._addr_lookups[:])
+        d = self.peer.node_manager.get_addrs()
+        d.addCallback(cb)
+        return d
 
     def test_startup(self):
         self.peer.startService()
@@ -118,15 +123,15 @@ class PeerTests(unittest.TestCase):
         self.test_cnxn_success()
         self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value, []))
 
-        # get five fresh node addresses
+        # get some fresh node addresses
         node_manager = NodeManager(3)
         node_manager.start()
         d = node_manager.get_addrs()
 
         def callback(addrs):
             # install a dummy transport (side note: good god this code is ugly)
-            self.p.transport = type("Transp", (object,), {
-                "getPeer": (lambda: type("Peer", (object,), {"host": "127.0.0.1"}))
+            self.p.transport = type("DummyTransport", (object,), {
+                "getPeer": (lambda: type("DummyPeer", (object,), {"host": "127.0.0.1"}))
                 })
 
             self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value,
