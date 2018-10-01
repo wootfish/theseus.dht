@@ -1,5 +1,5 @@
 from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, Deferred
+from twisted.internet.defer import inlineCallbacks, Deferred, succeed
 from twisted.logger import Logger
 
 from .constants import timeout_window
@@ -29,7 +29,7 @@ class NodeManager:
 
     def get_addrs(self):
         if len(self.node_addrs) == self.num_nodes:
-            return self.node_addrs
+            return succeed(self.node_addrs)
         d = Deferred()
         self.backlog.append(d)
         return d
