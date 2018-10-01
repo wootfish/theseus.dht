@@ -13,9 +13,16 @@ class RoutingEntry:
     def __repr__(self):
         return "RoutingEntry({}, {})".format(self.contact_info, self.node_addr)
 
+    def __key(self):
+        contact_key = (self.contact_info.host, self.contact_info.port, self.contact_info.key)
+        node_key = (self.node_addr.addr, self.node_addr.preimage)
+        return contact_key + node_key
+
     def __eq__(self, other):
-        return other.__class__ == self.__class__ and \
-               other.__repr__() == self.__repr__()
+        return isinstance(other, self.__class__) and other.__key() == self.__key()
+
+    def __hash__(self):
+        return hash(self.__key())
 
     def as_bytes(self):
         ...  # TODO
