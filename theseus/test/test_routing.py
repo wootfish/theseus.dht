@@ -3,21 +3,30 @@ from twisted.trial import unittest
 from theseus.routing import RoutingTable
 
 from theseus.nodeaddr import NodeAddress
+from theseus.contactinfo import ContactInfo
 
+from random import Random
 from pprint import pprint
 
 
 class RoutingTests(unittest.TestCase):
     def setUp(self):
         self.table = RoutingTable()
+        self.rng = Random(7**17-1)
+
+    def _get_contacts(self, addr):
+        # utility: generate fake contact info
+        contact = ContactInfo('127.0.0.1', self.rng.randint(1025, 2**16-1), 'placeholder for peer key')
+        address = NodeAddress(addr, b'placeholder for preimage')
+        return contact, address
 
     def test_basic_inserts(self):
         k = 8
         self.table.k = k
         good_addrs = [bytes([i])*20 for i in range(k)]
         for addr in good_addrs:
-            self.assertTrue(self.table.insert(None, NodeAddress(addr, None)))
-        self.assertFalse(self.table.insert(None, NodeAddress(b'\xFF'*20, None)))
+            self.assertTrue(self.table.insert(*self._get_contacts(addr)))
+        self.assertFalse(self.table.insert(*self._get_contacts(b'\xFF'*20)))
         self.assertEqual(good_addrs, [entry.node_addr.addr for entry in self.table.root.get_contents()])
 
     def test_basic_splits(self):
@@ -30,14 +39,14 @@ class RoutingTests(unittest.TestCase):
         high_addrs = [b'\xFF' + bytes([i])*19 for i in range(k)]
 
         for addr in low_addrs:
-            self.assertTrue(self.table.insert(None, NodeAddress(addr, None)))
+            self.assertTrue(self.table.insert(*self._get_contacts(addr)))
         for addr in med_addrs:
-            self.assertTrue(self.table.insert(None, NodeAddress(addr, None)))
+            self.assertTrue(self.table.insert(*self._get_contacts(addr)))
         for addr in high_addrs:
-            self.assertTrue(self.table.insert(None, NodeAddress(addr, None)))
+            self.assertTrue(self.table.insert(*self._get_contacts(addr)))
 
-        self.assertFalse(self.table.insert(None, NodeAddress(b'\x81'+bytes(19), None)))
-        self.assertFalse(self.table.insert(None, NodeAddress(b'\x82'+bytes(19), None)))
+        self.assertFalse(self.table.insert(*self._get_contacts(b'\x81'+bytes(19))))
+        self.assertFalse(self.table.insert(*self._get_contacts(b'\x82'+bytes(19))))
         self.assertEqual(
                 low_addrs + med_addrs + high_addrs,
                 [entry.node_addr.addr for entry in self.table.root.get_contents()]
@@ -45,7 +54,7 @@ class RoutingTests(unittest.TestCase):
 
     def test_basic_queries(self):
         k = 8
-        self.table = RoutingTable([NodeAddress(b'\x00'*20, None), NodeAddress(b'\xFF' + b'\x00'*19, None)])
+        self.table = RoutingTable([NodeAddress(b'\x00'*20, b'placeholder'), NodeAddress(b'\xFF' + b'\x00'*19, b'second placeholder')])
         self.table.k = k
 
         self.assertEqual(self.table.query(bytes(20)), [])
@@ -55,11 +64,11 @@ class RoutingTests(unittest.TestCase):
         high_addrs = [b'\xFF' + bytes([i])*19 for i in range(k)]
 
         for addr in low_addrs:
-            self.assertTrue(self.table.insert(None, NodeAddress(addr, None)))
+            self.assertTrue(self.table.insert(*self._get_contacts(addr)))
         for addr in med_addrs:
-            self.assertTrue(self.table.insert(None, NodeAddress(addr, None)))
+            self.assertTrue(self.table.insert(*self._get_contacts(addr)))
         for addr in high_addrs:
-            self.assertTrue(self.table.insert(None, NodeAddress(addr, None)))
+            self.assertTrue(self.table.insert(*self._get_contacts(addr)))
 
         self.assertEqual(
                 low_addrs,
@@ -77,7 +86,7 @@ class RoutingTests(unittest.TestCase):
     def test_basic_reloads(self):
         k = 8
         self.table.reload()
-        self.assertTrue(self.table.insert(None, NodeAddress(bytes(20), None)))
+        self.assertTrue(self.table.insert(*self._get_contacts(bytes(20))))
         self.table.reload()
         self.table.reload()
         self.table.reload()
