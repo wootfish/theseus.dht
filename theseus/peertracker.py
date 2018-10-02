@@ -115,6 +115,9 @@ class PeerState(Factory):
 
     def get_contact_info(self):
         # note that there may not be a guarantee of LISTEN_PORT and PEER_KEY being populated
+        # TODO: ^^^ is that comment accurate? why or why not? if it is, we need
+        # ContactInfo.__key et al to handle the case of those fields being None
+        # gracefully
         return ContactInfo(self.host, self.info.get(LISTEN_PORT), self.info.get(PEER_KEY))
 
     @inlineCallbacks
@@ -161,7 +164,7 @@ class PeerTracker(Factory):
         addr_tup = (contact_info.host, contact_info.port)
         if self.addr_to_contact.get(addr_tup, contact_info) != contact_info:
             self.log.warn("Tried to re-register {addr_tup} to {contact}", addr_tup=addr_tup, contact=contact_info)
-            self.log.debug("new contact: {contact}   addr_to_contact: {val}", contact=contact_info, val=self.addr_to_contact)
+            self.log.debug("new contact is {contact}; addr_to_contact is {val}", contact=contact_info, val=self.addr_to_contact)
             raise DuplicateContactError()
 
         self.addr_to_contact.setdefault(addr_tup, contact_info)
