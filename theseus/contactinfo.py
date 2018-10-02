@@ -18,6 +18,9 @@ class ContactInfo:
         if type(key) is bytes:
             key = KeyPair25519.from_public_bytes(key)
 
+        if not 1024 <= port <= 65535:
+            raise Exception("Bad port")
+
         self.host = host
         self.port = port
         self.key = key
