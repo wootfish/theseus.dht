@@ -1,8 +1,10 @@
 from twisted.logger import Logger
+from twisted.internet.defer import inlineCallbacks
 
 from .constants import k, L
 from .nodeaddr import NodeAddress
 from .contactinfo import ContactInfo
+from .enums import UNSET
 
 from random import SystemRandom
 from socket import inet_ntoa
@@ -34,16 +36,17 @@ class RoutingEntry:
         return self.node_addr.as_bytes() + port_bytes + self.contact_info.key.public_bytes
 
     @classmethod
-    def from_bytes(cls, bytestring):
+    @inlineCallbacks
+    def from_bytes(cls, bytestring, trusted=False, priority=UNSET):
         # address (34 bytes), then port (2 bytes), then key (32 bytes): 68 bytes (!)
         if len(bytestring) != 68:
             raise Exception("wrong number of bytes for RoutingEntry (68 expected)")
 
         addr_bytes, port_bytes, key_bytes = bytestring[:34], bytestring[34:36], bytestring[36:]
-        address = NodeAddress.from_bytes(bytestring)
+        address = yield NodeAddress.from_bytes(addr_bytes, trusted, priority)
 
         ip = inet_ntoa(address.preimage.ip_addr)
-        port = port_bytes[0] << 8 + port_bytes[1]
+        port = (port_bytes[0] << 8) + port_bytes[1]
         contact = ContactInfo(ip, port, key_bytes)
 
         return cls(contact, address)
