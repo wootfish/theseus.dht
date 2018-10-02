@@ -1,6 +1,6 @@
 from twisted.application.service import Service
 from twisted.internet import reactor
-from twisted.internet.defer import succeed, fail, maybeDeferred, DeferredList
+from twisted.internet.defer import succeed, fail, maybeDeferred, DeferredList, Deferred
 from twisted.internet.error import CannotListenError
 from twisted.logger import Logger
 from twisted.plugin import getPlugins
@@ -10,17 +10,19 @@ from noise.functions import DH, KeyPair25519
 from .config import config
 from .contactinfo import ContactInfo
 from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS
-from .errors import TheseusConnectionError, DuplicateContactError, UnsupportedInfoError
+from .errors import TheseusConnectionError, DuplicateContactError
 from .nodeaddr import NodeAddress
 from .peertracker import PeerTracker
 from .plugins import IPeerSource, IInfoProvider
 from .protocol import DHTProtocol
 from .routing import RoutingTable
 from .nodemanager import NodeManager
+from .lookup import AddrLookup
 
 from collections import deque
 from random import SystemRandom
 from socket import inet_aton
+from typing import List
 
 
 class PeerService(Service):
@@ -32,6 +34,7 @@ class PeerService(Service):
     - A manager for local node state
     - A peer blacklist
     """
+
     log = Logger()
     listener = None
     listen_port = None
@@ -39,6 +42,7 @@ class PeerService(Service):
     blacklist_size = 500
 
     _rng = SystemRandom()  # broken out for tests
+    _addr_lookups = []  # type: List[Deferred]
 
     def __init__(self, num_nodes=5):
         super().__init__()
@@ -78,8 +82,14 @@ class PeerService(Service):
         # TODO are we allowed to return a deferred here to block on things like finishing up hash jobs?
 
     def on_addr_change(self, new_addrs):
-        self.routing_table.reload(new_addrs)  # TODO provide full list of eligible peers?
-        # TODO advertise this info change over all active cnxns
+        self.routing_table.reload(new_addrs)  # TODO pass in full list of eligible peers?
+        # TODO should we advertise this info change? probably, right?
+
+        # run lookups for all addresses
+        for addr in new_addrs:
+            d = self.do_lookup(addr.addr)
+            self._addr_lookups.append(d)
+            d.addCallback(lambda _: self._addr_lookups.remove(d))
 
     @staticmethod
     def _generate_keypair():
@@ -127,10 +137,10 @@ class PeerService(Service):
 
     def get_peer(self, contact_info):
         if not self.running:
-            return fail(TheseusConnectionError("Service must be running to make connections"))
+            raise TheseusConnectionError("Service must be running to make connections")
 
         if contact_info.host in self.blacklist:
-            return fail(TheseusConnectionError("Address blacklisted"))
+            raise TheseusConnectionError("Address blacklisted")
 
         self.log.info("Attempting cnxn to {contact}", contact=contact_info)
         peer_state = self.peer_tracker.register_contact(contact_info)
@@ -255,7 +265,10 @@ class PeerService(Service):
         return fail(UnsupportedInfoError())
 
     def do_lookup(self, addr, k=8):  # TODO don't leave k hardcoded
-        ...
+        self.log.info("Setting up lookup for {addr}", addr=addr)
+        lookup = AddrLookup(self)
+        lookup.configure(target=addr, num_peers=k)
+        return lookup.start()
 
     def dht_get(self, key, redundancy=1):
         ...  # TODO

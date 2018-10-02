@@ -16,6 +16,7 @@ from theseus.nodemanager import NodeManager
 from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, CONNECTING, INITIATOR
 from theseus.plugins import IPeerSource
 from theseus.nodeaddr import NodeAddress, Preimage
+from theseus.lookup import AddrLookup
 
 
 class PeerTests(unittest.TestCase):
@@ -32,6 +33,7 @@ class PeerTests(unittest.TestCase):
         self._rng = PeerService._rng
         self._listen = PeerService._listen
         self._reactor = PeerState._reactor
+        self._lookup_clock = AddrLookup.clock
 
         self.clock = Clock()
         self.memory_reactor = MemoryReactor()
@@ -39,6 +41,7 @@ class PeerTests(unittest.TestCase):
         PeerService._rng = Fake_RNG()
         PeerService._listen = fake_listen
         PeerState._reactor = self.memory_reactor
+        AddrLookup.clock = self.clock
 
         self.peer = PeerService()
 
@@ -48,6 +51,7 @@ class PeerTests(unittest.TestCase):
         PeerService._listen = self._listen
         PeerState._reactor = self._reactor
         self.peer.stopService()
+        AddrLookup.clock = self._lookup_clock
         return self.peer.node_manager.get_addrs()
 
     def test_startup(self):
@@ -58,7 +62,7 @@ class PeerTests(unittest.TestCase):
         d = self.peer.node_manager.get_addrs()
         def cb(results):
             self.assertEqual(len(results), self.peer.node_manager.num_nodes)
-            self.assertEqual(len(self.clock.getDelayedCalls()), 5)
+            self.assertEqual(len(self.clock.getDelayedCalls()), 5+5)  # 5 for expiring the nodes, 5 for looking them up
         d.addCallback(cb)
 
         return d
