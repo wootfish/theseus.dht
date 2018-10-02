@@ -11,6 +11,8 @@ from theseus.routing import RoutingEntry
 from theseus.contactinfo import ContactInfo
 from theseus.nodeaddr import NodeAddress, Preimage
 
+from noise.functions import KeyPair25519
+
 
 class ProtocolTests(unittest.TestCase):
     def setUp(self):
@@ -79,7 +81,7 @@ class ProtocolTests(unittest.TestCase):
     def test_find_query_simple_3(self):
         ip = '127.127.127.127'
         port = 2018
-        key = bytes(32)
+        key = KeyPair25519.from_public_bytes(b'z'*32)
         addr = bytes(20)
         ts = bytes(4)
         entropy = bytes(6)
