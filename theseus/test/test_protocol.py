@@ -7,6 +7,9 @@ from theseus.errors import Error201, Error202
 from theseus.enums import DHTInfoKeys
 from theseus.bencode import bencode, bdecode
 from theseus.test.util import netstringify
+from theseus.routing import RoutingEntry
+from theseus.contactinfo import ContactInfo
+from theseus.nodeaddr import NodeAddress, Preimage
 
 
 class ProtocolTests(unittest.TestCase):
@@ -65,3 +68,37 @@ class ProtocolTests(unittest.TestCase):
     def test_timeout(self):
         self.proto.timeoutConnection()
         self.assertFalse(self.transport.connected)
+
+    def test_find_query_simple_1(self):
+        with self.assertRaises(Error201):
+            self.proto.find({})
+
+    def test_find_query_simple_2(self):
+        self.assertEqual(self.proto.find({b'addr': bytes(20)}), {"nodes": []})
+
+    def test_find_query_simple_3(self):
+        ip = '127.127.127.127'
+        port = 2018
+        key = bytes(32)
+        addr = bytes(20)
+        ts = bytes(4)
+        entropy = bytes(6)
+
+        class DummyRoutingTable:
+            def query(self, addr):
+                contact = ContactInfo(ip, port, key)
+                preimage = Preimage(ts, ip, entropy)
+                address = NodeAddress(addr, preimage)
+                entry = RoutingEntry(contact, address)
+                return [entry]
+
+        class DummyPeer:
+            routing_table = DummyRoutingTable()
+
+        contact = ContactInfo(ip, port, key)
+        preimage = Preimage(ts, ip, entropy)
+        address = NodeAddress(addr, preimage)
+        entry = RoutingEntry(contact, address)
+
+        self.proto.local_peer = DummyPeer()
+        self.assertEqual(self.proto.find({b'addr': bytes(20)}), {"nodes": entry})
