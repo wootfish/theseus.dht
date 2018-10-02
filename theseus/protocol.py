@@ -65,7 +65,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             raise Error201("missing 'addr' argument")
         if self.local_peer is None:
             return {"nodes": []}
-        return {"nodes": [entry.as_bytes() for entry in self.local_peer.query(addr)]}
+        return {"nodes": [entry.as_bytes() for entry in self.local_peer.routing_table.query(addr)]}
 
     def get(self, args):
         pass  # TODO
