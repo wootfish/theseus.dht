@@ -101,4 +101,4 @@ class ProtocolTests(unittest.TestCase):
         entry = RoutingEntry(contact, address)
 
         self.proto.local_peer = DummyPeer()
-        self.assertEqual(self.proto.find({b'addr': bytes(20)}), {"nodes": entry})
+        self.assertEqual(self.proto.find({b'addr': bytes(20)}), {"nodes": [entry.as_bytes()]})
