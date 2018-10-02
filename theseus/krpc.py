@@ -122,16 +122,19 @@ class KRPCProtocol(NetstringReceiver):
             self._send_error(txn_id, Error103)
             return
 
+        KRPCProtocol.log.debug("{peer} - Received query (txn {txn}): {query_name} {args}",
+                       peer=self._peer, txn=txn_id.hex(), query_name=query_name, args=args)
+
         try:
             # event callback for subclasses
             self.on_query(txn_id, query_name, args)
         except KRPCError as err:
             self._send_error(txn_id, err)
-            KRPCProtocol.log.error("{peer} - Error in subclass's query event hook", peer=self._peer)
+            KRPCProtocol.log.warn("{peer} - Error in subclass's query event hook", peer=self._peer)
             return
-
-        KRPCProtocol.log.debug("{peer} - Received query (txn {txn}): {query_name} {args}",
-                       peer=self._peer, txn=txn_id.hex(), query_name=query_name, args=args)
+        except Exception:
+            KRPCProtocol.log.warn("{f}", f=Failure().getTraceback())
+            return
 
         try:
             result = self.query_handlers[query_name](args)
@@ -143,6 +146,7 @@ class KRPCProtocol(NetstringReceiver):
                 except BencodeError:
                     KRPCProtocol.log.error("{peer} - Internal error trying to bencode the following response (txn {txn}): {result}",
                                    peer=self._peer, txn=txn_id, result=result)
+                    KRPCProtocol.log.debug("{f}", f=Failure().getTraceback())
                     raise Error102
 
             elif isinstance(result, Deferred):
@@ -165,15 +169,15 @@ class KRPCProtocol(NetstringReceiver):
         except Exception:
             KRPCProtocol.log.warn("{peer} - Unexpected error responding to query {name} (txn {txn})",
                            peer=self._peer, name=query_name, txn=txn_id)
-            KRPCProtocol.log.debug("{f}", f=Failure())
+            KRPCProtocol.log.debug("{f}", f=Failure().getTraceback())
             self._send_error(txn_id, Error300)
 
     def on_query(self, txn_id, query_name, args):
         """
         To be overridden in subclasses wishing to hook the query event. Raise a
-        TheseusProtocolError in this function to abort the query and send the
-        same error code, along with any arguments passed to the
-        TheseusProtocolError, to the remote node.
+        KRPCError in this function to abort the query and send the associated
+        error code (default 100), along with any arguments passed to the
+        KRPCError, to the remote node.
         """
 
     def _on_error(self, failure):
