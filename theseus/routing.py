@@ -1,8 +1,11 @@
 from twisted.logger import Logger
 
 from .constants import k, L
+from .nodeaddr import NodeAddress
+from .contactinfo import ContactInfo
 
 from random import SystemRandom
+from socket import inet_ntoa
 
 
 class RoutingEntry:
@@ -25,11 +28,25 @@ class RoutingEntry:
         return hash(self.__key())
 
     def as_bytes(self):
-        ...  # TODO
+        # address (34 bytes), then port (2 bytes), then key (32 bytes): 68 bytes (!)
+        port = self.contact_info.port
+        port_bytes = bytes([port >> 8, port & 0xFF])
+        return self.node_addr.as_bytes() + port_bytes + self.contact_info.key.public_bytes
 
     @classmethod
-    def from_bytes(cls):
-        ...  # TODO
+    def from_bytes(cls, bytestring):
+        # address (34 bytes), then port (2 bytes), then key (32 bytes): 68 bytes (!)
+        if len(bytestring) != 68:
+            raise Exception("wrong number of bytes for RoutingEntry (68 expected)")
+
+        addr_bytes, port_bytes, key_bytes = bytestring[:34], bytestring[34:36], bytestring[36:]
+        address = NodeAddress.from_bytes(bytestring)
+
+        ip = inet_ntoa(address.preimage.ip_addr)
+        port = port_bytes[0] << 8 + port_bytes[1]
+        contact = ContactInfo(ip, port, key_bytes)
+
+        return cls(contact, address)
 
 
 class RoutingTable:
