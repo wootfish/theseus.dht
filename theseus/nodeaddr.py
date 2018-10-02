@@ -9,13 +9,14 @@ from os import urandom
 from time import time
 from socket import inet_aton
 
+from typing import TYPE_CHECKING
+
 
 class Preimage:
-    # data class for hash preimages
-
-    instances = {}
-
     def __init__(self, ts_bytes, ip_addr, entropy):
+        if type(ip_addr) is str:
+            ip_addr = inet_aton(ip_addr)
+
         self.ip_addr = ip_addr
         self.ts_bytes = ts_bytes
         self.entropy = entropy
@@ -27,7 +28,8 @@ class Preimage:
         """
         Returns a wire-friendly representation of the Preimage.
         """
-        return self.ts_bytes + bytes(self.ip_addr) + bytes(self.entropy)
+        # ts (4 bytes), then ip (4 bytes), then entropy (6 bytes): 14 bytes total
+        return self.ts_bytes + self.ip_addr + self.entropy
 
     def to_hash_inputs(self):
         return (self.ts_bytes + self.ip_addr, self.entropy+bytes(10))
@@ -49,6 +51,7 @@ class NodeAddress:
         Returns a wire-friendly representation of the NodeAddress.
         """
         #return b'ah fuck'  # TODO
+        # preimage (14 bytes), then image (20 bytes, for now): 34 bytes total
         return self.preimage.as_bytes() + self.addr
 
     @classmethod
