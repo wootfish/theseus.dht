@@ -85,9 +85,13 @@ class NodeAddress:
 
     @classmethod
     def from_bytes(cls, addr_bytes, trusted=False, priority=UNSET):
+        if len(addr_bytes) != 34:
+            raise Exception("Wrong number of bytes for NodeAddr (should be 34)")
+
         ts_bytes, addr_bytes = addr_bytes[:4], addr_bytes[4:]
         ip_addr, addr_bytes = addr_bytes[:4], addr_bytes[4:]
         entropy, addr_bytes = addr_bytes[:6], addr_bytes[6:]
+
         preimage = Preimage(ts_bytes, ip_addr, entropy)
         return cls.from_preimage(addr_bytes, preimage, trusted, priority)
 
