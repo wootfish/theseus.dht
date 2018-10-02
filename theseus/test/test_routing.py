@@ -8,6 +8,8 @@ from theseus.contactinfo import ContactInfo
 from random import Random
 from pprint import pprint
 
+from noise.functions import KeyPair25519
+
 
 class RoutingTests(unittest.TestCase):
     def setUp(self):
@@ -16,7 +18,7 @@ class RoutingTests(unittest.TestCase):
 
     def _get_contacts(self, addr):
         # utility: generate fake contact info
-        contact = ContactInfo('127.0.0.1', self.rng.randint(1025, 2**16-1), 'placeholder for peer key')
+        contact = ContactInfo('127.0.0.1', self.rng.randint(1025, 2**16-1), KeyPair25519.from_public_bytes(b'z'*32))
         address = NodeAddress(addr, b'placeholder for preimage')
         return contact, address
 
