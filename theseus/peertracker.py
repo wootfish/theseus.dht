@@ -98,7 +98,7 @@ class PeerState(Factory):
         def errback(failure):
             if failure.check(RetriesExceededError):
                 failure.raiseException()  # so we don't retry on errors that come from running out of retries
-            self.log.debug("Errback on {name} query: {failure}. {n} retries left.", name=query_name, failure=failure, n=retries-1)
+            self.log.debug("Errback on {name} query: {failure}. {n} retries left.", name=query_name, failure=failure, n=retries)
             return self.query(query_name, args, retries-1)
 
         if retries < 0:
