@@ -13,12 +13,13 @@ class AddrLookup:
     clock = reactor
 
     target = None
+    prefix = ""
     num_paths = k // 2
     path_width = 2
     query_timeout = 5
     num_peers = k
 
-    _start_retry = 0.1
+    _start_retry = 0.5
 
     running = False
 
@@ -36,6 +37,7 @@ class AddrLookup:
         self.path_width = kwargs.get('path_width', self.path_width)
         self.query_timeout = kwargs.get('query_timeout', self.query_timeout)
         self.num_peers = kwargs.get('num_peers', self.num_peers)
+        self.prefix = self.target.hex() + ' '
 
     def start(self):
         # returns a Deferred that will fire on completion
@@ -50,20 +52,20 @@ class AddrLookup:
 
         if len(starting_set) == 0:
             # might happen at startup after local ID generation
-            if self._start_retry < 1:
-                self._start_retry += 0.1
-                self.log.debug("Not enough peers to look up {target}. Retrying in {t} seconds.", target=self.target, t=self._start_retry)
+            if self._start_retry < 5:
+                self._start_retry += 0.5
+                self.log.debug(self.prefix + "Not enough peers. Retrying in {t} seconds.", target=self.target, t=self._start_retry)
                 return deferLater(self.clock, self._start_retry, self.start)
             else:
                 return fail(Exception("Retries exceeded"))
 
-        self.log.info("Starting lookup for {target}", target=self.target)
+        self.log.info(self.prefix + "Starting lookup for {target}", target=self.target)
 
         self.running = True
         d = Deferred()
         self.callbacks.append(d)
 
-        self.log.debug("Starting set of peers for {target} lookup: {starting_set}", target=self.target, starting_set=starting_set)
+        self.log.debug(self.prefix + "Starting peers: {starting_set}", target=self.target, starting_set=starting_set)
         paths = [self.lookup_path(starting_set) for _ in range(self.num_paths)]
         DeferredList(paths).addCallback(self.on_completion)
 
@@ -71,7 +73,7 @@ class AddrLookup:
 
     @inlineCallbacks
     def on_completion(self, dl_result):
-        self.log.info("Routing queries for {target} complete.", target=self.target)
+        self.log.info(self.prefix + "Routing queries complete.", target=self.target)
 
         paranoia_added = yield False # TODO paranoia here
         peer_set = set()
@@ -82,7 +84,7 @@ class AddrLookup:
             peer_set.update(result)
 
         result = sorted(self.trim_entries(peer_set), key=self.get_distance)[:self.num_peers]
-        self.log.debug("Results in lookup for {target}: {result}", target=self.target, result=result)
+        self.log.debug(self.prefix + "Lookup results: {result}", result=result)
         while self.callbacks:
             self.callbacks.pop().callback(result)
 
@@ -99,7 +101,7 @@ class AddrLookup:
 
     @inlineCallbacks
     def lookup_path(self, lookup_set):
-        self.log.debug("Starting lookup step with set {lookup_set}, seen set {seen_set}", lookup_set=lookup_set, seen_set=self.seen_set)
+        self.log.debug(self.prefix + "Starting lookup step. Lookup set = {lookup_set}, seen set = {seen_set}", lookup_set=lookup_set, seen_set=self.seen_set)
         try:
             candidates = lookup_set.difference(self.seen_set)
             if len(candidates) == 0:  # TODO or if the closest candidate is super far
@@ -109,7 +111,7 @@ class AddrLookup:
             self.seen_set.update(targets)
 
             if len(self.seen_set) > 10000:
-                self.log.warn("Something is very fucky")
+                self.log.warn(self.prefix + "Lookup is off the rails")
                 raise Exception("something's fucky")
 
             queries = []
@@ -120,24 +122,24 @@ class AddrLookup:
                     continue
                 queries.append(peer.query('find', {'addr': self.target}, timeout=self.query_timeout))
 
-            self.log.debug("Querying {n} of {m} peers.", n=len(queries), m=len(lookup_set))
+            self.log.debug(self.prefix + "Querying {n} of {m} peers.", n=len(queries), m=len(lookup_set))
 
             responses = yield DeferredList(queries)
             new_peers = set(entry
                     for success, peers in responses if success
                     for entry in peers.get(b'nodes', []))
 
-            self.log.debug("Queries for lookup step complete. Number of peers returned: {n}", n=len(new_peers))
+            self.log.debug(self.prefix + "Queries for lookup step complete. Number of peers returned: {n}", n=len(new_peers))
 
             # this naively trusts addrs by default, which may or may not change
             entries = yield DeferredList([RoutingEntry.from_bytes(peer, trusted=True) for peer in new_peers])
             new_set = set(entry for success, entry in entries if success)
             new_set = self.trim_entries(new_set)
-            self.log.debug("Size of trimmed peer set: {n}", n=len(new_set))
+            self.log.debug(self.prefix + "Size of trimmed peer set: {n}", n=len(new_set))
             return (yield self.lookup_path(new_set))
 
         except Exception as e:
-            self.log.failure("Error in addr lookup")
+            self.log.failure(self.prefix + "Internal error in lookup")
             return lookup_set
 
     def trim_entries(self, entries):

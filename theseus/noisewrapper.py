@@ -106,13 +106,13 @@ class NoiseWrapper(ProtocolWrapper):
 
             try:
                 if self._len_msg_pending is None:
-                    self.log.debug("{peer} - Consuming Noise handshake message", peer=self._peer)
+                    # self.log.debug("{peer} - Consuming Noise handshake message", peer=self._peer)
                     self._process_handshake(data)
                 elif self._len_msg_pending:
-                    self.log.debug("{peer} - Consuming length announcement message", peer=self._peer)
+                    # self.log.debug("{peer} - Consuming length announcement message", peer=self._peer)
                     self._process_length(data)
                 else:
-                    self.log.debug("{peer} - Consuming protocol message", peer=self._peer)
+                    # self.log.debug("{peer} - Consuming protocol message", peer=self._peer)
                     self._process_message(data)
 
             except Exception as e:

@@ -9,7 +9,7 @@ from noise.functions import DH, KeyPair25519
 
 from .config import config
 from .contactinfo import ContactInfo
-from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS
+from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, LOW
 from .errors import TheseusConnectionError, DuplicateContactError
 from .nodeaddr import NodeAddress
 from .peertracker import PeerTracker
@@ -142,7 +142,6 @@ class PeerService(Service):
         if contact_info.host in self.blacklist:
             raise TheseusConnectionError("Address blacklisted")
 
-        self.log.info("Attempting cnxn to {contact}", contact=contact_info)
         peer_state = self.peer_tracker.register_contact(contact_info)
         return peer_state
 
@@ -167,7 +166,7 @@ class PeerService(Service):
                     break
             else:
                 self.log.debug("Node ID sanity checks passed.")
-                deferreds = [NodeAddress.from_bytes(addr) for addr in new_value]
+                deferreds = [NodeAddress.from_bytes(addr, priority=LOW) for addr in new_value]
                 dl = DeferredList(deferreds)
                 def cb(l):
                     if all(t[0] for t in l):

@@ -70,7 +70,7 @@ class RoutingTable:
             self.left_child = None
             self.right_child = None
 
-        def insert(self, entry, local_addrs=None):
+        def insert(self, entry, local_addrs=None, quiet=False):
             # TODO if insert succeeds, add a timer to clean up the node ID when it expires
             # NOTE: returns True if insert succeeds _or_ entry is already in table
 
@@ -86,7 +86,8 @@ class RoutingTable:
                 # bucket has room
                 if entry not in self.contents:
                     self.contents.append(entry)
-                RoutingTable.log.debug("Routing insert succeeded for {entry}", entry=entry)
+                if not quiet:
+                    RoutingTable.log.debug("Routing insert succeeded for {entry}", entry=entry)
                 return True
 
             if local_addrs:
@@ -95,7 +96,8 @@ class RoutingTable:
                 self.split()
                 return self.insert(entry, local_addrs)
 
-            RoutingTable.log.debug("Routing insert failed for {entry}", entry=entry)
+            if not quiet:
+                RoutingTable.log.debug("Routing insert failed for {entry}", entry=entry)
             return False
 
         def split(self):
@@ -106,7 +108,7 @@ class RoutingTable:
             self.left_child = RoutingTable.Bucket(self.lower, bisector, self.k)
             self.right_child = RoutingTable.Bucket(bisector + 1, self.upper, self.k)
             for entry in contents:
-                self.insert(entry)
+                self.insert(entry, quiet=True)
 
         def covers(self, addr: bytes):
             return self.lower <= RoutingTable.bytes_to_int(addr) <= self.upper

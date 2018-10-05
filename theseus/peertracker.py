@@ -63,6 +63,7 @@ class PeerState(Factory):
         if not self.info.get(LISTEN_PORT):
             return fail(Exception("remote listen port unknown"))
 
+        self.log.info("Attempting cnxn to {ip}:{port}", ip=self.host, port=self.info.get(LISTEN_PORT))
         self.state = CONNECTING
         self.role = INITIATOR
 
@@ -97,6 +98,7 @@ class PeerState(Factory):
         def errback(failure):
             if failure.check(RetriesExceededError):
                 failure.raiseException()  # so we don't retry on errors that come from running out of retries
+            self.log.debug("Errback on {name} query: {failure}. {n} retries left.", name=query_name, failure=failure, n=retries-1)
             return self.query(query_name, args, retries-1)
 
         if retries < 0:
