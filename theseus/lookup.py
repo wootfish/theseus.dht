@@ -120,7 +120,7 @@ class AddrLookup:
                         or entry.contact_info.key.public_bytes == self.local_peer.peer_key.public_bytes:
                     continue
                 addr = candidates.setdefault(entry.contact_info, entry.node_addr)
-                if self.get_distance(addr) < self.get_distance(entry.node_addr):
+                if self.get_distance(addr) > self.get_distance(entry.node_addr):
                     candidates[entry.contact_info] = entry.node_addr
 
             # if we don't have any new peers to talk to, call it a day
