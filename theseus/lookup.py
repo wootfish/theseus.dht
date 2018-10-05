@@ -111,6 +111,7 @@ class AddrLookup:
     @inlineCallbacks
     def lookup_path(self, lookup_set):
         try:
+            # trim the lookup set to get a list of peers to iterate on
             self.log.debug(self.prefix + "Starting lookup step. Lookup set = {lookup_set}, seen set = {seen_set}", lookup_set=lookup_set, seen_set=self.seen_set)
             candidates = {}
             for entry in lookup_set:
@@ -122,9 +123,11 @@ class AddrLookup:
                 if self.get_distance(addr) < self.get_distance(entry.node_addr):
                     candidates[entry.contact_info] = entry.node_addr
 
+            # if we don't have any new peers to talk to, call it a day
             if len(candidates) == 0:
                 return lookup_set
 
+            # otherwise, find the closest peers, and log them so we don't revisit them
             targets = sorted(candidates, key=lambda c: self.get_distance(candidates[c]))[:self.path_width]
             self.seen_set.update(targets)
 
@@ -141,6 +144,7 @@ class AddrLookup:
                     continue
                 queries.append(peer.query('find', {'addr': self.target}, timeout=self.query_timeout))
 
+            # wait on those query deferreds to fire, then combine the results
             responses = yield DeferredList(queries)
             new_peers = set(entry
                     for success, peers in responses if success
@@ -148,10 +152,19 @@ class AddrLookup:
 
             self.log.debug(self.prefix + "Queries for lookup step complete. Number of routing entries returned: {n}", n=len(new_peers))
 
-            # TODO this blindly trusts addrs by default, which is a lil naive
+            # get routing entries for the returned results (TODO currently this will blindly trust addrs by default, which is very naive)
             entries = yield DeferredList([RoutingEntry.from_bytes(peer, trusted=True) for peer in new_peers])
             new_set = set(entry for success, entry in entries if success)
-            return (yield self.lookup_path(new_set))
+
+            # iterate on this new set of routing entries, and augment the results if necessary
+            # (TODO since addr distance is not necessarily monotonically
+            # decreasing across iterated lookup steps, this might not end up
+            # adding the ideal peers -- is it worth trying to address this?)
+
+            results = (yield self.lookup_path(new_set))
+            if len(results) < self.num_peers:
+                results.update(lookup_set)
+            return results
 
         except Exception as e:
             self.log.failure(self.prefix + "Internal error in lookup")
