@@ -24,6 +24,8 @@ from random import SystemRandom
 from socket import inet_aton
 from typing import List
 
+import ipaddress
+
 
 class PeerService(Service):
     """
@@ -141,6 +143,10 @@ class PeerService(Service):
 
         if contact_info.host in self.blacklist:
             raise TheseusConnectionError("Address blacklisted")
+
+        if ipaddress.IPv4Address(contact_info.host).is_loopback \
+                and contact_info.port == self.listen_port:
+            raise TheseusConnectionError("Tried to get a remote peer state for ourself")
 
         peer_state = self.peer_tracker.register_contact(contact_info)
         return peer_state

@@ -82,7 +82,8 @@ class AddrLookup:
             if not success:
                 continue
             for entry in result:
-                if entry.contact_info in self.local_peer.blacklist:
+                if entry.contact_info in self.local_peer.blacklist \
+                        or entry.contact_info.key.public_bytes == self.local_peer.peer_key.public_bytes:
                     continue
                 addr = trimmed_results.setdefault(entry.contact_info, entry).node_addr
                 if self.get_distance(addr) > self.get_distance(entry.node_addr):
@@ -109,11 +110,13 @@ class AddrLookup:
 
     @inlineCallbacks
     def lookup_path(self, lookup_set):
-        self.log.debug(self.prefix + "Starting lookup step. Lookup set = {lookup_set}, seen set = {seen_set}", lookup_set=lookup_set, seen_set=self.seen_set)
         try:
+            self.log.debug(self.prefix + "Starting lookup step. Lookup set = {lookup_set}, seen set = {seen_set}", lookup_set=lookup_set, seen_set=self.seen_set)
             candidates = {}
             for entry in lookup_set:
-                if entry.contact_info in self.seen_set or entry.contact_info in self.local_peer.blacklist:
+                if entry.contact_info in self.seen_set \
+                        or entry.contact_info in self.local_peer.blacklist \
+                        or entry.contact_info.key.public_bytes == self.local_peer.peer_key.public_bytes:
                     continue
                 addr = candidates.setdefault(entry.contact_info, entry.node_addr)
                 if self.get_distance(addr) < self.get_distance(entry.node_addr):
@@ -125,10 +128,11 @@ class AddrLookup:
             targets = sorted(candidates, key=lambda c: self.get_distance(candidates[c]))[:self.path_width]
             self.seen_set.update(targets)
 
-            if len(self.seen_set) > 10000:
+            if len(self.seen_set) > 10000:  # you may laugh, but it's been known to happen
                 self.log.warn(self.prefix + "Lookup is off the rails")
                 raise Exception("something's fucky")
 
+            self.log.debug(self.prefix + "Querying {n} peers: {targets}", n=len(targets), targets=targets)
             queries = []
             for contact in targets:
                 try:
@@ -136,8 +140,6 @@ class AddrLookup:
                 except TheseusConnectionError:
                     continue
                 queries.append(peer.query('find', {'addr': self.target}, timeout=self.query_timeout))
-
-            self.log.debug(self.prefix + "Querying {n} of {m} peers.", n=len(queries), m=len(candidates))
 
             responses = yield DeferredList(queries)
             new_peers = set(entry
