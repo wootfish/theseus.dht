@@ -59,14 +59,14 @@ class AddrLookup:
             else:
                 return fail(Exception("Retries exceeded"))
 
-        self.log.info(self.prefix + "Starting lookup for {target}", target=self.target)
 
         self.running = True
         d = Deferred()
         self.callbacks.append(d)
-
+        self.log.info(self.prefix + "Starting lookup for {target}", target=self.target)
         self.log.debug(self.prefix + "Starting peers: {starting_set}", target=self.target, starting_set=starting_set)
-        paths = [self.lookup_path(starting_set) for _ in range(self.num_paths)]
+        num_paths = min(self.num_paths, (len(starting_set) + (self.path_width - 1)) // self.path_width)
+        paths = [self.lookup_path(starting_set) for _ in range(num_paths)]
         DeferredList(paths).addCallback(self.on_completion)
 
         return d
@@ -75,15 +75,23 @@ class AddrLookup:
     def on_completion(self, dl_result):
         self.log.info(self.prefix + "Routing queries complete.", target=self.target)
 
-        paranoia_added = yield False # TODO paranoia here
-        peer_set = set()
+        paranoia_added = yield False # TODO paranoia
 
+        trimmed_results = {}
         for success, result in dl_result:
             if not success:
                 continue
-            peer_set.update(result)
+            for entry in result:
+                if entry.contact_info in self.local_peer.blacklist:
+                    continue
+                addr = trimmed_results.setdefault(entry.contact_info, entry).node_addr
+                if self.get_distance(addr) > self.get_distance(entry.node_addr):
+                    trimmed_results[entry.contact_info] = entry
 
-        result = sorted(self.trim_entries(peer_set), key=self.get_distance)[:self.num_peers]
+        result = sorted(trimmed_results,
+                key=lambda c: self.get_distance(trimmed_results[c].node_addr)
+                )[:self.num_peers]
+
         self.log.debug(self.prefix + "Lookup results: {result}", result=result)
         while self.callbacks:
             self.callbacks.pop().callback(result)
@@ -92,9 +100,9 @@ class AddrLookup:
         self.seen_set = set()
         self._start_retry = AddrLookup._start_retry
 
-    def get_distance(self, routing_entry):
+    def get_distance(self, node_addr):
         n = 0
-        for i, byte in enumerate(routing_entry.node_addr.addr):
+        for i, byte in enumerate(node_addr.addr):
             n <<= 8
             n += byte ^ self.target[i]
         return n
@@ -103,11 +111,18 @@ class AddrLookup:
     def lookup_path(self, lookup_set):
         self.log.debug(self.prefix + "Starting lookup step. Lookup set = {lookup_set}, seen set = {seen_set}", lookup_set=lookup_set, seen_set=self.seen_set)
         try:
-            candidates = lookup_set.difference(self.seen_set)
-            if len(candidates) == 0:  # TODO or if the closest candidate is super far
+            candidates = {}
+            for entry in lookup_set:
+                if entry.contact_info in self.seen_set or entry.contact_info in self.local_peer.blacklist:
+                    continue
+                addr = candidates.setdefault(entry.contact_info, entry.node_addr)
+                if self.get_distance(addr) < self.get_distance(entry.node_addr):
+                    candidates[entry.contact_info] = entry.node_addr
+
+            if len(candidates) == 0:
                 return lookup_set
 
-            targets = sorted(candidates, key=self.get_distance)[:self.path_width]
+            targets = sorted(candidates, key=lambda c: self.get_distance(candidates[c]))[:self.path_width]
             self.seen_set.update(targets)
 
             if len(self.seen_set) > 10000:
@@ -115,41 +130,27 @@ class AddrLookup:
                 raise Exception("something's fucky")
 
             queries = []
-            for entry in lookup_set:
+            for contact in targets:
                 try:
-                    peer = self.local_peer.get_peer(entry.contact_info)
+                    peer = self.local_peer.get_peer(contact)
                 except TheseusConnectionError:
                     continue
                 queries.append(peer.query('find', {'addr': self.target}, timeout=self.query_timeout))
 
-            self.log.debug(self.prefix + "Querying {n} of {m} peers.", n=len(queries), m=len(lookup_set))
+            self.log.debug(self.prefix + "Querying {n} of {m} peers.", n=len(queries), m=len(candidates))
 
             responses = yield DeferredList(queries)
             new_peers = set(entry
                     for success, peers in responses if success
                     for entry in peers.get(b'nodes', []))
 
-            self.log.debug(self.prefix + "Queries for lookup step complete. Number of peers returned: {n}", n=len(new_peers))
+            self.log.debug(self.prefix + "Queries for lookup step complete. Number of routing entries returned: {n}", n=len(new_peers))
 
-            # this naively trusts addrs by default, which may or may not change
+            # TODO this blindly trusts addrs by default, which is a lil naive
             entries = yield DeferredList([RoutingEntry.from_bytes(peer, trusted=True) for peer in new_peers])
             new_set = set(entry for success, entry in entries if success)
-            new_set = self.trim_entries(new_set)
-            self.log.debug(self.prefix + "Size of trimmed peer set: {n}", n=len(new_set))
             return (yield self.lookup_path(new_set))
 
         except Exception as e:
             self.log.failure(self.prefix + "Internal error in lookup")
             return lookup_set
-
-    def trim_entries(self, entries):
-        # utility method: given a set of routing entries, returns a trimmed set
-        # with one entry per contact using the closest of that contact's addrs.
-        d = {}
-        for entry in entries:
-            if entry.contact_info in d:
-                if self.get_distance(d[entry.contact_info]) > self.get_distance(entry):
-                    d[entry.contact_info] = entry
-            else:
-                d[entry.contact_info] = entry
-        return set(entry for contact, entry in d.items())
