@@ -50,7 +50,7 @@ class AddrLookup:
 
         starting_set = set(self.local_peer.routing_table.query(self.target))
 
-        if len(starting_set) == 0:
+        if len(starting_set) < self.num_paths * self.path_width:
             # might happen at startup after local ID generation
             if self._start_retry < 5:
                 self._start_retry += 0.5

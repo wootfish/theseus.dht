@@ -113,27 +113,19 @@ class RoutingTable:
         def covers(self, addr: bytes):
             return self.lower <= RoutingTable.bytes_to_int(addr) <= self.upper
 
-        def query(self, addr, lookup_size):
+        def query(self, addr):
             addr_int = RoutingTable.bytes_to_int(addr)
 
             if self.contents is not None:
-                if len(self.contents) <= lookup_size:
-                    return self.contents
-                return sorted(
-                        self.contents,
-                        key=lambda entry: addr_int ^ RoutingTable.bytes_to_int(entry.node_addr.addr)
-                        )[:lookup_size]
-
-            if addr_int & (self.left_child.lower ^ self.right_child.lower):
-                closer, further = self.right_child, self.left_child
+                yield from sorted(self.contents,
+                        key=lambda entry: addr_int ^ RoutingTable.bytes_to_int(entry.node_addr.addr))
             else:
-                closer, further = self.left_child, self.right_child
-
-            results = closer.query(addr, lookup_size)
-            num_results = len(results)
-            if num_results < lookup_size:
-                results = results + further.query(addr, lookup_size - num_results)
-            return results
+                if addr_int & (self.left_child.lower ^ self.right_child.lower):
+                    closer, further = self.right_child, self.left_child
+                else:
+                    closer, further = self.left_child, self.right_child
+                yield from closer.query(addr)
+                yield from further.query(addr)
 
         def get_contents(self):
             if self.contents is not None:
@@ -165,7 +157,16 @@ class RoutingTable:
         self.root = self.Bucket(0, 2**self.L - 1, self.k)
 
     def query(self, addr, lookup_size=None):
-        return self.root.query(addr, lookup_size or self.k)
+        lookup_size = lookup_size or self.k
+        peers = set()
+        results = []
+
+        for entry in self.root.query(addr):
+            if entry.contact_info not in peers:
+                results.append(entry)
+            if len(results) == lookup_size:
+                break
+        return results
 
     def insert(self, contact_info, node_addr):
         entry = RoutingEntry(contact_info, node_addr)
