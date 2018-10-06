@@ -52,7 +52,7 @@ class AddrLookup:
 
         if len(starting_set) < self.num_paths * self.path_width:
             # might happen at startup after local ID generation
-            if self._start_retry < 5:
+            if self._start_retry < 15:
                 self._start_retry += 0.5
                 self.log.debug(self.prefix + "Not enough peers. Retrying in {t} seconds.", target=self.target, t=self._start_retry)
                 return deferLater(self.clock, self._start_retry, self.start)
