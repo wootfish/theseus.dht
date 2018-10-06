@@ -66,16 +66,13 @@ class AddrLookup:
         self.log.info(self.prefix + "Starting lookup for {target}", target=self.target)
         self.log.debug(self.prefix + "Starting peers: {starting_set}", target=self.target, starting_set=starting_set)
         num_paths = min(self.num_paths, (len(starting_set) + (self.path_width - 1)) // self.path_width)
-        paths = [self.lookup_path(starting_set) for _ in range(num_paths)]
+        paths = [self.lookup_path(starting_set, i) for i in range(num_paths)]
         DeferredList(paths).addCallback(self.on_completion)
 
         return d
 
-    @inlineCallbacks
     def on_completion(self, dl_result):
-        self.log.info(self.prefix + "Routing queries complete.", target=self.target)
-
-        paranoia_added = yield False # TODO paranoia
+        self.log.info(self.prefix + "Routing queries complete. {n} routing entries found before trimming.", n=len(dl_result))
 
         trimmed_results = {}
         for success, result in dl_result:
@@ -93,7 +90,7 @@ class AddrLookup:
                 key=lambda c: self.get_distance(trimmed_results[c].node_addr)
                 )[:self.num_peers]
 
-        self.log.debug(self.prefix + "Lookup results: {result}", result=result)
+        self.log.debug(self.prefix + "{n} Lookup results: {result}", n=len(result), result=result)
         while self.callbacks:
             self.callbacks.pop().callback(result)
 
@@ -109,10 +106,10 @@ class AddrLookup:
         return n
 
     @inlineCallbacks
-    def lookup_path(self, lookup_set):
+    def lookup_path(self, lookup_set, path_num):
         try:
             # trim the lookup set to get a list of peers to iterate on
-            self.log.debug(self.prefix + "Starting lookup step. Lookup set = {lookup_set}, seen set = {seen_set}", lookup_set=lookup_set, seen_set=self.seen_set)
+            self.log.debug(self.prefix + "(path {n}) Starting lookup step. Lookup set = {lookup_set}, seen set = {seen_set}", n=path_num, lookup_set=lookup_set, seen_set=self.seen_set)
             candidates = {}
             for entry in lookup_set:
                 if entry.contact_info in self.seen_set \
@@ -125,17 +122,18 @@ class AddrLookup:
 
             # if we don't have any new peers to talk to, call it a day
             if len(candidates) == 0:
+                self.log.debug(self.prefix + "(path {n}) End of lookup path reached. {m} results.", n=path_num, m=len(lookup_set))
                 return lookup_set
 
-            # otherwise, find the closest peers, and log them so we don't revisit them
+            # otherwise, find the closest candidates and call dibs on them
             targets = sorted(candidates, key=lambda c: self.get_distance(candidates[c]))[:self.path_width]
             self.seen_set.update(targets)
 
             if len(self.seen_set) > 10000:  # you may laugh, but it's been known to happen
-                self.log.warn(self.prefix + "Lookup is off the rails")
+                self.log.warn(self.prefix + "(path {n}) Lookup is off the rails", n=path_num)
                 raise Exception("something's fucky")
 
-            self.log.debug(self.prefix + "Querying {n} peers: {targets}", n=len(targets), targets=targets)
+            self.log.debug(self.prefix + "(path {n}) Querying {m} peer(s): {targets}", n=path_num, m=len(targets), targets=targets)
             queries = []
             for contact in targets:
                 try:
@@ -150,7 +148,7 @@ class AddrLookup:
                     for success, peers in responses if success
                     for entry in peers.get(b'nodes', []))
 
-            self.log.debug(self.prefix + "Queries for lookup step complete. Number of routing entries returned: {n}", n=len(new_peers))
+            self.log.debug(self.prefix + "(path {n}) Lookup step's 'find' queries complete. Number of routing entries returned: {m}", n=path_num, m=len(new_peers))
 
             # get routing entries for the returned results (TODO currently this will blindly trust addrs by default, which is very naive)
             entries = yield DeferredList([RoutingEntry.from_bytes(peer, trusted=True) for peer in new_peers])
@@ -161,8 +159,9 @@ class AddrLookup:
             # decreasing across iterated lookup steps, this might not end up
             # adding the ideal peers -- is it worth trying to address this?)
 
-            results = (yield self.lookup_path(new_set))
+            results = (yield self.lookup_path(new_set, path_num))
             if len(results) < self.num_peers:
+                self.log.debug(self.prefix + "(path {n}) Collecting results. Augmenting {x} returned entries with {y} local ones.", n=path_num, x=len(results), y=len(lookup_set))
                 results.update(lookup_set)
             return results
 
