@@ -163,6 +163,7 @@ class RoutingTable:
 
         for entry in self.root.query(addr):
             if entry.contact_info not in peers:
+                peers.add(entry.contact_info)
                 results.append(entry)
             if len(results) == lookup_size:
                 break
