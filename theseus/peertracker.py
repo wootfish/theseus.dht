@@ -76,16 +76,21 @@ class PeerState(Factory):
     @inlineCallbacks
     def on_connect(self, proto):
         # called by DHTProtocol
-        self.log.debug("{peer} - Updating state: connected", peer=proto.transport.getPeer())
-        self.state = CONNECTED
-        self.cnxn = proto
-        self.host = proto.transport.getPeer().host
-        if self.role is INITIATOR:
-            # make an introduction
-            self.log.debug("{peer} - Making introduction", peer=self.cnxn.transport.getPeer())
-            info_keys = tuple(DHTProtocol.supported_info_keys)
-            local_info = yield self.cnxn.get_local_keys()
-            self.query("info", {"keys": info_keys, "info": local_info})
+        try:
+            self.log.debug("{peer} - Updating state: connected", peer=proto.transport.getPeer())
+            self.state = CONNECTED
+            self.cnxn = proto
+            self.host = proto.transport.getPeer().host
+            if self.role is INITIATOR:
+                # make an introduction
+                self.log.debug("{peer} - Making introduction", peer=self.cnxn.transport.getPeer())
+                info_keys = tuple(DHTProtocol.supported_info_keys)
+                local_info = yield self.cnxn.get_local_keys()
+                self.query("info", {"keys": info_keys, "info": local_info})
+
+        except Exception as e:
+            self.log.failure("Unexpected error updating peer state")
+            raise e
 
     def disconnect(self):
         self.log.info("{peer} - Initiating disconnection", peer=self.cnxn.transport.getPeer())
