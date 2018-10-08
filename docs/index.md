@@ -57,9 +57,9 @@ The Theseus DHT is designed to be very good at bootstrapping overlay networks, a
 
 Release date: 4/20/2018
 
-Revision date: 10/7/2018
+Revision date: 10/8/2018
 
-Revision number: 1
+Revision number: 2
 
 
 ## Brief Summary
@@ -108,7 +108,7 @@ Response: `{"nodes": <compact node info>}`
 
 ### get
 
-Try to retrieve data from a node. Takes a DHT address as an argument. If the queried peer has no data to return, it instead offers routing info using the same return signature as `find_node`. If the address is omitted, all data stored at the node should be returned.
+Try to retrieve data from a node. Takes a DHT address as an argument. If the queried peer has no data to return, it instead offers routing info using the same return signature as `find_node`. If the address is omitted, all `addr: data` pairs stored at the node should be returned.
 
 The `tags` optional argument, if provided, should map to a list of strings. Data without the specified tags listed will not be returned. If `tags` is omitted or left empty, then only untagged data will be returned.
 
@@ -119,8 +119,11 @@ For tagged data, it's a list of (n+1)-tuples, where n is the number of tags requ
 Arguments: `{"addr": <20-byte address>, "tags": ["tag1", "tag2", ...]}`
 
 Response:
-- Tagged data: `{"data": [[<bytes>, <tag>, <tag>, ...], ...]}`
-- Untagged data: `{"data": [<bytes>, <more bytes>, ...]}`
+
+`<datum>` denotes `[<bytes>, <tag>, <tag>, ...]` if tags were requested, `<bytes>` otherwise.
+
+- `addr` given: `{"data": {<20-byte address>: [<datum>, <datum>, ...], ...}}`
+- `addr` omitted: `{"data": [<datum>, <datum>, ...]}`
 - No data at address: `{"nodes": [<compact node info>, ...]}`
 
 
