@@ -135,12 +135,18 @@ The `sybil` optional argument, if included, should map to 0 or 1 depending on wh
 
 The `tags` optional argument should map to a list of desired tags for the submitted data. Only [a couple tags are currently supported](#data-tags). If unsupported tags are requested, the query should not fail: instead, the queried peer should just populate the corresponding value fields with empty bytestrings.
 
-The `t` optional argument allows the querier to request a storage duration for their data. This may or may not be honored, at the query recipient's discretion. The recommended behavior is to set data storage durations as the minimum of this key's value (if given) and some internally-computed default duration.
+The `d` optional argument allows the querier to request a storage duration for their data. This may or may not be honored, at the query recipient's discretion. The recommended behavior is to set data storage durations as the minimum of this key's value (if given) and some internally-computed default duration.
+
+The response will contain a key `d` mapping the duration, in seconds, for which this peer promises to store the given data.
+
+If tags are requested, the assigned tag values will be returned as well, keyed by `tags`.
+
+Note that this provides a way for peers to discover their public IPs and/or ports: The query `{"addr": <any valid address>, "data": "", "tags": ["ip", "port"], "d": 0}` will return `{"d": 0, "tags": [<querying peer's public IP>, <querying peer's cnxn port>]}`.
 
 
-Arguments: `{"addr": "<20-byte address>", "data": <bytes>, "tags": ["tag1", "tag2"], "sybil": <bool>}`
+Arguments: `{"addr": <20-byte address>, "data": <bytes>, "tags": ["tag1", "tag2"], "sybil": <bool>, "d": <int>}`
 
-Response: `{"t": 99999}`
+Response: `{"d": 99999, "tags": ["<tag value bytes>", ...]}`
 
 
 ### info
@@ -211,7 +217,6 @@ So far, the following error codes are defined:
   - `200: Generic DHT protocol error`
   - `201: Invalid DHT protocol message`
   - `202: Internal error (DHT)`
-  - `203: Tag not recognized`
 - `3xx` level:
   - `300: Generic error`
   - `301: Rate-limiting active`
@@ -271,7 +276,7 @@ The rationale behind this design is discussed [here](https://wootfish.github.io/
 
 ## Data Tags
 
-Tags are specified via a `tags` argument within individual RPCs. Nodes should implement all specified tags. If a node receives a request to populate tags it doesn't recognize, the node should respond with error 203 [as specified below](#errors).
+Tags are specified via a `tags` argument within individual RPCs. Nodes should implement all specified tags.
 
 The only specified tags at this time are `ip` and `port`. They should be populated with the observed IP or observed port of a remote peer. Remember that if NAT is in use, it may cause these fields to take unexpected values.
 
