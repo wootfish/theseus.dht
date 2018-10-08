@@ -3,9 +3,12 @@ from twisted.internet.defer import DeferredList, inlineCallbacks
 from twisted.logger import Logger
 from twisted.protocols.policies import TimeoutMixin
 
+from .constants import L
 from .enums import DHTInfoKeys, INITIATOR, CONNECTED
 from .errors import Error201, Error202
 from .krpc import KRPCProtocol
+
+from socket import inet_aton
 
 
 class DHTProtocol(KRPCProtocol, TimeoutMixin):
@@ -22,7 +25,7 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # for generating responses to KRPC queries
+        # for generating responses to received queries
         self.query_handlers.update({
             b'find': self.find,
             b'get': self.get,
@@ -32,8 +35,6 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
         # for processing data in responses to sent queries
         self.response_handlers.update({
-            b'get': self.onGet,
-            b'put': self.onPut,
             b'info': self.onInfo,
             })
 
@@ -90,10 +91,26 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
             raise Error201("malformed 'keys' argument")
 
     def put(self, args):
-        return args  # TODO
+        # TODO look for sybil arg, respond
+        duration = args.get(b't')
+        addr = args.get(b'addr')
+        data = args.get(b'data')
+        tag_names = args.get(b'tags')
 
-    def onGet(self, args):
-        return args  # TODO
+        if duration is not None and type(duration) is not int:
+            raise Error201('t must be int')
+        if type(addr) is not bytes or len(addr) != L:
+            raise Error201('addr must be {} bytes'.format(L))
+        if type(data) is not bytes:
+            raise Error201('data must be bytes')
+
+        if tag_names is not None:
+            if type(tag_names) is not list or not all(type(name) is bytes for name in tag_names):
+                raise Error201('tags must be list of bytestrings')
+
+        tags = self.get_tags(tag_names)
+        duration = self.local_peer.node_manager.put(addr, data, tags, duration)
+        return {"d": duration, "tags": tags}
 
     def onInfo(self, args):
         info = args.get(b'info')
@@ -102,9 +119,6 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         else:
             self.log.debug("{peer} - Malformed response: Expected dict for value of 'info' key, not {t}", peer=self._peer, t=type(info))
         return args  # has to return args to support anything further down on the Deferred callback chain
-
-    def onPut(self, args):
-        return args  # TODO
 
     @inlineCallbacks
     def get_local_keys(self, keys=None):
@@ -124,6 +138,18 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
         self.log.debug("{peer} - Keys: {keys}", peer=self._peer, keys=result)
         return result
+
+    def get_tags(self, tag_names):
+        tags = {}
+        for name in tag_names:
+            if name == b'ip':
+                tags[name] = inet_aton(self.transport.getPeer().host)
+            elif name == b'port':
+                port = self.transport.getPeer().port
+                tags[name] = bytes([port >> 8, port & 0xFF])
+            else:
+                tags[name] = b''
+        return tags
 
     def on_advertise(self, info):
         if self.local_peer is not None:

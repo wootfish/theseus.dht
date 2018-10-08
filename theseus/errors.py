@@ -68,12 +68,6 @@ class Error202(TheseusProtocolError):
     errtext = "Internal error (DHT)"
 
 
-@errcode
-class Error203(TheseusProtocolError):
-    errcode = 203
-    errtext = "Tag not recognized"
-
-
 ######## 3xx errors
 
 @errcode
