@@ -57,9 +57,9 @@ The Theseus DHT is designed to be very good at bootstrapping overlay networks, a
 
 Release date: 4/20/2018
 
-Revision date: n/a
+Revision date: 10/7/2018
 
-Revision number: 0
+Revision number: 1
 
 
 ## Brief Summary
@@ -108,18 +108,18 @@ Response: `{"nodes": <compact node info>}`
 
 ### get
 
-Try to retrieve data from a node. Takes a DHT address as an argument. The response differs based on whether the queried node has stored data for that address. If it does, it returns the data. If it doesn't, it returns routing suggestions like with `find_node`.
+Try to retrieve data from a node. Takes a DHT address as an argument. If the queried peer has no data to return, it instead offers routing info using the same return signature as `find_node`. If the address is omitted, all data stored at the node should be returned.
 
-There is an optional argument, `tags`, which if provided should map to a list of strings. If `tags` is included, only data with at least the tags listed will be returned. If `tags` is omitted or left empty, then only untagged data will be returned.
+The `tags` optional argument, if provided, should map to a list of strings. Data without the specified tags listed will not be returned. If `tags` is omitted or left empty, then only untagged data will be returned.
 
 The response format for untagged data is simply a list of data items, encoded as bytestrings.
 
-For tagged data, it's a list of (n+1)-tuples, where n is the number of tags requested, plus a list showing the order the tags have been returned in.
+For tagged data, it's a list of (n+1)-tuples, where n is the number of tags requested. Tag values are returned alphabetized by tag name.
 
 Arguments: `{"addr": <20-byte address>, "tags": ["tag1", "tag2", ...]}`
 
 Response:
-- Tagged data: `{"data": [[<bytes>, <tag>, <tag>, ...], ...], "tags": ["tag1", "tag2", ...]}`
+- Tagged data: `{"data": [[<bytes>, <tag>, <tag>, ...], ...]}`
 - Untagged data: `{"data": [<bytes>, <more bytes>, ...]}`
 - No data at address: `{"nodes": [<compact node info>, ...]}`
 
@@ -130,7 +130,9 @@ Store some data in the DHT. Takes an address as an argument. There are several o
 
 The `sybil` optional argument, if included, should map to 0 or 1 depending on whether the querying peer believes a Sybil attack targeting this address is taking place. This is essentially a hint to the queried peer that they should attempt to verify this claim and [take appropriate action](#sybil-resistance).
 
-The `tags` optional argument should map to a list of desired tags for the submitted data. Only [a couple tags are currently supported](#data-tags).
+The `tags` optional argument should map to a list of desired tags for the submitted data. Only [a couple tags are currently supported](#data-tags). If unsupported tags are requested, the query should not fail: instead, the queried peer should just populate the corresponding value fields with empty bytestrings.
+
+The `t` optional argument allows the querier to request a storage duration for their data. This may or may not be honored, at the query recipient's discretion. The recommended behavior is to set data storage durations as the minimum of this key's value (if given) and some internally-computed default duration.
 
 
 Arguments: `{"addr": "<20-byte address>", "data": <bytes>, "tags": ["tag1", "tag2"], "sybil": <bool>}`
@@ -408,40 +410,38 @@ If hole punching doesn't pan out, another interesting possibility (which was tou
 
 ## Implementation Status
 
-The Twisted implementation is coming along well but is not yet complete. Some outstanding TODOs:
+The Twisted implementation is coming along well but is not yet complete. Some outstanding TODOs (see also [TODO.md](/todo.md):
 
-- The `info` query is implemented, but the other RPC queries are not yet.
-- Node IDs received by `info` queries are not yet stored in the routing table.
-- Have yet to implement a data store. It should track memory overhead of stored data and dynamically adjust storage times based on this. It should perhaps also rate-limit storage queries (or maybe rate-limiting would be better handled within DHTProtocol). It might make sense to run this in a subprocess so that its memory overhead can be more easily tracked.
 - The NoiseWrapper protocol wrapper works, but implementing `hs_request` will require extending its functionality somewhat.
 - Speaking of Noise, traffic obfuscation during the Noise handshake is not nearly as strong as once the handshake is complete. Still working on a fix for this.
-- Once base features are stable, we'll need to implement node lookups.
-- Once node lookups are implemented, we'll want to set up intermittent automatic lookups to keep the local routing table fresh.
+- We also need to set up intermittent automatic routing lookups to keep the local routing table fresh.
 - We do not yet have Elligator support. We'll either need to get this added into the Noise library or else shim it in at the protocol level.
-- We have some unit tests, but not as many as we need. A lot of important components of the system aren't covered at all yet. This has to change ASAP.
+- We have some unit tests, but the code coverage stats have a lot of room to improve.
 
 Proposed Roadmap (subject to change):
 
-1. Finish writing up mathematical analysis of network dynamics and Sybil thresholds. (in progress)
-2. Add ID check logic for node IDs received from remote peers.
-3. Add logic for inserting remote node IDs into the local routing table (tho maybe only after their ID checks pass)
+1. ~~Finish writing up mathematical analysis of network dynamics and Sybil thresholds.~~ (formal analysis complete, writeup pending)
+2. ~~Add ID check logic for node IDs received from remote peers.~~
+3. ~~Add logic for inserting remote node IDs into the local routing table (tho maybe only after their ID checks pass)~~
   - One thing to be mindful of here: If we wait for ID checks to succeed before inserting into the routing table, this leaves a decently sized window where multiple peers could try to claim the same node ID.
   - In situations like this, it is _critical_ that precedence goes to whoever claimed the ID first.
   - The reasons why will be discussed in the formal analysis of the network.
-4. Implement `find` RPC.
-5. At this point the routing functionality will be complete! Seems like a good time to make a big push on writing unit tests.
-6. Implement node lookup logic.
-7. Implement network size estimation.
-8. Add 'paranoid/non-paranoid' option to lookup logic, and have non-paranoid lookups automatically become paranoid if they detect anomalous peer density at the target address.
-9. Triage and implement other outstanding functionality: Data store, handshake renegotiation, related RPCs for both, and Elligator support.
+4. ~~Implement `find` RPC.~~
+5. ~~At this point the routing functionality will be complete! Seems like a good time to make a big push on writing unit tests.~~
+6. ~~Implement node lookup logic.~~
+7. Implement data store.
+  - At this point, full end-to-end demos of DHT storage and retrieval (under non-adversarial conditions) are possible.
+8. Implement network size estimation.
+9. Add 'paranoid/non-paranoid' option to lookup logic, and have non-paranoid lookups automatically become paranoid if they detect anomalous peer density at the target address.
+10. Implement Sybil attack. Run live attacks on a test peer swarm, and collect data on how effective the defenses are. Validate that the data agrees with the results obtained from formalisms and simulations.
+11. Triage and implement other outstanding functionality like custom message sizing, handshake renegotiation, and Elligator support.
 
 Some good starting points for anyone interested in helping out:
 
 - If you're into cryptography, maybe look into what it would take to get Elligator support. It might make sense for this to end up being a pull request to the Noise library we use, rather than something that gets taken care of in the Noise wrapper here.
-- The `find` RPC's only dependency should be the routing table, so it should be possible to implement that RPC now, even though the routing table is not yet populated.
-- I'm considering rewriting the routing table to use a binary tree, because I suspect it could speed up queries a lot (though we're not at the point yet where it's possible to profile the code to see how necessary this is). Anyone who wants to take a crack at this rewrite is welcome to.
-- The data store is another stand-alone component that could in theory be implemented right now, though this would be a big undertaking.
-- Unit tests are direly needed throughout the codebase and anyone who can provide them would be welcomed with open arms.
+- Hacking AddrLookups into a network size estimation tool would be a fun project. Bit more of a research angle on this one, since there have been a few differing methodologies proposed.
+- More unit tests are always needed. Code coverage hasn't been over 90% in ages and it'd be good to get it back up.
+  - In particular, end-to-end tests of peer interactions through mocked network interfaces would be _super_ valuable.
 
 
 ## Choice of Ciphersuite
@@ -465,8 +465,8 @@ If you want to develop a protocol extension that doesn't impact core functionali
 If you want to get in touch with me (Eli), you can reach me a couple different ways:
 - [Twitter](#https://twitter.com/elisohl): my DMs are open.
 - Email: my first and last name, with no punctuation, at gmail.
-- Signal: Send a Twitter DM or email asking for my number.
-- Github: I do keep a close eye on this repo, so opening an issue or pull request would also work to get my attention.
+- Signal: Send a Twitter DM or email asking for my personal number. Sorry, but I don't have a dedicated phone number to share publicly.
+- Github: I try to keep a close eye on this repo, so opening an issue or pull request would also work to get my attention.
 
 All else being equal, reaching out over Twitter DMs or here on Github are probably the most reliable ways of reaching me.
 
@@ -484,5 +484,5 @@ On encryption:
 On Sybil attacks:
 - [Resisting Sybil Attacks in Distributed Hash Tables](https://wootfish.github.io/sohliloquies/2017/02/26/resisting-sybil-attacks-in-distributed_25.html)
 
-The (obsolete!!) version 0.1 protocol spec:
+For posterity, the (obsolete!) version 0.1 protocol spec:
 - [Theseus Protocol v0.1 Overview](https://wootfish.github.io/sohliloquies/2017/04/21/theseus-protocol-v01-overview.html)
