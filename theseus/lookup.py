@@ -19,7 +19,10 @@ class AddrLookup:
     query_timeout = 5
     num_peers = k
 
-    _start_retry = 0.5
+    _start_retry_min = 1
+    _start_retry_max = 30
+    _start_retry_delta = 1
+    _start_retry = _start_retry_min
 
     running = False
 
@@ -52,8 +55,8 @@ class AddrLookup:
 
         if len(starting_set) < self.num_paths * self.path_width:
             # might happen at startup after local ID generation
-            if self._start_retry < 15:
-                self._start_retry += 0.5
+            if self._start_retry < self._start_retry_max:
+                self._start_retry += self._start_retry_delta
                 self.log.debug(self.prefix + "Not enough peers. Retrying in {t} seconds.", target=self.target, t=self._start_retry)
                 return deferLater(self.clock, self._start_retry, self.start)
             else:
@@ -167,4 +170,4 @@ class AddrLookup:
 
         except Exception as e:
             self.log.failure(self.prefix + "Internal error in lookup")
-            return lookup_set
+            return lookup_set  # try to fail well
