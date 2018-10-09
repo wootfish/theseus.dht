@@ -1,11 +1,14 @@
 from twisted.trial import unittest
 from twisted.test.proto_helpers import _FakePort
 from twisted.internet.defer import DeferredList, succeed, inlineCallbacks
-from twisted.internet.task import Clock
+from twisted.internet.task import Clock, deferLater
 from twisted.internet.address import IPv4Address
-from twisted.test.proto_helpers import MemoryReactor, RaisingMemoryReactor, StringTransportWithDisconnection
+from twisted.internet import reactor
+from twisted.test.proto_helpers import MemoryReactor, RaisingMemoryReactor, StringTransport
 from twisted.plugin import IPlugin
 from twisted import plugins
+from twisted.protocols.policies import WrappingFactory
+from twisted.internet.protocol import Factory
 
 from zope.interface import implementer
 
@@ -13,10 +16,12 @@ from theseus.contactinfo import ContactInfo
 from theseus.peer import PeerService
 from theseus.peertracker import PeerState
 from theseus.nodemanager import NodeManager
-from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, CONNECTING, INITIATOR
+from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, CONNECTING, INITIATOR, RESPONDER
 from theseus.plugins import IPeerSource
 from theseus.nodeaddr import NodeAddress, Preimage
 from theseus.lookup import AddrLookup
+from theseus.protocol import DHTProtocol
+from theseus.noisewrapper import NoiseWrapper, NoiseSettings
 
 
 class PeerTests(unittest.TestCase):
@@ -110,13 +115,15 @@ class PeerTests(unittest.TestCase):
         self.assertEqual(len(self.memory_reactor.tcpClients), 1)
 
         factory = self.memory_reactor.tcpClients[0][2]
-        transport = StringTransportWithDisconnection()
-        factory.buildProtocol(IPv4Address("TCP", target.host, target.port)).makeConnection(transport)
+        self.t = StringTransport(IPv4Address('TCP', '127.0.0.1', 1337), IPv4Address('TCP', '127.0.0.1', 12345))
+        self.wrapper = factory.buildProtocol(IPv4Address("TCP", target.host, target.port))
+        self.wrapper.makeConnection(self.t)
         self.p = self.successResultOf(d)
         self.assertEqual(self.p.connected, 0)  # this won't connect until after noise handshake completion
         self.assertEqual(self.p.transport, None)
         self.assertEqual(self.p.peer_state.state, CONNECTING)
         self.assertEqual(self.p.peer_state.role, INITIATOR)
+        self.assertFalse(self.t.disconnecting)
 
     @inlineCallbacks
     def test_info_updates_1(self):
@@ -154,3 +161,90 @@ class PeerTests(unittest.TestCase):
         self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value,
             [addr.as_bytes() for addr in addrs]
             ))
+
+    def _do_handshake(self):
+        self.test_cnxn_success()
+
+        # make a second protocol for the first one to talk to
+        # (so we don't have to handle Noise msgs manually)
+        host = IPv4Address("TCP", "127.0.0.1", 1337)
+        factory = WrappingFactory.forProtocol(NoiseWrapper, Factory.forProtocol(DHTProtocol))
+        self.wrapper2 = factory.buildProtocol(host)
+        self.wrapper2.settings = NoiseSettings(RESPONDER, local_static=self.peer.peer_key)
+        self.t2 = StringTransport(IPv4Address("TCP", "127.0.0.1", 12345), IPv4Address("TCP", "127.0.0.1", 1337))
+        self.wrapper2.makeConnection(self.t2)
+        self.p2 = self.wrapper2.wrappedProtocol
+
+        self.wrapper2.dataReceived(self.t.value())
+        self.t.clear()
+
+        self.wrapper.dataReceived(self.t2.value())
+        self.t2.clear()
+
+        self.assertFalse(self.wrapper.transport.disconnecting)
+        self.assertFalse(self.wrapper2.transport.disconnecting)
+
+        self.assertTrue(self.p.connected)
+        self.assertTrue(self.p2.connected)
+
+        self.addCleanup(self.p.setTimeout, None)
+        self.addCleanup(self.p2.setTimeout, None)
+
+    @inlineCallbacks
+    def test_handshake_and_introduction(self):
+        self._do_handshake()
+
+        addrs = yield self.peer.node_manager.get_addrs()
+        _ = yield deferLater(reactor, 0, lambda: None)  # wait for everything else that hooked get_addrs to run
+
+        self.p2.query_handlers[b'info'] = lambda d: self.assertTrue(
+                sorted(d.keys()) == [b'info', b'keys']
+                and sorted(d[b'keys']) == [b'addrs', b'listen_port', b'max_version', b'peer_key']
+                and sorted(d[b'info'].keys()) == [b'addrs', b'listen_port', b'max_version', b'peer_key']
+                and sorted(d[b'info'][b'addrs']) == sorted(addr.as_bytes() for addr in addrs)
+                and d[b'info'][b'listen_port'] == 1337
+                and d[b'info'][b'max_version'] == b'n/a'  # lol
+                and d[b'info'][b'peer_key'] == self.peer.peer_key.public_bytes
+                ) and {'info': {'addrs': [], 'listen_port': 12345, 'max_version': 'n/a', 'peer_key': self.peer.peer_key.public_bytes}}
+
+        self.wrapper2.dataReceived(self.t.value())
+        self.t.clear()
+        self.wrapper.dataReceived(self.t2.value())
+        self.t2.clear()
+
+        self.assertEqual(self.p.peer_state.info.get(PEER_KEY).public_bytes, self.peer.peer_key.public_bytes)
+        self.assertEqual(self.p.peer_state.info.get(LISTEN_PORT), 12345)
+        self.assertEqual(self.p.peer_state.info.get(ADDRS), [])
+
+        self.assertEqual(len(self.p.open_queries), 0)
+        self.assertEqual(len(self.p2.open_queries), 0)
+
+    @inlineCallbacks
+    def test_put_and_get(self):
+        self._do_handshake()
+
+        _ = yield self.peer.node_manager.get_addrs()  # we won't have data stores til we have addrs :)
+
+        self.t.clear()
+        self.t2.clear()
+
+        self.p2.response_handlers[b'put'] = lambda d: self.assertTrue(len(d) == 1 and type(d[b'd']) is int and d[b'd'] > 0)
+        self.p2.response_handlers[b'get'] = lambda d: self.assertTrue(len(d) == 1 and d[b'data'] == [b'bearseatgoatsandgoatseatoats'])
+
+        self.p2.send_query(b'put', {b'addr': bytes(20), b'data': b'bearseatgoatsandgoatseatoats'})
+        self.wrapper.dataReceived(self.t2.value())
+        self.t2.clear()
+        self.wrapper2.dataReceived(self.t.value())
+        self.t.clear()
+
+        self.p2.send_query(b'get', {b'addr': bytes(20)})
+        self.wrapper.dataReceived(self.t2.value())
+        self.t2.clear()
+        self.wrapper2.dataReceived(self.t.value())
+        self.t.clear()
+
+        self.assertFalse(self.wrapper.transport.disconnecting)
+        self.assertFalse(self.wrapper2.transport.disconnecting)
+
+        self.assertTrue(self.p.connected)
+        self.assertTrue(self.p2.connected)
