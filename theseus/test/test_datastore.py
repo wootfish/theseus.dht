@@ -49,3 +49,10 @@ class DataStoreTests(unittest.TestCase):
         self.assertEqual(ds.get(addr1), [b'hi'])
         self.assertEqual(ds.get(addr2), [b'hello'])
         self.assertEqual(ds.get(addr3), [])
+
+        ds.put(addr3, b'howdy', tags={b'hey': b'ho'})
+        self.assertEqual(ds.get(), {addr1: [b'hi'], addr2: [b'hello']})
+        self.assertEqual(ds.get(tag_names=[b'hey']), {addr3: [[b'howdy', b'ho']]})
+        self.assertEqual(ds.get(addr1), [b'hi'])
+        self.assertEqual(ds.get(addr2), [b'hello'])
+        self.assertEqual(ds.get(addr3, [b'hey']), [[b'howdy', b'ho']])
