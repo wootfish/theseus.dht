@@ -44,7 +44,7 @@ class NodeManager:
     def add_addr(self, local_ip):
         try:
             result = yield NodeAddress.new(local_ip)
-            store = DataStore(result)
+            store = DataStore(result.addr)
 
             self.node_addrs.append(result)
             self.data_stores.append(store)
@@ -69,8 +69,9 @@ class NodeManager:
         self.data_stores.remove(data_store)
         self.add_addr(local_ip)
 
-    def put(self, addr, datum, tags=None, suggested_duration=float('inf')):
+    def put(self, addr, datum, tags=None, suggested_duration=None):
         if len(self.data_stores) == 0:
+            self.log.warn("Tried to put data without any local data stores!")
             return 0
         store = min(self.data_stores, key=lambda store: store._get_distance(addr))
         return store.put(addr, datum, tags or {}, suggested_duration)
