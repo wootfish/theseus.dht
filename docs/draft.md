@@ -418,13 +418,7 @@ If hole punching doesn't pan out, another interesting possibility (which was tou
 
 ## Implementation Status
 
-The Twisted implementation is coming along well but is not yet complete. Some outstanding TODOs (see also [TODO.md](/todo.md):
-
-- The NoiseWrapper protocol wrapper works, but implementing `hs_request` will require extending its functionality somewhat.
-- Speaking of Noise, traffic obfuscation during the Noise handshake is not nearly as strong as once the handshake is complete. Still working on a fix for this.
-- We also need to set up intermittent automatic routing lookups to keep the local routing table fresh.
-- We do not yet have Elligator support. We'll either need to get this added into the Noise library or else shim it in at the protocol level.
-- We have some unit tests, but the code coverage stats have a lot of room to improve.
+The Twisted implementation is coming along well but is not yet complete. See [TODO.md](/todo.md).
 
 Proposed Roadmap (subject to change):
 
@@ -437,7 +431,7 @@ Proposed Roadmap (subject to change):
 4. ~~Implement `find` RPC.~~
 5. ~~At this point the routing functionality will be complete! Seems like a good time to make a big push on writing unit tests.~~
 6. ~~Implement node lookup logic.~~
-7. Implement data store.
+7. ~~Implement data store.~~
   - At this point, full end-to-end demos of DHT storage and retrieval (under non-adversarial conditions) are possible.
 8. Implement network size estimation.
 9. Add 'paranoid/non-paranoid' option to lookup logic, and have non-paranoid lookups automatically become paranoid if they detect anomalous peer density at the target address.
@@ -447,9 +441,8 @@ Proposed Roadmap (subject to change):
 Some good starting points for anyone interested in helping out:
 
 - If you're into cryptography, maybe look into what it would take to get Elligator support. It might make sense for this to end up being a pull request to the Noise library we use, rather than something that gets taken care of in the Noise wrapper here.
-- Hacking AddrLookups into a network size estimation tool would be a fun project. Bit more of a research angle on this one, since there have been a few differing methodologies proposed.
+- Hacking AddrLookups into a network size estimation tool would be a fun project. There's a bit more of a research angle to this one, since several differing methodologies have been given in the literature for measuring the size of Kademlia-style DHTs, and they all have differing pros and cons.
 - More unit tests are always needed. Code coverage hasn't been over 90% in ages and it'd be good to get it back up.
-  - In particular, end-to-end tests of peer interactions through mocked network interfaces would be _super_ valuable.
 
 
 ## Choice of Ciphersuite
