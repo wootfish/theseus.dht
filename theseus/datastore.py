@@ -54,7 +54,7 @@ class DataStore:
         tags = tags or {}
 
         if len(tags) > 0:
-            tag_names = sorted(tags)
+            tag_names = tuple(sorted(tags.keys()))
             tag_values = [tags[name] for name in tag_names]
             datum = [datum, *tag_values]
             datum_size = getsizeof(datum) + sum(getsizeof(bs) for bs in datum)
@@ -73,14 +73,17 @@ class DataStore:
 
         return duration
 
-    def get(self, address=None, tags=tuple()):
+    def get(self, address=None, tag_names=tuple()):
+        # tag_names: Iterable
+        tag_names = tuple(sorted(tag_names))
+
         if address is None:
             data = {}
-            for ts, addr, datum in self.data.get(tags, []):
+            for ts, addr, datum in self.data.get(tag_names, []):
                 data.setdefault(addr, []).append(datum)
             return data
         else:
-            return [datum for ts, addr, datum in self.data.get(tags, []) if addr == address]
+            return [datum for ts, addr, datum in self.data.get(tag_names, []) if addr == address]
 
     def check_timeouts(self):
         to_trim = []
