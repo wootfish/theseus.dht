@@ -92,25 +92,27 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
 
     def put(self, args):
         # TODO look for sybil arg, respond
-        duration = args.get(b't')
+        suggested_duration = args.get(b't')
         addr = args.get(b'addr')
         data = args.get(b'data')
-        tag_names = args.get(b'tags')
+        tag_names = args.get(b'tags', [])
 
-        if duration is not None and type(duration) is not int:
+        if suggested_duration is not None and type(suggested_duration) is not int:
             raise Error201('t must be int')
-        if type(addr) is not bytes or len(addr) != L:
-            raise Error201('addr must be {} bytes'.format(L))
+        if type(addr) is not bytes or len(addr) != L//8:
+            raise Error201('addr must be {} bytes'.format(L//8))
         if type(data) is not bytes:
             raise Error201('data must be bytes')
-
-        if tag_names is not None:
-            if type(tag_names) is not list or not all(type(name) is bytes for name in tag_names):
-                raise Error201('tags must be list of bytestrings')
+        if type(tag_names) is not list or not all(type(name) is bytes for name in tag_names):
+            raise Error201('tags must be list of bytestrings')
 
         tags = self.get_tags(tag_names)
-        duration = self.local_peer.node_manager.put(addr, data, tags, duration)
-        return {"d": duration, "tags": tags}
+        if suggested_duration is None:
+            duration = self.local_peer.node_manager.put(addr, data, tags)
+        else:
+            duration = self.local_peer.node_manager.put(addr, data, tags, suggested_duration)
+
+        return {"d": duration} if len(tags) == 0 else {"d": duration, "tags": tags}
 
     def onInfo(self, args):
         info = args.get(b'info')
