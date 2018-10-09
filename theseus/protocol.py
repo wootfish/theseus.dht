@@ -69,7 +69,26 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
         return {"nodes": [entry.as_bytes() for entry in self.local_peer.routing_table.query(addr)]}
 
     def get(self, args):
-        pass  # TODO
+        addr = args.get(b'addr')
+        tag_names = args.get(b'tags', [])
+
+        if addr is not None:
+            if type(addr) is not bytes or len(addr) != L//8:
+                raise Error201('valid addr required')
+        if type(tag_names) is not list or not all(type(name) is bytes for name in tag_names):
+            raise Error201('tags must be list of bytestrings')
+
+        data = self.local_peer.node_manager.get(addr, tag_names)
+
+        if len(data) == 0:
+            # no data, so return routing info instead
+            # TODO is this even a good idea? MLDHT does it but that doesn't necessarily mean it's smart
+            # in particular it doesn't accomodate our generalizations well (see FIXME below)
+            if addr is None:
+                raise Exception("can't return routing info for addr=None")  # FIXME this edge case is an oversight in the spec
+            return self.find({b'addr': addr})
+
+        return {'data': data}
 
     def info(self, args):
         info = args.get(b'info', {})

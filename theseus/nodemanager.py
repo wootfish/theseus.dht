@@ -75,3 +75,10 @@ class NodeManager:
             return 0
         store = min(self.data_stores, key=lambda store: store._get_distance(addr))
         return store.put(addr, datum, tags or {}, suggested_duration)
+
+    def get(self, addr, tag_names=None):
+        if len(self.data_stores) == 0:
+            self.log.warn("Tried to get data without any local data stores!")
+            return 0
+        store = min(self.data_stores, key=lambda store: store._get_distance(addr))
+        return store.get(addr) if tag_names is None else store.get(addr, tag_names)
