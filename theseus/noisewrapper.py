@@ -116,7 +116,7 @@ class NoiseWrapper(ProtocolWrapper):
                     self._process_message(data)
 
             except Exception as e:
-                self.log.error("Unexpected exception: {e}", e=e)
+                self.log.failure("Error in Noise dataReceived event")
                 self.log.info("Exception caused by received data {data}", data=data)
                 self.log.info("{peer} - Terminating connection due to unexpected error.", peer=self._peer)
                 self.transport.loseConnection()
