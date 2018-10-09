@@ -19,6 +19,7 @@ class DataStore:
     looper = None
 
     def __init__(self, local_addr=None, memlimit=None, default_duration=None):
+        # local_addr: bytes
         self.log.info("Initializing data store for {addr}", addr=local_addr)
 
         self.local_addr = local_addr
@@ -41,17 +42,21 @@ class DataStore:
 
     def _choose_duration(self, addr, sizeof):
         if self.running_total + sizeof >= self.memlimit:
+            self.log.debug("Memlimit reached, declining to store new data")
             return 0
 
         # TODO analyze and maybe adjust these two eqns once the dust settles
         memfactor = 1 - (self.running_total / self.memlimit)
         addrfactor = 1 - (self._get_distance(addr) / 2**(L-4))  # this may be negative for large distances
-        duration = self.default_duration * memfactor * addrfactor
+        duration = int(self.default_duration * memfactor * addrfactor)
+        self.log.debug("Setting storage duration for {n}-byte datum ({s} bytes currently stored): memfactor={m}, addrfactor={a}, duration={d}", n=sizeof, s=self.running_total, m=memfactor, a=addrfactor, d=duration)
         return max(duration, 0)
 
-    def put(self, addr, datum, tags=None, suggested_duration=float('inf')):
+    def put(self, addr, datum, tags=None, suggested_duration=None):
         # tags: Dict[bytes, bytes]
+        self.log.debug("Received put query for {hexaddr}: {datum}", hexaddr=addr.hex(), datum=datum)
         tags = tags or {}
+        suggested_duration = suggested_duration or float('inf')
 
         if len(tags) > 0:
             tag_names = tuple(sorted(tags.keys()))
@@ -68,7 +73,7 @@ class DataStore:
             if not self.looper.running:
                 self.looper.start(self.interval)
 
-            timeout = int(time() + duration)
+            timeout = int(time()) + duration
             heappush(self.data.setdefault(tag_names, []), (timeout, addr, datum))
 
         return duration
