@@ -159,11 +159,12 @@ class KRPCProtocol(NetstringReceiver):
                 result.addCallback(callback)
 
             else:
-                self.log.warn("{peer} - '{name}' query produced result of type {t}", peer=self._peer, name=query_name, t=type(result))
+                self.log.warn("{peer} - {name} query produced result of type {t}", peer=self._peer, name=query_name, t=type(result))
                 raise Error100
 
         except KRPCError as err:
             KRPCProtocol.log.error("{peer} - Error {n} encountered", peer=self._peer, n=err.errcode)
+            KRPCProtocol.log.debug("{f}", f=Failure().getTraceback())
             self._send_error(txn_id, err)
 
         except Exception:
