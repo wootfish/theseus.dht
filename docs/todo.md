@@ -9,3 +9,4 @@
 * Follow up on TODOs in plugins.py
 * Intermittent automatic routing lookups to keep the local routing table fresh would be good. Currently these are run at addr generation and at no other time.
 * Expand unit test suite more
+* It'd be cool to add a plugin interface for custom data tags
