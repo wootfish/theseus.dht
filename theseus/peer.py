@@ -89,12 +89,14 @@ class PeerService(Service):
 
         # run lookups for all addresses
         for addr in new_addrs:
-            def cb(_):
-                self.log.debug("Addr lookup complete -- lookups: {lookups} ({addr} {addr_bytes})", lookups=self._addr_lookups, addr=addr.addr.hex(), addr_bytes=addr.addr)
-                self._addr_lookups.remove(d)  # FIXME this line errbacks sometimes for some reason. can we refactor this whole mess to make that issue moot?
             d = self.do_lookup(addr.addr)
             self._addr_lookups.append(d)
-            d.addCallback(cb)
+            def make_cb(d):  # workaround for d getting rebound inside the loop
+                def cb(_):
+                    self.log.debug("Addr lookup complete -- lookups: {lookups} ({addr} {addr_bytes})", lookups=self._addr_lookups, addr=addr.addr.hex(), addr_bytes=addr.addr)
+                    self._addr_lookups.remove(d)
+                return cb
+            d.addCallback(make_cb(d))
 
     @staticmethod
     def _generate_keypair():
