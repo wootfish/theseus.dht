@@ -62,7 +62,6 @@ class AddrLookup:
             else:
                 return fail(Exception("Retries exceeded"))
 
-
         self.running = True
         d = Deferred()
         self.callbacks.append(d)
@@ -90,10 +89,17 @@ class AddrLookup:
                     trimmed_results[entry.contact_info] = entry
 
         result = sorted(trimmed_results,
-                key=lambda c: self.get_distance(trimmed_results[c].node_addr)
-                )[:self.num_peers]
+                        key=lambda c: self.get_distance(trimmed_results[c].node_addr)
+                        )[:self.num_peers]
 
-        self.log.debug(self.prefix + "{n} Lookup results: {result}", n=len(result), result=result)
+        self.log.debug(self.prefix + "{n} lookup results: {result}", n=len(result), result=result)
+
+        distances = sorted(self.get_distance(trimmed_results[c].node_addr) for c in result)
+        estimate = k*(k+1)*(2*k+1) / (6*sum(i*d for i, d in enumerate(distances, 1))) - 1  # least-squares fit, no error scaling
+        # estimate = k/sum(d/(i*2**L) for i, d in enumerate(distances, 1)) - 1  # least-squares fit w/ errors scaled by variances
+        self.log.debug(self.prefix + "Distances: {d}", d=distances)
+        self.log.debug(self.prefix + "Size estimate: {estimate}", estimate=estimate)
+
         while self.callbacks:
             self.callbacks.pop().callback(result)
 
@@ -168,6 +174,6 @@ class AddrLookup:
                 results.update(lookup_set)
             return results
 
-        except Exception as e:
+        except Exception:
             self.log.failure(self.prefix + "Internal error in lookup")
             return lookup_set  # try to fail well
