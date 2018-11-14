@@ -175,5 +175,6 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     def on_advertise(self, info):
         if self.local_peer is not None:
             for key, val in info.items():
-                result = "Successful" if self.local_peer.maybe_update_info(self, key, val) else "Failed"
-                self.log.debug("{peer} - {result} info update: {key}, {val}", peer=self._peer, result=result, key=key, val=val)
+                result = self.local_peer.maybe_update_info(self, key, val)
+                descriptor = "Successful" if result else "Failed"
+                self.log.debug("{peer} - {msg} info update: {key}, {val}", peer=self._peer, msg=descriptor, key=key, val=val)
