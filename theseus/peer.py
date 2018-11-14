@@ -46,7 +46,7 @@ class PeerService(Service):
     _rng = SystemRandom()  # broken out for tests
     _addr_lookups = []  # type: List[Deferred]
 
-    def __init__(self, num_nodes=5):
+    def __init__(self, num_nodes=10):
         super().__init__()
 
         self.node_addrs = []
@@ -57,6 +57,8 @@ class PeerService(Service):
         self.peer_tracker = PeerTracker(self)
         self.node_manager = NodeManager(num_nodes)
         self.node_manager.add_listener(self.on_addr_change)
+
+        #self.stats_tracker = None  # TODO
 
     def startService(self):
         super().startService()
@@ -164,38 +166,33 @@ class PeerService(Service):
         self.log.debug("Considering updating {peer} data, {key}: {val}", peer=cnxn._peer, key=info_key, val=new_value)
         peer_state = cnxn.peer_state
 
-        if info_key == ADDRS.value:
-            # check for formatting & uniqueness of all IDs, then assign
-            if type(new_value) is not list:
-                return False
-            for addr in new_value:
-                if type(addr) is not bytes:
-                    break
-                if len(addr) != 34:  # TODO don't hardcode this, make it a package-scoped constant or something
-                    break
-                if cnxn.transport is None or addr[4:8] != inet_aton(cnxn.transport.getPeer().host):
-                    break
-            else:
-                self.log.debug("Node ID sanity checks passed.")
-                deferreds = [NodeAddress.from_bytes(addr, priority=LOW) for addr in new_value]
-                dl = DeferredList(deferreds)
-                def cb(l):
-                    if all(t[0] for t in l):
-                        self.log.debug("Updating node IDs for {peer}", peer=cnxn._peer)
-                        addrs = [t[1] for t in l]
-                        peer_state.info[ADDRS] = addrs
-                        self._maybe_do_routing_insert(cnxn)
-                    else:
-                        self.log.debug("Bad node ID(s) from {peer}", peer=cnxn._peer)
-                        self.add_to_blacklist(cnxn.transport.getPeer())
-                dl.addCallback(cb)
-                return True
-            self.log.debug("Node ID sanity checks failed.")
+        if cnxn.transport is None:
             return False
 
-        elif info_key == LISTEN_PORT.value:
-            if not (type(new_value) is int and 1024 <= new_value <= 65535):
+        if info_key == ADDRS.value:
+            if not InfoPolicy.addrs_valid(new_value, cnxn.transport.getPeer().host):
+                self.log.debug("Node ID sanity checks failed.")
                 return False
+
+            deferreds = [NodeAddress.from_bytes(addr, priority=LOW) for addr in new_value]
+            dl = DeferredList(deferreds)
+            def cb(l):
+                if all(t[0] for t in l):
+                    self.log.debug("Updating node IDs for {peer}", peer=cnxn._peer)
+                    addrs = [t[1] for t in l]
+                    peer_state.info[ADDRS] = addrs
+                    self._maybe_do_routing_insert(cnxn)
+                else:
+                    self.log.debug("Bad node ID(s) from {peer}", peer=cnxn._peer)
+                    self.add_to_blacklist(cnxn.transport.getPeer())
+            dl.addCallback(cb)
+            return True
+
+        elif info_key == LISTEN_PORT.value:
+            if not InfoPolicy.port_valid(new_value):
+                self.log.debug("Listen port sanity checks failed.")
+                return False
+
             addr = peer_state.host, peer_state.info.get(LISTEN_PORT)
             if (self.peer_tracker.get_from_addr(addr) or peer_state) != peer_state:
                 self.log.warn("{peer} - Tried to steal listen addr {addr}!", peer=cnxn._peer, addr=addr)
@@ -206,14 +203,20 @@ class PeerService(Service):
             self._maybe_do_routing_insert(cnxn)
 
         elif info_key == MAX_VERSION.value:
-            pass  # we'll only need this once we break backwards compatibility
+            pass  # we don't need this yet
 
         elif info_key == PEER_KEY.value:
+            if type(new_value) is not bytes or len(new_value) != 32:
+                self.log.debug("Peer key sanity checks failed.")
+                return False
+
             try:
                 key = KeyPair25519.from_public_bytes(new_value)
             except Exception:
+                self.log.error("Error loading public key from bytes")
                 return False
-            self.log.debug("Updating {key} for {peer} to {val}", key=info_key, peer=cnxn._peer, val=new_value)
+
+            self.log.debug("Updating peer key for {peer} to {val}", peer=cnxn._peer, val=new_value)
             peer_state.info[PEER_KEY] = key
             self._maybe_register_contact(cnxn)
             self._maybe_do_routing_insert(cnxn)
@@ -278,10 +281,33 @@ class PeerService(Service):
         self.log.info("Setting up lookup for {addr}", addr=addr)
         lookup = AddrLookup(self)
         lookup.configure(target=addr, num_peers=k)
-        return lookup.start()
+        d = lookup.start()
+        #d.addCallback(self.stats_tracker)
+        return d
 
     def dht_get(self, key, redundancy=1):
         ...  # TODO
 
     def dht_put(self, key, value, redundancy=1, encoding='UTF-8'):
         ...  # TODO
+
+
+class InfoPolicy:
+    @staticmethod
+    def addrs_valid(addrs, host):
+        if type(addrs) is not list:
+            return False
+        for addr in addrs:
+            if type(addr) is not bytes:
+                return False
+            if len(addr) != 34:  # TODO don't hardcode this, make it a package-scoped constant or something
+                return False
+            if addr[4:8] != inet_aton(host):
+                return False
+        return True
+
+    @staticmethod
+    def port_valid(port):
+        if type(port) is not int:
+            return False
+        return 1024 <= port <= 65535
