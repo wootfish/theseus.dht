@@ -46,7 +46,7 @@ class PeerService(Service):
     _rng = SystemRandom()  # broken out for tests
     _addr_lookups = []  # type: List[Deferred]
 
-    def __init__(self, num_nodes=10):
+    def __init__(self, num_nodes=5):
         super().__init__()
 
         self.node_addrs = []
