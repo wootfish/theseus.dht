@@ -166,11 +166,8 @@ class PeerService(Service):
         self.log.debug("Considering updating {peer} data, {key}: {val}", peer=cnxn._peer, key=info_key, val=new_value)
         peer_state = cnxn.peer_state
 
-        if cnxn.transport is None:
-            return False
-
         if info_key == ADDRS.value:
-            if not InfoPolicy.addrs_valid(new_value, cnxn.transport.getPeer().host):
+            if not InfoPolicy.addrs_valid(new_value, cnxn):
                 self.log.debug("Node ID sanity checks failed.")
                 return False
 
@@ -294,15 +291,17 @@ class PeerService(Service):
 
 class InfoPolicy:
     @staticmethod
-    def addrs_valid(addrs, host):
+    def addrs_valid(addrs, cnxn):
         if type(addrs) is not list:
+            return False
+        if len(addrs) > 0 and cnxn.transport is None:
             return False
         for addr in addrs:
             if type(addr) is not bytes:
                 return False
             if len(addr) != 34:  # TODO don't hardcode this, make it a package-scoped constant or something
                 return False
-            if addr[4:8] != inet_aton(host):
+            if addr[4:8] != inet_aton(cnxn.transport.getPeer().host):
                 return False
         return True
 
