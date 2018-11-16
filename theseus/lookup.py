@@ -5,7 +5,7 @@ from twisted.logger import Logger
 
 from .errors import AddrLookupConfigError, TheseusConnectionError
 from .routing import RoutingEntry
-from .constants import k
+from .constants import k, L
 
 
 class AddrLookup:
@@ -95,7 +95,7 @@ class AddrLookup:
         self.log.debug(self.prefix + "{n} lookup results: {result}", n=len(result), result=result)
 
         distances = sorted(self.get_distance(trimmed_results[c].node_addr) for c in result)
-        estimate = k*(k+1)*(2*k+1) / (6*sum(i*d for i, d in enumerate(distances, 1))) - 1  # least-squares fit, no error scaling
+        estimate = k*(k+1)*(2*k+1) / (6*sum(i*d/(2**L) for i, d in enumerate(distances, 1))) - 1  # least-squares fit, no error scaling
         # estimate = k/sum(d/(i*2**L) for i, d in enumerate(distances, 1)) - 1  # least-squares fit w/ errors scaled by variances
         self.log.debug(self.prefix + "Distances: {d}", d=distances)
         self.log.debug(self.prefix + "Size estimate: {estimate}", estimate=estimate)
