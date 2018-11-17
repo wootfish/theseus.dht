@@ -70,6 +70,14 @@ class RoutingTable:
             self.left_child = None
             self.right_child = None
 
+        def __iter__(self):
+            # this is only really used as a convenience function for logging table contents
+            if self.contents is not None:
+                yield from self.contents
+            else:
+                yield from self.left_child
+                yield from self.right_child
+
         def insert(self, entry, local_addrs=None, quiet=False):
             # TODO if insert succeeds, add a timer to clean up the node ID when it expires
             # NOTE: returns True if insert succeeds _or_ entry is already in table
@@ -79,8 +87,8 @@ class RoutingTable:
             if self.contents is None:
                 # bucket is split
                 if self.left_child.covers(entry.node_addr.addr):
-                    return self.left_child.insert(entry, local_addrs)
-                return self.right_child.insert(entry, local_addrs)
+                    return self.left_child.insert(entry, local_addrs, quiet=quiet)
+                return self.right_child.insert(entry, local_addrs, quiet=quiet)
 
             if len(self.contents) < self.k:
                 # bucket has room
@@ -183,13 +191,15 @@ class RoutingTable:
         self._rng.shuffle(contents)
         self.root = self.Bucket(0, 2**self.L - 1, self.k)
         for entry in contents:
-            self.root.insert(entry, self.local_addrs)
+            self.root.insert(entry, self.local_addrs, quiet=True)
 
         # TODO figure out how new_peers will be formatted. loop through values and (try to) insert them
         # (to support this, make sure that we gracefully handle attempted duplicate inserts)
         # this allows us to catch peers whose inserts were previously denied but which we might accept now
         for peer in new_peers or []:
             pass # TODO
+
+        self.log.debug("New contents: {new}", new=[node for node in self.root])
 
     def _get_local_addrs(self):
         if self.local_peer is not None:

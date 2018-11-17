@@ -67,7 +67,7 @@ class NoiseWrapper(ProtocolWrapper):
             self.log.warn("{peer} - Tried to _start_handshake while self.settings is None!", peer=self._peer)
             raise Exception("Can't start handshake without parameters")
 
-        self.log.info("{peer} - Noise handshake settings: {ctxt}", peer=self._peer, ctxt=self.settings)
+        self.log.debug("{peer} - Noise handshake settings: {ctxt}", peer=self._peer, ctxt=self.settings)
 
         # initialize Noise state
         self._noise = NoiseConnection.from_name(self.settings.noise_name)

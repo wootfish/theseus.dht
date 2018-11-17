@@ -122,7 +122,7 @@ class KRPCProtocol(NetstringReceiver):
             self._send_error(txn_id, Error103)
             return
 
-        KRPCProtocol.log.debug("{peer} - Received query (txn {txn}): {query_name} {args}",
+        KRPCProtocol.log.debug("{peer} - (txn {txn}) Received query: {query_name} {args}",
                        peer=self._peer, txn=txn_id.hex(), query_name=query_name, args=args)
 
         try:
@@ -130,9 +130,10 @@ class KRPCProtocol(NetstringReceiver):
             self.on_query(txn_id, query_name, args)
         except KRPCError as err:
             self._send_error(txn_id, err)
-            KRPCProtocol.log.warn("{peer} - Error in subclass's query event hook", peer=self._peer)
+            KRPCProtocol.log.warn("{peer} - (txn {txn}) Error in subclass's query event hook", peer=self._peer, txn=txn_id.hex())
             return
         except Exception:
+            KRPCProtocol.log.debug("(txn {txn}) Unexpected exception", txn=txn_id.hex())
             KRPCProtocol.log.warn("{f}", f=Failure().getTraceback())
             return
 
@@ -144,31 +145,31 @@ class KRPCProtocol(NetstringReceiver):
                 try:
                     self._send_response(txn_id, result)
                 except BencodeError:
-                    KRPCProtocol.log.error("{peer} - Internal error trying to bencode the following response (txn {txn}): {result}",
+                    KRPCProtocol.log.error("{peer} - (txn {txn}) Internal error trying to bencode the following response: {result}",
                                    peer=self._peer, txn=txn_id, result=result)
                     KRPCProtocol.log.debug("{f}", f=Failure().getTraceback())
                     raise Error102
 
             elif isinstance(result, Deferred):
                 if not result.called:
-                    KRPCProtocol.log.debug("{peer} - Deferring response to query (txn {txn_id})", peer=self._peer, txn_id=txn_id.hex())
+                    KRPCProtocol.log.debug("{peer} - (txn {txn_id}) Deferring response to query", peer=self._peer, txn_id=txn_id.hex())
 
                 def callback(retval):
-                    KRPCProtocol.log.debug("{peer} - Sending deferred response (txn {txn_id}) {retval}", peer=self._peer, txn_id=txn_id.hex(), retval=retval)
+                    KRPCProtocol.log.debug("{peer} - (txn {txn_id}) Sending deferred response {retval}", peer=self._peer, txn_id=txn_id.hex(), retval=retval)
                     self._send_response(txn_id, retval)
                 result.addCallback(callback)
 
             else:
-                self.log.warn("{peer} - {name} query produced result of type {t}", peer=self._peer, name=query_name, t=type(result))
+                self.log.warn("{peer} - (txn {txn_id}) {name} query produced result of type {t}", peer=self._peer, name=query_name, t=type(result), txn_id=txn_id.hex())
                 raise Error100
 
         except KRPCError as err:
-            KRPCProtocol.log.error("{peer} - Error {n} encountered", peer=self._peer, n=err.errcode)
+            KRPCProtocol.log.error("{peer} - (txn {txn_id}) Error {n} encountered", peer=self._peer, n=err.errcode, txn_id=txn_id.hex())
             KRPCProtocol.log.debug("{f}", f=Failure().getTraceback())
             self._send_error(txn_id, err)
 
         except Exception:
-            KRPCProtocol.log.warn("{peer} - Unexpected error responding to query {name} (txn {txn})",
+            KRPCProtocol.log.warn("{peer} - (txn {txn}) Unexpected error responding to query {name}",
                            peer=self._peer, name=query_name, txn=txn_id)
             KRPCProtocol.log.debug("{f}", f=Failure().getTraceback())
             self._send_error(txn_id, Error300)
