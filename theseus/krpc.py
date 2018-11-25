@@ -50,6 +50,8 @@ class KRPCProtocol(NetstringReceiver):
         self._peer = peer.host + ":" + str(peer.port)
 
     def connectionLost(self, reason):
+        super().connectionLost(reason)  # just in case
+
         while self.open_queries:
             self.open_queries.popitem()[1].errback(reason)
 
