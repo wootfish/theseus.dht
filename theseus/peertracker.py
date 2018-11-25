@@ -1,5 +1,6 @@
 from twisted.internet import reactor
-from twisted.internet.defer import fail, succeed, inlineCallbacks
+from twisted.internet.defer import fail, succeed, inlineCallbacks, CancelledError
+from twisted.internet.defer import TimeoutError as TwistedTimeoutError
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet.protocol import Factory
 from twisted.logger import Logger
@@ -22,8 +23,12 @@ class PeerState(Factory):
     role = None
     state = None
 
+    query_timeout = 2  # seconds
+
     _endpoint_deferred = None
+
     _reactor = reactor
+    _clock = reactor
 
     def __init__(self):
         self.info = {}
@@ -54,8 +59,8 @@ class PeerState(Factory):
         p.settings = NoiseSettings.for_peer_state(self)
         return p
 
-    def connect(self, reactor=None):
-        reactor = reactor or self._reactor
+    def connect(self):
+        reactor = self._reactor
 
         if self.state is not DISCONNECTED:  # FIXME should this be "if self.state is CONNECTING"? and should we add more logic for other cases if so?
             return self._endpoint_deferred
@@ -95,16 +100,26 @@ class PeerState(Factory):
     def disconnect(self):
         self.log.info("{peer} - Initiating disconnection", peer=self.cnxn.transport.getPeer())
         self.cnxn.transport.loseConnection()
+
+    def on_disconnect(self):
         self.cnxn = None
         self._endpoint_deferred = None
 
     def query(self, query_name, args, retries=2, timeout=None):
-        # TODO implement timeout
+        clock = self._clock
+
         def errback(failure):
-            if failure.check(RetriesExceededError):
-                failure.raiseException()  # so we don't retry on errors that come from running out of retries
+            # retry, unless the error came from running out of retries or from cancellation
+            if failure.check(RetriesExceededError, CancelledError):
+                self.log.debug("{peer} Query errback: Re-raising caught error {f}", peer=self.cnxn.transport.getPeer(), f=failure.getErrorMessage())
+                failure.raiseException()
             self.log.debug("Errback on {name} query: {failure}. {n} retries left.", name=query_name, failure=failure.value, n=retries)
             return self.query(query_name, args, retries-1)
+
+        def timeout_logger(failure):
+            failure.trap(TwistedTimeoutError)
+            self.log.debug("{peer} - {name} query timed out", peer=self.cnxn.transport.getPeer(), name=query_name)
+            return failure
 
         if retries < 0:
             self.log.info("{peer} - {name} query failed (retries exceeded)", peer=self.cnxn.transport.getPeer(), name=query_name)
@@ -117,14 +132,16 @@ class PeerState(Factory):
         else:
             d = self.cnxn.send_query(query_name, args)
 
+        d.addTimeout(timeout or self.query_timeout, clock)
+        d.addErrback(timeout_logger)
         d.addErrback(errback)
         return d
 
     def get_contact_info(self):
         # note that there may not be a guarantee of LISTEN_PORT and PEER_KEY being populated
-        # TODO: ^^^ is that comment accurate? why or why not? if it is, we need
-        # ContactInfo.__key et al to handle the case of those fields being None
-        # gracefully
+        # TODO: ^^^ is that comment, which was made a while ago, accurate? why
+        # or why not? if it is accurate, we need ContactInfo.__key et al to
+        # handle the case of those fields being None gracefully
         return ContactInfo(self.host, self.info.get(LISTEN_PORT), self.info.get(PEER_KEY))
 
     @inlineCallbacks
