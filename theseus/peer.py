@@ -44,7 +44,6 @@ class PeerService(Service):
     blacklist_size = 500
 
     _rng = SystemRandom()  # broken out for tests
-    _addr_lookups = []  # type: List[Deferred]
 
     def __init__(self, num_nodes=5):
         super().__init__()
@@ -57,6 +56,8 @@ class PeerService(Service):
         self.peer_tracker = PeerTracker(self)
         self.node_manager = NodeManager(num_nodes)
         self.node_manager.add_listener(self.on_addr_change)
+
+        self._addr_lookups = []  # type: List[Deferred]
 
         #self.stats_tracker = None  # TODO
 
@@ -83,7 +84,11 @@ class PeerService(Service):
 
     def stopService(self):
         super().stopService()
-        # TODO are we allowed to return a deferred here to block on things like finishing up hash jobs?
+
+        self.log.info("Peer stopping")
+
+        for d in self._addr_lookups:
+            d.cancel()
 
     def on_addr_change(self, new_addrs):
         self.routing_table.reload(new_addrs)  # TODO pass in full list of eligible peers?
