@@ -1,3 +1,5 @@
+import twisted.internet.base
+
 from twisted.trial import unittest
 from twisted.test.proto_helpers import _FakePort
 from twisted.internet.defer import DeferredList, succeed, inlineCallbacks
@@ -22,10 +24,13 @@ from theseus.nodeaddr import NodeAddress, Preimage
 from theseus.lookup import AddrLookup
 from theseus.protocol import DHTProtocol
 from theseus.noisewrapper import NoiseWrapper, NoiseSettings
+from theseus.constants import timeout_window
+from theseus.hasher import hasher
 
 
 class PeerTests(unittest.TestCase):
     def setUp(self):
+        twisted.internet.base.DelayedCall.debug = True
         class Fake_RNG:
             def randrange(self, lower, upper):
                 return 1337
@@ -34,40 +39,60 @@ class PeerTests(unittest.TestCase):
             self.assertEqual(port, 1337)
             return _FakePort(IPv4Address("TCP", "127.0.0.1", 1337))
 
-        self._callLater = NodeManager.callLater
         self._rng = PeerService._rng
         self._listen = PeerService._listen
         self._reactor = PeerState._reactor
-        self._lookup_clock = AddrLookup.clock
 
         self.clock = Clock()
+        PeerState._clock = self.clock
+        NodeManager._clock = self.clock
+        AddrLookup._clock = self.clock
+
         self.memory_reactor = MemoryReactor()
-        NodeManager.callLater = self.clock.callLater
+        PeerState._reactor = self.memory_reactor
         PeerService._rng = Fake_RNG()
         PeerService._listen = fake_listen
-        PeerState._reactor = self.memory_reactor
-        AddrLookup.clock = self.clock
 
-        self.peer = PeerService()
+        self.num_nodes = 3
 
+        self.peer = PeerService(self.num_nodes)
+
+    @inlineCallbacks
     def tearDown(self):
-        NodeManager.callLater = self._callLater
+        self.clock.pump([30]*60)
+        _ = yield self.peer.node_manager.get_addrs()
+        self.clock.advance(timeout_window)
+
+        self.peer.stopService()
+        _ = yield hasher.exhaust()
+
+        self.clock.advance(60*60*24*7)
+
         PeerService._rng = self._rng
         PeerService._listen = self._listen
         PeerState._reactor = self._reactor
-        self.peer.stopService()
-        AddrLookup.clock = self._lookup_clock
-        return self.peer.node_manager.get_addrs()
+        PeerState._clock = self._reactor
+        NodeManager._clock = self._reactor
+        AddrLookup._clock = self._reactor
+
+    def _start_service(self):
+        self.peer.startService()
+        self.addCleanup(self.clock.advance, timeout_window)
 
     def test_startup(self):
-        self.peer.startService()
+        self._start_service()
         self.assertEqual(self.peer.listen_port, 1337)
         self.assertEqual(len(self.clock.getDelayedCalls()), 0)
 
         d = self.peer.node_manager.get_addrs()
         def cb(results):
-            self.assertEqual(len(results), self.peer.node_manager.num_nodes)
-            self.assertEqual(len(self.clock.getDelayedCalls()), 5+5)  # 5 for expiring the nodes, 5 for looking them up
+            self.assertEqual(len(results), self.num_nodes)
+            self.assertEqual(len(self.peer._addr_lookups), self.num_nodes)
+
+            calls = self.clock.getDelayedCalls()
+            num_timeouts = len([call for call in calls if call.func.__name__ == "addr_timeout"])
+            self.assertGreaterEqual(num_timeouts, self.num_nodes)
+
         d.addCallback(cb)
 
         return d
@@ -87,12 +112,12 @@ class PeerTests(unittest.TestCase):
         self.assertFalse(d.called)
         d.addCallback(lambda addrs: self.assertTrue(all((
             addrs == [addr.as_bytes() for addr in self.peer.node_manager.node_addrs],
-            len(addrs) == 5))))
+            len(addrs) == self.num_nodes))))
         self.peer.node_manager.start()
         return d
 
     def test_cnxn_attempt(self):
-        self.peer.startService()
+        self._start_service()
         self.addCleanup(self.peer.node_manager.get_addrs)
         target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key) # this is lazy & recycles the peer's key as the remote key, but... hey
         d = self.peer.get_peer(target).connect()
@@ -102,7 +127,7 @@ class PeerTests(unittest.TestCase):
 
     def test_doomed_cnxn_attempt(self):
         PeerState._reactor = RaisingMemoryReactor()
-        self.peer.startService()
+        self._start_service()
         self.addCleanup(self.peer.node_manager.get_addrs)
         target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key)
         d = self.peer.get_peer(target).connect()
