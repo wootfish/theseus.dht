@@ -17,7 +17,8 @@ class NodeManager:
     # TODO local_ip should probably not be hardcoded in start and addr_timeout -- figure out something better
 
     log = Logger()
-    callLater = reactor.callLater
+
+    _clock = reactor
 
     def __init__(self, num_nodes):
         self.data_stores = []
@@ -48,7 +49,7 @@ class NodeManager:
 
             self.node_addrs.append(result)
             self.data_stores.append(store)
-            self.callLater(max(timeout_window - 5, 0), self.addr_timeout, result, store)
+            self._clock.callLater(max(timeout_window - 5, 0), self.addr_timeout, result, store)
             self.log.debug("New node addr added. Current {n} node addrs: {addrs}", n=len(self.node_addrs), addrs=self.node_addrs)
 
             if len(self.node_addrs) == self.num_nodes:
