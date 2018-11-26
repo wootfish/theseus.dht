@@ -1,4 +1,4 @@
-from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.defer import Deferred, inlineCallbacks, succeed, DeferredList
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
@@ -6,6 +6,7 @@ from nacl.pwhash import argon2id
 
 from functools import lru_cache
 from queue import PriorityQueue
+import itertools
 
 from .enums import UNSET
 
@@ -64,6 +65,15 @@ class Hasher:
     @lru_cache(maxsize=LRU_CACHE_SIZE)
     def _kdf(message, salt):
         return argon2id.kdf(20, message, salt, Hasher.OPSLIMIT, Hasher.MEMLIMIT)
+
+    def exhaust(self):
+        if len(self.callbacks) == 0:
+            return succeed(None)
+
+        # wait for current jobs to complete, then wait for new jobs too (if any)
+        d = DeferredList(list(itertools.chain(*self.callbacks.values())))
+        d.addCallback(lambda _: self.exhaust())
+        return d
 
 
 hasher = Hasher()
