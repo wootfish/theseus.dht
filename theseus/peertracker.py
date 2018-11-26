@@ -107,6 +107,7 @@ class PeerState(Factory):
 
     def query(self, query_name, args, retries=2, timeout=None):
         clock = self._clock
+        timeout = timeout or self.query_timeout
 
         def errback(failure):
             # retry, unless the error came from running out of retries or from cancellation
@@ -132,7 +133,7 @@ class PeerState(Factory):
         else:
             d = self.cnxn.send_query(query_name, args)
 
-        d.addTimeout(timeout or self.query_timeout, clock)
+        d.addTimeout(timeout, clock)
         d.addErrback(timeout_logger)
         d.addErrback(errback)
         return d
