@@ -1,4 +1,4 @@
-from twisted.internet.defer import Deferred, DeferredList, inlineCallbacks, fail
+from twisted.internet.defer import Deferred, DeferredList, inlineCallbacks, fail, CancelledError
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 from twisted.logger import Logger
@@ -10,8 +10,9 @@ from .constants import k, L
 
 class AddrLookup:
     log = Logger()
-    clock = reactor
+    _clock = reactor
 
+    cancelled = False
     target = None
     prefix = ""
     num_paths = k // 2
@@ -19,9 +20,9 @@ class AddrLookup:
     query_timeout = 5
     num_peers = k
 
-    _start_retry_min = 1
+    _start_retry_min = 0
     _start_retry_max = 30
-    _start_retry_delta = 1
+    _start_retry_delta = 5
     _start_retry = _start_retry_min
 
     running = False
@@ -43,6 +44,9 @@ class AddrLookup:
         self.prefix = self.target.hex() + ' '
 
     def start(self):
+        if self.cancelled:
+            return fail(Exception("lookup cancelled"))
+
         # returns a Deferred that will fire on completion
         if None in (self.target, self.num_paths, self.path_width):
             raise AddrLookupConfigError("missing required parameter")
@@ -58,12 +62,13 @@ class AddrLookup:
             if self._start_retry < self._start_retry_max:
                 self._start_retry += self._start_retry_delta
                 self.log.debug(self.prefix + "Not enough peers. Retrying in {t} seconds.", target=self.target, t=self._start_retry)
-                return deferLater(self.clock, self._start_retry, self.start)
+                return deferLater(self._clock, self._start_retry, self.start)
             else:
+                self.log.debug(self.prefix + "Giving up after hitting max retries")
                 return fail(Exception("Retries exceeded"))
 
         self.running = True
-        d = Deferred()
+        d = Deferred(canceller=self.cancel)
         self.callbacks.append(d)
         self.log.info(self.prefix + "Starting lookup for {target}", target=self.target)
         self.log.debug(self.prefix + "Starting peers: {starting_set}", target=self.target, starting_set=starting_set)
@@ -72,6 +77,12 @@ class AddrLookup:
         DeferredList(paths).addCallback(self.on_completion)
 
         return d
+
+    def cancel(self, _):
+        self.log.debug(self.prefix + "Cancelling.")
+        cancelled = True
+        for d in self.callbacks:
+            d.errback(CancelledError())
 
     def on_completion(self, dl_result):
         self.log.info(self.prefix + "Routing queries complete. {n} routing entries found before trimming.", n=len(dl_result))
