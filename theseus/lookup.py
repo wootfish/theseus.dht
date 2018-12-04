@@ -3,7 +3,7 @@ from twisted.internet.task import deferLater
 from twisted.internet import reactor
 from twisted.logger import Logger
 
-from .errors import AddrLookupConfigError, TheseusConnectionError
+from .errors import LookupConfigError, TheseusConnectionError, LookupRetriesExceededError
 from .routing import RoutingEntry
 from .constants import k, L
 
@@ -41,7 +41,7 @@ class AddrLookup:
         self.path_width = kwargs.get('path_width', self.path_width)
         self.query_timeout = kwargs.get('query_timeout', self.query_timeout)
         self.num_peers = kwargs.get('num_peers', self.num_peers)
-        self.prefix = self.target.hex() + ' '
+        self.prefix = "Lookup " + self.target.hex() + ': '
 
     def start(self):
         if self.cancelled:
@@ -65,7 +65,7 @@ class AddrLookup:
                 return deferLater(self._clock, self._start_retry, self.start)
             else:
                 self.log.debug(self.prefix + "Giving up after hitting max retries")
-                return fail(Exception("Retries exceeded"))
+                return fail(LookupRetriesExceededError())
 
         self.running = True
         d = Deferred(canceller=self.cancel)

@@ -30,7 +30,7 @@ class Hasher:
 
     def do_hash(self, message, salt, priority=UNSET):
         inputs = (message, salt)
-        self.log.debug("Adding priority {priority} hash job for {inputs}", priority=priority.name, inputs=inputs)
+        self.log.debug("Adding priority {priority} hash job for {m},{s}", priority=priority.name, m=message.hex(), s=salt.hex())
         self.queue.put((priority, inputs))
         d = Deferred()
         self.callbacks.setdefault(inputs, []).append(d)
@@ -47,8 +47,11 @@ class Hasher:
             while job[1] not in self.callbacks:
                 job = self.queue.get()
             self.active_jobs += 1
-            image = yield deferToThread(self._kdf, *job[1])
-            self.log.debug("Priority {priority} hash job complete. {inputs} -> {output}", priority=job[0].name, inputs=job[1], output=image)
+
+            inputs = job[1]
+            image = yield deferToThread(self._kdf, *inputs)
+
+            self.log.debug("Priority {priority} hash job complete. {m},{s} -> {i}", priority=job[0].name, m=inputs[0].hex(), s=inputs[1].hex(), i=image.hex())
             for d in self.callbacks.pop(job[1], []):
                 try:
                     d.callback(image)
