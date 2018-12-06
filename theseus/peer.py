@@ -87,6 +87,7 @@ class PeerService(Service):
 
         self.log.info("Peer stopping")
 
+        self.node_manager.stop()
         for d in self._addr_lookups:
             d.cancel()
 
@@ -280,7 +281,7 @@ class PeerService(Service):
         return fail(UnsupportedInfoError())
 
     def do_lookup(self, addr, k=8):  # TODO don't leave k hardcoded
-        self.log.info("Setting up lookup for {addr}", addr=addr)
+        self.log.info("Setting up lookup for {a}", a=addr.hex())
         lookup = AddrLookup(self)
         lookup.configure(target=addr, num_peers=k)
         d = lookup.start()

@@ -1,4 +1,5 @@
 from twisted.internet import reactor
+from twisted.internet.task import LoopingCall
 from twisted.internet.defer import inlineCallbacks, Deferred, succeed
 from twisted.logger import Logger
 
@@ -20,39 +21,59 @@ class NodeManager:
 
     _clock = reactor
 
-    def __init__(self, num_nodes):
-        self.data_stores = []
-        self.node_addrs = []
+    def __init__(self, num_nodes, local_ip='127.0.0.1'):
+        self.running = False
+        self.num_nodes = num_nodes
+        self.local_ip = local_ip
+
+        self.looping_calls = [None] * num_nodes
+        self.data_stores = [None] * num_nodes
+        self.node_addrs = [None] * num_nodes
+
         self.backlog = []
         self.listeners = []
-        self.num_nodes = num_nodes
 
-    def start(self, local_ip='127.0.0.1'):
-        for _ in range(self.num_nodes):
-            self.add_addr(local_ip)
+    def start(self):
+        self.running = True
+
+        for index in range(self.num_nodes):
+            lc = LoopingCall(self.populate_addr, index)
+            lc.clock = self._clock
+            lc.start(timeout_window)
+            self.looping_calls[index] = lc
+
+    def stop(self):
+        self.running = False
+
+        # halt the LoopingCalls
+        for call in self.looping_calls:
+            if call is not None and call.running:
+                call.stop()
 
     def get_addrs(self):
-        if len(self.node_addrs) == self.num_nodes:
-            return succeed(self.node_addrs)
-        d = Deferred()
-        self.backlog.append(d)
-        return d
+        if None in self.node_addrs:
+            d = Deferred()
+            self.backlog.append(d)
+            return d
+        return self.node_addrs
 
     def add_listener(self, listener):
         self.listeners.append(listener)
 
     @inlineCallbacks
-    def add_addr(self, local_ip):
+    def populate_addr(self, index):
         try:
-            result = yield NodeAddress.new(local_ip)
+            self.node_addrs[index] = None
+            result = yield NodeAddress.new(self.local_ip)
+            if not self.running:  # if the NodeManager was stopped while we were waiting on this NodeAddress
+                return
+            self.node_addrs[index] = result
             store = DataStore(result.addr)
+            self.data_stores[index] = store
 
-            self.node_addrs.append(result)
-            self.data_stores.append(store)
-            self._clock.callLater(max(timeout_window - 5, 0), self.addr_timeout, result, store)
-            self.log.debug("New node addr added. Current {n} node addrs: {addrs}", n=len(self.node_addrs), addrs=self.node_addrs)
+            self.log.debug("New node addr added. Current node addrs: {a}", a=', '.join("None" if node_addr is None else node_addr.addr.hex() for node_addr in self.node_addrs))
 
-            if len(self.node_addrs) == self.num_nodes:
+            if None not in self.node_addrs:
                 self.log.info("All local node addresses generated.")
                 for listener in self.listeners:
                     try:
@@ -65,21 +86,21 @@ class NodeManager:
         except Exception:
             self.log.failure("unexpected exception while adding address")
 
-    def addr_timeout(self, node_address, data_store, local_ip='127.0.0.1'):
-        self.node_addrs.remove(node_address)
-        self.data_stores.remove(data_store)
-        self.add_addr(local_ip)
-
     def put(self, addr, datum, tags=None, suggested_duration=None):
-        if len(self.data_stores) == 0:
+        store = min(self.data_stores, key=lambda store: float('inf') if store is None else store._get_distance(addr))
+        if store is None:
             self.log.warn("Tried to put data without any local data stores!")
             return 0
-        store = min(self.data_stores, key=lambda store: store._get_distance(addr))
         return store.put(addr, datum, tags or {}, suggested_duration)
 
     def get(self, addr, tag_names=None):
-        if len(self.data_stores) == 0:
+        if all(store is None for store in self.data_stores):
             self.log.warn("Tried to get data without any local data stores!")
             return 0
-        store = min(self.data_stores, key=lambda store: store._get_distance(addr))
-        return store.get(addr) if tag_names is None else store.get(addr, tag_names)
+
+        data = set()
+        args = (addr,) if tag_names is None else (addr, tag_names)
+        for store in self.data_stores:
+            if store is not None:
+                data.update(store.get(*args))
+        return list(data)

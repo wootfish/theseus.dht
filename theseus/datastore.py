@@ -20,7 +20,7 @@ class DataStore:
 
     def __init__(self, local_addr=None, memlimit=None, default_duration=None):
         # local_addr: bytes
-        self.log.info("Initializing data store for {addr}", addr=local_addr)
+        self.log.info("Initializing data store for {a}", a=None if local_addr is None else local_addr.hex())
 
         self.local_addr = local_addr
         self.memlimit = memlimit or self.memlimit
@@ -49,7 +49,7 @@ class DataStore:
         memfactor = 1 - (self.running_total / self.memlimit)
         addrfactor = 1 - (self._get_distance(addr) / 2**(L-4))  # this may be negative for large distances
         duration = int(self.default_duration * memfactor * addrfactor)
-        self.log.debug("Setting storage duration for {n}-byte datum ({s} bytes currently stored): memfactor={m}, addrfactor={a}, duration={d}", n=sizeof, s=self.running_total, m=memfactor, a=addrfactor, d=duration)
+        self.log.debug("Setting storage duration for {n}-byte datum (current storage: {s}/{l}): memfactor={m}, addrfactor={a}, duration={d}", s=self.running_total, l=self.memlimit, n=sizeof, m=memfactor, a=addrfactor, d=duration)
         return max(duration, 0)
 
     def put(self, addr, datum, tags=None, suggested_duration=None):
