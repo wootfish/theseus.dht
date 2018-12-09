@@ -10,7 +10,7 @@ from .contactinfo import ContactInfo
 from .enums import DISCONNECTED, CONNECTING, CONNECTED
 from .enums import INITIATOR, RESPONDER
 from .enums import LISTEN_PORT, PEER_KEY
-from .errors import RetriesExceededError, DuplicateContactError
+from .errors import QueryRetriesExceededError, DuplicateContactError
 from .noisewrapper import NoiseWrapper, NoiseSettings
 from .protocol import DHTProtocol
 
@@ -111,7 +111,7 @@ class PeerState(Factory):
 
         def errback(failure):
             # retry, unless the error came from running out of retries or from cancellation
-            if failure.check(RetriesExceededError, CancelledError):
+            if failure.check(QueryRetriesExceededError, CancelledError):
                 self.log.debug("{peer} Query errback: Re-raising caught error {f}", peer=self.cnxn.transport.getPeer(), f=failure.getErrorMessage())
                 failure.raiseException()
             self.log.debug("Errback on {name} query: {failure}. {n} retries left.", name=query_name, failure=failure.value, n=retries)
@@ -124,7 +124,7 @@ class PeerState(Factory):
 
         if retries < 0:
             self.log.info("{peer} - {name} query failed (retries exceeded)", peer=self.cnxn.transport.getPeer(), name=query_name)
-            return fail(RetriesExceededError())
+            return fail(QueryRetriesExceededError())
 
         if self.cnxn is None:
             self.log.debug("Attempting to connect to {host}:{port} to send {name} query", host=self.host, port=self.info[LISTEN_PORT], name=query_name)

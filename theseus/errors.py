@@ -84,29 +84,45 @@ class Error301(TheseusProtocolError):
 ######## Internal errors
 
 
-class BencodeError(Exception):
+class TheseusInternalError(Exception):
     pass
 
 
-class TheseusConnectionError(Exception):
+class BencodeError(TheseusInternalError):
     pass
 
 
-class RetriesExceededError(Exception):
+class TheseusConnectionError(TheseusInternalError):
     pass
 
 
-class DuplicateContactError(Exception):
+class QueryRetriesExceededError(TheseusInternalError):
     pass
 
 
-class PluginError(Exception):
+class DuplicateContactError(TheseusInternalError):
     pass
 
 
-class ValidationError(Exception):
+class PluginError(TheseusInternalError):
     pass
 
 
-class AddrLookupConfigError(Exception):
+class ValidationError(TheseusInternalError):
+    pass
+
+
+class TheseusLookupError(TheseusInternalError):
+    pass
+
+
+class LookupConfigError(TheseusLookupError):
+    pass
+
+
+class LookupCancelledError(TheseusLookupError):
+    pass
+
+
+class LookupRetriesExceededError(TheseusLookupError):
     pass

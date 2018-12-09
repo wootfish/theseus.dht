@@ -51,6 +51,8 @@ class DHTProtocol(KRPCProtocol, TimeoutMixin):
     def connectionLost(self, reason):
         super().connectionLost(reason)
         self.setTimeout(None)
+        #if self.peer_state:
+        #    self.peer_state.on_disconnect()
 
     def stringReceived(self, string):
         self.resetTimeout()

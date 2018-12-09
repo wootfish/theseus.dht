@@ -1,5 +1,6 @@
 import twisted.internet.base
 
+from twisted.logger import Logger
 from twisted.trial import unittest
 from twisted.test.proto_helpers import _FakePort
 from twisted.internet.defer import DeferredList, succeed, inlineCallbacks
@@ -29,8 +30,10 @@ from theseus.hasher import hasher
 
 
 class PeerTests(unittest.TestCase):
+    log = Logger()
+
     def setUp(self):
-        twisted.internet.base.DelayedCall.debug = True
+        #twisted.internet.base.DelayedCall.debug = True
         class Fake_RNG:
             def randrange(self, lower, upper):
                 return 1337
@@ -53,20 +56,21 @@ class PeerTests(unittest.TestCase):
         PeerService._rng = Fake_RNG()
         PeerService._listen = fake_listen
 
-        self.num_nodes = 3
+        self.num_nodes = 1
 
         self.peer = PeerService(self.num_nodes)
 
     @inlineCallbacks
     def tearDown(self):
-        self.clock.pump([30]*60)
-        _ = yield self.peer.node_manager.get_addrs()
-        self.clock.advance(timeout_window)
+        self.log.info("==== PeerTests: running tearDown")
 
-        self.peer.stopService()
         _ = yield hasher.exhaust()
 
-        self.clock.advance(60*60*24*7)
+        self.clock.pump([60*10]*120)
+        self.peer.stopService()
+        self.clock.pump([60*10]*120)
+
+        self.log.info("==== PeerTests: done pumping clock")
 
         PeerService._rng = self._rng
         PeerService._listen = self._listen
@@ -79,23 +83,16 @@ class PeerTests(unittest.TestCase):
         self.peer.startService()
         self.addCleanup(self.clock.advance, timeout_window)
 
+    @inlineCallbacks
     def test_startup(self):
         self._start_service()
         self.assertEqual(self.peer.listen_port, 1337)
         self.assertEqual(len(self.clock.getDelayedCalls()), 0)
 
-        d = self.peer.node_manager.get_addrs()
-        def cb(results):
-            self.assertEqual(len(results), self.num_nodes)
-            self.assertEqual(len(self.peer._addr_lookups), self.num_nodes)
-
-            calls = self.clock.getDelayedCalls()
-            num_timeouts = len([call for call in calls if call.func.__name__ == "addr_timeout"])
-            self.assertGreaterEqual(num_timeouts, self.num_nodes)
-
-        d.addCallback(cb)
-
-        return d
+        results = yield self.peer.node_manager.get_addrs()
+        self.assertEqual(len(results), self.num_nodes)
+        self.assertEqual(len(self.peer._addr_lookups), self.num_nodes)
+        self.assertEqual(len(self.peer.node_manager.looping_calls), self.num_nodes)
 
     def test_get_info(self):
         self.assertEqual(
@@ -169,6 +166,8 @@ class PeerTests(unittest.TestCase):
             [addr.as_bytes() for addr in addrs]
             ))
 
+        node_manager.stop()
+
     @inlineCallbacks
     def test_info_updates_2(self):
         # get some fresh node addresses, this time _before_ generating the local peer's addrs
@@ -186,6 +185,8 @@ class PeerTests(unittest.TestCase):
         self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value,
             [addr.as_bytes() for addr in addrs]
             ))
+
+        node_manager.stop()
 
     def _do_handshake(self):
         self.test_cnxn_success()
@@ -247,6 +248,8 @@ class PeerTests(unittest.TestCase):
     @inlineCallbacks
     def test_put_and_get(self):
         self._do_handshake()
+
+        self.log.info("==== handshake done")
 
         _ = yield self.peer.node_manager.get_addrs()  # we won't have data stores til we have addrs :)
 
