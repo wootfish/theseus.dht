@@ -20,6 +20,7 @@ from theseus.peer import PeerService
 from theseus.peertracker import PeerState
 from theseus.nodemanager import NodeManager
 from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, CONNECTING, INITIATOR, RESPONDER
+from theseus.errors import LookupRetriesExceededError
 from theseus.plugins import IPeerSource
 from theseus.nodeaddr import NodeAddress, Preimage
 from theseus.lookup import AddrLookup
@@ -29,11 +30,12 @@ from theseus.constants import timeout_window
 from theseus.hasher import hasher
 
 
-class PeerTests(unittest.TestCase):
+class SingleNodeTests(unittest.TestCase):
     log = Logger()
+    num_nodes = 1
 
     def setUp(self):
-        #twisted.internet.base.DelayedCall.debug = True
+        twisted.internet.base.DelayedCall.debug = True
         class Fake_RNG:
             def randrange(self, lower, upper):
                 return 1337
@@ -55,8 +57,6 @@ class PeerTests(unittest.TestCase):
         PeerState._reactor = self.memory_reactor
         PeerService._rng = Fake_RNG()
         PeerService._listen = fake_listen
-
-        self.num_nodes = 1
 
         self.peer = PeerService(self.num_nodes)
 
@@ -115,7 +115,6 @@ class PeerTests(unittest.TestCase):
 
     def test_cnxn_attempt(self):
         self._start_service()
-        self.addCleanup(self.peer.node_manager.get_addrs)
         target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key) # this is lazy & recycles the peer's key as the remote key, but... hey
         d = self.peer.get_peer(target).connect()
         d2 = self.peer.get_peer(target).connect()
@@ -125,7 +124,6 @@ class PeerTests(unittest.TestCase):
     def test_doomed_cnxn_attempt(self):
         PeerState._reactor = RaisingMemoryReactor()
         self._start_service()
-        self.addCleanup(self.peer.node_manager.get_addrs)
         target = ContactInfo('127.0.0.1', 12345, self.peer.peer_key)
         d = self.peer.get_peer(target).connect()
         self.failureResultOf(d)
@@ -151,7 +149,11 @@ class PeerTests(unittest.TestCase):
     def test_info_updates_1(self):
         self.test_cnxn_success()
         self.assertTrue(self.peer.maybe_update_info(self.p, ADDRS.value, []))
-        _ = yield self.peer.node_manager.get_addrs()
+        addrs = yield self.peer.node_manager.get_addrs()
+
+        for subject in (addrs, self.peer.routing_table.local_addrs):
+            self.assertEqual(len(subject), self.num_nodes)
+            self.assertTrue(all(type(node) is NodeAddress) for node in subject)
 
         # get some fresh node addresses
         node_manager = NodeManager(3)
@@ -276,3 +278,7 @@ class PeerTests(unittest.TestCase):
 
         self.assertTrue(self.p.connected)
         self.assertTrue(self.p2.connected)
+
+
+class MultiNodeTests(SingleNodeTests):
+    num_nodes = 3

@@ -82,7 +82,7 @@ class RoutingTable:
             # TODO if insert succeeds, add a timer to clean up the node ID when it expires
             # NOTE: returns True if insert succeeds _or_ entry is already in table
 
-            local_addrs = [node_addr for node_addr in local_addrs or [] if self.covers(node_addr.addr)]
+            local_addrs = [node_addr for node_addr in (local_addrs or []) if self.covers(node_addr.addr)]
 
             if self.contents is None:
                 # bucket is split
@@ -100,7 +100,6 @@ class RoutingTable:
 
             if local_addrs:
                 # bucket has no room, but can be split
-                #print("Splitting bucket {} - {} due to node addrs {}".format(self.lower, self.upper, local_addrs))
                 self.split()
                 return self.insert(entry, local_addrs)
 
@@ -116,7 +115,7 @@ class RoutingTable:
             self.left_child = RoutingTable.Bucket(self.lower, bisector, self.k)
             self.right_child = RoutingTable.Bucket(bisector + 1, self.upper, self.k)
             for entry in contents:
-                self.insert(entry, quiet=True)
+                self.insert(entry, [], quiet=True)  # we don't need local addrs here b/c we know there'll be room in the split buckets
 
         def covers(self, addr: bytes):
             return self.lower <= RoutingTable.bytes_to_int(addr) <= self.upper
@@ -179,6 +178,7 @@ class RoutingTable:
 
     def insert(self, contact_info, node_addr):
         entry = RoutingEntry(contact_info, node_addr)
+        self.log.debug("Trying an insert for {entry} with local addrs {addrs}", entry=entry, addrs=self.local_addrs)
         return self.root.insert(entry, self.local_addrs)
 
     def reload(self, new_addrs=None, new_peers=None):
@@ -200,11 +200,6 @@ class RoutingTable:
             pass # TODO
 
         self.log.debug("New contents: {new}", new=[node for node in self.root])
-
-    def _get_local_addrs(self):
-        if self.local_peer is not None:
-            return self.local_peer.node_addrs
-        return []
 
     @staticmethod
     def bytes_to_int(bytestring):

@@ -75,9 +75,11 @@ class NodeManager:
 
             if None not in self.node_addrs:
                 self.log.info("All local node addresses generated.")
+                tup = tuple(self.node_addrs)
+
                 for listener in self.listeners:
                     try:
-                        listener(self.node_addrs)
+                        listener(tup)
                     except Exception as e:
                         self.log.failure("Error in NodeManager listener callback")
                 while self.backlog:

@@ -48,7 +48,6 @@ class PeerService(Service):
     def __init__(self, num_nodes=5):
         super().__init__()
 
-        self.node_addrs = []
         self.blacklist = deque(maxlen=self.blacklist_size)
         self.peer_key = self._generate_keypair()
 
@@ -101,10 +100,10 @@ class PeerService(Service):
             self._addr_lookups.append(d)
             def make_cb(d):  # workaround for d getting rebound inside the loop
                 def cb(_):
-                    self.log.debug("Addr lookup complete -- lookups: {lookups} ({addr} {addr_bytes})", lookups=self._addr_lookups, addr=addr.addr.hex(), addr_bytes=addr.addr)
                     self._addr_lookups.remove(d)
+                    self.log.debug("Lookup for node addr {addr} complete. Active lookups: {lookups}", addr=addr.addr.hex(), lookups=self._addr_lookups)
                 return cb
-            d.addCallback(make_cb(d))
+            d.addBoth(make_cb(d))
 
     @staticmethod
     def _generate_keypair():

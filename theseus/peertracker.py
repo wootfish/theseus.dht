@@ -91,7 +91,7 @@ class PeerState(Factory):
                 self.log.debug("{peer} - Making introduction", peer=self.cnxn.transport.getPeer())
                 info_keys = tuple(DHTProtocol.supported_info_keys)
                 local_info = yield self.cnxn.get_local_keys()
-                self.query("info", {"keys": info_keys, "info": local_info})
+                self.query("info", {"keys": info_keys, "info": local_info}).addErrback(lambda _: None)  # best-effort introduction, ignore errors
 
         except Exception as e:
             self.log.failure("Unexpected error updating peer state")
