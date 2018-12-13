@@ -5,6 +5,9 @@ As a result, they are amenable to analysis via straightforward statistical model
 These statistical models allow us to detect the presence of even sophisticated Sybil attacks on data in the network.
 
 
+(TODO: figure out how to do nice eqn rendering)
+
+
 # DHT attacks - overview
 
 Let us first remind ourselves of the primary categories of attack on a Kademlia-based DHT.
@@ -83,7 +86,9 @@ The corresponding CDFs are thus easily expressed in terms of the regularized inc
 
 `CDF_i(x) = scipy.special.betainc(i, n-i+1, F(x))`
 
-In the special case of `i = 1`, this simplifies a ton: `CDF(x) = 1 - (1 - F(x))^n`. The expectation for this case is simply `1/(n+1)`.
+In the special case of `i = 1`, this simplifies to: `CDF(x) = 1 - (1 - F(x))^n`. The expectation for this case is simply `1/(n+1)`.
+
+The expectation in the general case is `i/(n+1)`.
 
 
 ## Detecting vertical Sybil attacks
@@ -97,26 +102,51 @@ Thus, if a vertical Sybil attack is underway, it would (on average) produce an o
 
 The probability of this happening under the null hypothesis is `CDF_k(1/(n+1))`. A table of this CDF's values for various `n`, `k` is below.
 
-n, k
-100 4 0.017788222205228858
-100 8 7.652805269233713e-06
-100 16 5.233507484465067e-15
-100 32 5.398471826823071e-39
-1000 4 0.018865795846458182
-1000 8 9.960649955297324e-06
-1000 16 1.6547015153199243e-14
-1000 32 8.728919078077626e-37
-5000 4 0.01896364220580471
-5000 8 1.019094064989174e-05
-5000 16 1.8232444832867476e-14
-5000 32 1.3051763274797765e-36
-10000 4 0.0189758968849804
-10000 8 1.0220034299933122e-05
-10000 16 1.84538119221331e-14
-10000 32 1.3718289720941933e-36
-1000000 4 0.01898803423433115
-1000000 8 1.0248904696647503e-05
-1000000 16 1.8675384162042756e-14
-1000000 32 1.4410188923275412e-36
+| n       | k  | CDF
+| ------- | -- | ---------------------- |
+| 100     | 4  | 0.017788222205228858   |
+| 1000    | 4  | 0.018865795846458182   |
+| 10000   | 4  | 0.0189758968849804     |
+| 1000000 | 4  | 0.01898803423433115    |
+| 100     | 8  | 7.652805269233713e-06  |
+| 1000    | 8  | 9.960649955297324e-06  |
+| 10000   | 8  | 1.0220034299933122e-05 |
+| 1000000 | 8  | 1.0248904696647503e-05 |
+| 100     | 16 | 5.233507484465067e-15  |
+| 1000    | 16 | 1.6547015153199243e-14 |
+| 10000   | 16 | 1.84538119221331e-14   |
+| 1000000 | 16 | 1.8675384162042756e-14 |
+| 100     | 32 | 5.398471826823071e-39  |
+| 1000    | 32 | 8.728919078077626e-37  |
+| 10000   | 32 | 1.3718289720941933e-36 |
+| 1000000 | 32 | 1.4410188923275412e-36 |
 
-Note that the test's results are largely invariant with regard to network size, and that for `k >= 8` the probability of the event under the null hypothesis is astonishingly low.
+For `k >= 8` the probability of the described event under the null hypothesis is astonishingly low.
+
+Note also that the test's results are largely invariant with regard to network size.
+
+
+## Estimating network size
+
+Various methods for estimating the size of a Kademlia-like network have been given in the literature.
+
+The typical method is to walk a certain subregion of the address space, count the number of nodes in it, then scale this up based on the size of the subregion to get an estimate for the whole network.
+This method is not without flaws (TODO: cite paper on correction factors).
+Even when correctly implemented, the problem of choosing a properly sized subregion remains.
+The cited paper's authors' best contribution here is to just offer a range of sizes which worked for them in the context of measuring MLDHT.
+
+On top of the difficulty of correctly implementing this algorithm, the algorithm's overhead is worrying.
+It requires a large number of lookup queries in order to enumerate all nodes in a given region (for some sense of the overhead involved, the cited paper is very satisfied to report that their implementation can run in under 5 seconds).
+As a consequence, expecting all peers to maintain network size estimates would introduce a _significant_ amount of baseline network traffic, and this baseline would grow at least linearly as the network grows and peer density increases.
+
+Luckily, better options are available.
+In particular, systems like Theseus DHT which take steps to enforce even distribution of node addresses may leverage more sophisticated statistical methods may leverage more sophisticated statistical methods.
+
+It was established above that the distributions of the `k` closest nodes to a given address follow the beta distribution.
+The specific distribution is parameterized in terms of the total number of nodes, and the rank of the given node (i.e. closest, second-closest, third-closest, etc).
+
+This means we can straightforwardly derive the expected value for the distance of the `i`th node from any arbitrary address.
+This expectation is defined in terms of `i` and `n` where, like above, `n` is total network size.
+As mentioned above, the expectation for the properly parameterized beta distribution is simply: `k/(n+1)`.
+
+By finding the closest nodes to a given address, taking their distances from the target address.
