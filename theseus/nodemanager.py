@@ -39,7 +39,7 @@ class NodeManager:
         for index in range(self.num_nodes):
             lc = LoopingCall(self.populate_addr, index)
             lc.clock = self._clock
-            lc.start(timeout_window)
+            lc.start(timeout_window, now=True)
             self.looping_calls[index] = lc
 
     def stop(self):
@@ -49,6 +49,10 @@ class NodeManager:
         for call in self.looping_calls:
             if call is not None and call.running:
                 call.stop()
+
+        # clear the backlog
+        while self.backlog:
+            self.backlog.pop(0).cancel()
 
     def get_addrs(self):
         if None in self.node_addrs:
@@ -63,6 +67,7 @@ class NodeManager:
     @inlineCallbacks
     def populate_addr(self, index):
         try:
+            self.log.debug("Adding new node address at index {i}", i=index)
             self.node_addrs[index] = None
             result = yield NodeAddress.new(self.local_ip)
             if not self.running:  # if the NodeManager was stopped while we were waiting on this NodeAddress
@@ -82,8 +87,9 @@ class NodeManager:
                         listener(tup)
                     except Exception as e:
                         self.log.failure("Error in NodeManager listener callback")
+
                 while self.backlog:
-                    self.backlog.pop().callback(self.node_addrs)
+                    self.backlog.pop(0).callback(tup)
 
         except Exception:
             self.log.failure("unexpected exception while adding address")

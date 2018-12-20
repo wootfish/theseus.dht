@@ -90,7 +90,10 @@ class PeerState(Factory):
                 # make an introduction
                 self.log.debug("{peer} - Making introduction", peer=self.cnxn.transport.getPeer())
                 info_keys = tuple(DHTProtocol.supported_info_keys)
-                local_info = yield self.cnxn.get_local_keys()
+                try:
+                    local_info = yield self.cnxn.get_local_keys()
+                except CancelledError:  # peer shut down while we were waiting for local keys
+                    return
                 self.query("info", {"keys": info_keys, "info": local_info}).addErrback(lambda _: None)  # best-effort introduction, ignore errors
 
         except Exception as e:

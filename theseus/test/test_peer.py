@@ -20,7 +20,7 @@ from theseus.peer import PeerService
 from theseus.peertracker import PeerState
 from theseus.nodemanager import NodeManager
 from theseus.enums import MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, CONNECTING, INITIATOR, RESPONDER
-from theseus.errors import LookupRetriesExceededError
+from theseus.errors import LookupRetriesExceededError, Error202
 from theseus.plugins import IPeerSource
 from theseus.nodeaddr import NodeAddress, Preimage
 from theseus.lookup import AddrLookup
@@ -66,11 +66,14 @@ class SingleNodeTests(unittest.TestCase):
 
         _ = yield hasher.exhaust()
 
+        self.log.info("==== PeerTests: starting to pump clock")
         self.clock.pump([60*10]*120)
         self.peer.stopService()
         self.clock.pump([60*10]*120)
 
         self.log.info("==== PeerTests: done pumping clock")
+
+        #self.assertEqual(len(self.peer.node_manager.backlog), 0)
 
         PeerService._rng = self._rng
         PeerService._listen = self._listen
@@ -249,11 +252,11 @@ class SingleNodeTests(unittest.TestCase):
 
     @inlineCallbacks
     def test_put_and_get(self):
-        self._do_handshake()
+        _ = yield self.test_handshake_and_introduction()
 
-        self.log.info("==== handshake done")
+        self.log.info("==== handshake and introductory info query done")
 
-        _ = yield self.peer.node_manager.get_addrs()  # we won't have data stores til we have addrs :)
+        _ = yield self.peer.node_manager.get_addrs()  # won't have data stores until we have node addrs
 
         self.t.clear()
         self.t2.clear()

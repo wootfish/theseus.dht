@@ -10,7 +10,7 @@ from noise.functions import DH, KeyPair25519
 from .config import config
 from .contactinfo import ContactInfo
 from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, LOW
-from .errors import TheseusConnectionError, DuplicateContactError
+from .errors import TheseusConnectionError, DuplicateContactError, LookupRetriesExceededError
 from .nodeaddr import NodeAddress
 from .peertracker import PeerTracker
 from .plugins import IPeerSource, IInfoProvider
@@ -87,8 +87,10 @@ class PeerService(Service):
         self.log.info("Peer stopping")
 
         self.node_manager.stop()
-        for d in self._addr_lookups:
-            d.cancel()
+        for lookup in self._addr_lookups:
+            lookup.cancel()
+
+        self.log.info("Peer stopped")
 
     def on_addr_change(self, new_addrs):
         self.routing_table.reload(new_addrs)  # TODO pass in full list of eligible peers?
@@ -96,14 +98,10 @@ class PeerService(Service):
 
         # run lookups for all addresses
         for addr in new_addrs:
-            d = self.do_lookup(addr.addr)
-            self._addr_lookups.append(d)
-            def make_cb(d):  # workaround for d getting rebound inside the loop
-                def cb(_):
-                    self._addr_lookups.remove(d)
-                    self.log.debug("Lookup for node addr {addr} complete. Active lookups: {lookups}", addr=addr.addr.hex(), lookups=self._addr_lookups)
-                return cb
-            d.addBoth(make_cb(d))
+            # TODO we need a way of allowing infinite retries on fixed
+            # intervals, with retries cleanly cancelling on peer.stopService()
+            # so we don't have to deal with this retries-exceeded bullshit
+            self.do_lookup(addr.addr).addErrback(lambda failure: failure.trap(LookupRetriesExceededError))
 
     @staticmethod
     def _generate_keypair():
@@ -279,11 +277,18 @@ class PeerService(Service):
 
         return fail(UnsupportedInfoError())
 
-    def do_lookup(self, addr, k=8):  # TODO don't leave k hardcoded
+    def do_lookup(self, addr, k=8):  # TODO don't leave k's default value hardcoded
         self.log.info("Setting up lookup for {a}", a=addr.hex())
         lookup = AddrLookup(self)
         lookup.configure(target=addr, num_peers=k)
+        self._addr_lookups.append(lookup)
+
+        def cb(val):
+            self._addr_lookups.remove(lookup)
+            return val
+
         d = lookup.start()
+        d.addBoth(cb)
         #d.addCallback(self.stats_tracker)
         return d
 
