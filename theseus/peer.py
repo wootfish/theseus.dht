@@ -18,6 +18,7 @@ from .protocol import DHTProtocol
 from .routing import RoutingTable
 from .nodemanager import NodeManager
 from .lookup import AddrLookup
+from .statstracker import StatsTracker
 
 from collections import deque
 from random import SystemRandom
@@ -58,7 +59,7 @@ class PeerService(Service):
 
         self._addr_lookups = []  # type: List[Deferred]
 
-        #self.stats_tracker = None  # TODO
+        self.stats_tracker = StatsTracker()
 
     def startService(self):
         super().startService()
@@ -81,12 +82,16 @@ class PeerService(Service):
         for info_provider in getPlugins(IInfoProvider):
             DHTProtocol.supported_info_keys.update(info_provider.provided)
 
+        self.stats_tracker.start()
+
     def stopService(self):
         super().stopService()
 
         self.log.info("Peer stopping")
 
         self.node_manager.stop()
+        self.stats_tracker.stop()
+
         for lookup in self._addr_lookups:
             lookup.cancel()
 
@@ -289,7 +294,7 @@ class PeerService(Service):
 
         d = lookup.start()
         d.addBoth(cb)
-        #d.addCallback(self.stats_tracker)
+        self.stats_tracker.register_callback(d, addr)
         return d
 
     def dht_get(self, key, redundancy=1):
