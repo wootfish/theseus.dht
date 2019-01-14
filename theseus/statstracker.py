@@ -30,4 +30,4 @@ class StatsTracker:
             self.trim_old_estimates()
             self.estimates.append(17)  # TODO calculate size estimate from results
 
-        d.add(cb)  # TODO maybe only add callback if addr is not close to an addr we already have an estimate for?
+        d.addCallback(cb)  # TODO maybe only add callback if addr is not close to an addr we already have an estimate for?
