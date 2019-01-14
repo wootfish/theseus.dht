@@ -7,8 +7,9 @@ class StatsTracker:
     _rand = SystemRandom
     time_window = 3600
 
-    def __init__(self):
+    def __init__(self, local_peer):
         self.estimates = deque(maxlen=1024)
+        self.local_peer = local_peer
 
     def start(self):
         ...  # TODO recurring lookups

@@ -54,12 +54,12 @@ class PeerService(Service):
 
         self.routing_table = RoutingTable()
         self.peer_tracker = PeerTracker(self)
+        self.stats_tracker = StatsTracker(self)
         self.node_manager = NodeManager(num_nodes)
         self.node_manager.add_listener(self.on_addr_change)
 
         self._addr_lookups = []  # type: List[Deferred]
 
-        self.stats_tracker = StatsTracker()
 
     def startService(self):
         super().startService()
