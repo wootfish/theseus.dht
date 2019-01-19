@@ -25,9 +25,10 @@ class StatsTracker:
         self.trim_old_estimates()
         return 17  # TODO do beta fit on self.estimates
 
-    def register_callback(self, d, addr):
+    def register_lookup(self, d, addr):
         def cb(value):
             self.trim_old_estimates()
             self.estimates.append(17)  # TODO calculate size estimate from results
+            return value
 
         d.addCallback(cb)  # TODO maybe only add callback if addr is not close to an addr we already have an estimate for?

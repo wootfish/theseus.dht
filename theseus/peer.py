@@ -60,7 +60,6 @@ class PeerService(Service):
 
         self._addr_lookups = []  # type: List[Deferred]
 
-
     def startService(self):
         super().startService()
         self.node_manager.start()
@@ -294,7 +293,7 @@ class PeerService(Service):
 
         d = lookup.start()
         d.addBoth(cb)
-        self.stats_tracker.register_callback(d, addr)
+        self.stats_tracker.register_lookup(d, addr)
         return d
 
     def dht_get(self, key, redundancy=1):
