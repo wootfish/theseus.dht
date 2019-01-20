@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-N=${1:-7}
+N=${1:-10}
 
 
 rm -rf /tmp/theseus_ports
