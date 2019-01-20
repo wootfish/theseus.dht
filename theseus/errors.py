@@ -112,6 +112,10 @@ class ValidationError(TheseusInternalError):
     pass
 
 
+class NotEnoughLookupsError(TheseusInternalError):
+    pass
+
+
 class TheseusLookupError(TheseusInternalError):
     pass
 
