@@ -120,6 +120,7 @@ class AddrLookup:
         self.seen_set = set()
         self._start_retry = AddrLookup._start_retry
 
+    @staticmethod
     def _xor(addr1, addr2):
         n = 0
         for i, byte in enumerate(addr1):
