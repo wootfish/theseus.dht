@@ -90,20 +90,20 @@ class AddrLookup:
         trimmed_results = {}
 
         for _, result in filter(lambda t: t[0] == True, dl_result):  # loop over results from successful queries only
-            for entry in result:
-                contact = entry.contact_info
+            for routing_entry in result:
+                contact = routing_entry.contact_info
                 contact_pubkey = contact.key.public_bytes
                 local_pubkey = self.local_peer.peer_key.public_bytes
 
                 if contact in self.local_peer.blacklist or contact_pubkey == local_pubkey:
                     continue
 
-                addr = trimmed_results.setdefault(contact, entry).node_addr
-                if self.get_distance(addr) > self.get_distance(entry.node_addr):
-                    trimmed_results[contact] = entry
+                addr = trimmed_results.setdefault(contact, routing_entry).node_addr
+                if self.get_distance(addr) > self.get_distance(routing_entry.node_addr):
+                    trimmed_results[contact] = routing_entry
 
-        sort_key = lambda contact: self.get_distance(trimmed_results[contact].node_addr)
-        result = sorted(trimmed_results, key=sort_key)[:self.num_peers]
+        sort_key = lambda routing_entry: self.get_distance(routing_entry.node_addr)
+        result = sorted(trimmed_results.values(), key=sort_key)[:self.num_peers]
 
         self.log.debug(self.prefix + "{n} lookup results: {result}", n=len(result), result=result)
 
