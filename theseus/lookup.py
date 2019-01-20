@@ -88,28 +88,30 @@ class AddrLookup:
         self.log.info(self.prefix + "Routing queries complete. {n} routing entries found before trimming.", n=len(dl_result))
 
         trimmed_results = {}
-        for success, result in dl_result:
-            if not success:
-                continue
-            for entry in result:
-                if entry.contact_info in self.local_peer.blacklist \
-                        or entry.contact_info.key.public_bytes == self.local_peer.peer_key.public_bytes:
-                    continue
-                addr = trimmed_results.setdefault(entry.contact_info, entry).node_addr
-                if self.get_distance(addr) > self.get_distance(entry.node_addr):
-                    trimmed_results[entry.contact_info] = entry
 
-        result = sorted(trimmed_results,
-                        key=lambda c: self.get_distance(trimmed_results[c].node_addr)
-                        )[:self.num_peers]
+        for _, result in filter(lambda t: t[0] == True, dl_result):  # loop over results from successful queries only
+            for entry in result:
+                contact = entry.contact_info
+                contact_pubkey = contact.key.public_bytes
+                local_pubkey = self.local_peer.peer_key.public_bytes
+
+                if contact in self.local_peer.blacklist or contact_pubkey == local_pubkey:
+                    continue
+
+                addr = trimmed_results.setdefault(contact, entry).node_addr
+                if self.get_distance(addr) > self.get_distance(entry.node_addr):
+                    trimmed_results[contact] = entry
+
+        sort_key = lambda contact: self.get_distance(trimmed_results[contact].node_addr)
+        result = sorted(trimmed_results, key=sort_key)[:self.num_peers]
 
         self.log.debug(self.prefix + "{n} lookup results: {result}", n=len(result), result=result)
 
-        distances = sorted(self.get_distance(trimmed_results[c].node_addr) for c in result)
-        estimate = k*(k+1)*(2*k+1) / (6*sum(i*d/(2**L) for i, d in enumerate(distances, 1))) - 1  # least-squares fit, no error scaling
+        # distances = sorted(self.get_distance(trimmed_results[c].node_addr) for c in result)
+        # estimate = k*(k+1)*(2*k+1) / (6*sum(i*d/(2**L) for i, d in enumerate(distances, 1))) - 1  # least-squares fit, no error scaling
         # estimate = k/sum(d/(i*2**L) for i, d in enumerate(distances, 1)) - 1  # least-squares fit w/ errors scaled by variances
-        self.log.debug(self.prefix + "Distances: {d}", d=distances)
-        self.log.debug(self.prefix + "Size estimate: {estimate}", estimate=estimate)
+        # self.log.debug(self.prefix + "Distances: {d}", d=distances)
+        # self.log.debug(self.prefix + "Size estimate: {estimate}", estimate=estimate)
 
         while self.callbacks:
             self.callbacks.pop().callback(result)
@@ -118,12 +120,15 @@ class AddrLookup:
         self.seen_set = set()
         self._start_retry = AddrLookup._start_retry
 
-    def get_distance(self, node_addr):
+    def _xor(addr1, addr2):
         n = 0
-        for i, byte in enumerate(node_addr.addr):
+        for i, byte in enumerate(addr1):
             n <<= 8
-            n += byte ^ self.target[i]
+            n += byte ^ addr2[i]
         return n
+
+    def get_distance(self, node_addr):
+        return self._xor(node_addr.addr, self.target)
 
     @inlineCallbacks
     def lookup_path(self, lookup_set, path_num):
