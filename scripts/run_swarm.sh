@@ -12,7 +12,7 @@ mkdir /tmp/theseus_logs
 mkdir /tmp/theseus_pids
 
 
-for i in $( seq 1 $N ); do
+for i in $( seq -f "%02g" 1 $N ); do
     echo -n "$i  "
     PYTHONPATH=$(pwd)/swarm_plugins/ twistd -y ../main.tac --logfile=/tmp/theseus_logs/$i.log --pidfile=/tmp/theseus_pids/$i.pid
 done
