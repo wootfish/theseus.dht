@@ -78,7 +78,7 @@ class AddrLookup:
 
         return d
 
-    def cancel(self, _):
+    def cancel(self, *args, **kwargs):
         self.log.debug(self.prefix + "Cancelling.")
         cancelled = True
         for d in self.callbacks:
