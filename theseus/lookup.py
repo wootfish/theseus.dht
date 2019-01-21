@@ -89,7 +89,8 @@ class AddrLookup:
 
         trimmed_results = {}
 
-        for _, result in filter(lambda t: t[0] == True, dl_result):  # loop over results from successful queries only
+        for success, result in dl_result:
+            if not success: continue
             for routing_entry in result:
                 contact = routing_entry.contact_info
                 contact_pubkey = contact.key.public_bytes
@@ -98,6 +99,8 @@ class AddrLookup:
                 if contact in self.local_peer.blacklist or contact_pubkey == local_pubkey:
                     continue
 
+                # set contact -> routing info if no entry for contact in
+                # trimmed_results yet, or if new routing entry's addr is closer
                 addr = trimmed_results.setdefault(contact, routing_entry).node_addr
                 if self.get_distance(addr) > self.get_distance(routing_entry.node_addr):
                     trimmed_results[contact] = routing_entry
