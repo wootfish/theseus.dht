@@ -9,6 +9,7 @@ from noise.functions import DH, KeyPair25519
 
 from .config import config
 from .contactinfo import ContactInfo
+from .constants import k
 from .enums import DHTInfoKeys, MAX_VERSION, LISTEN_PORT, PEER_KEY, ADDRS, LOW
 from .errors import TheseusConnectionError, DuplicateContactError, LookupRetriesExceededError
 from .nodeaddr import NodeAddress
@@ -281,7 +282,7 @@ class PeerService(Service):
 
         return fail(UnsupportedInfoError())
 
-    def do_lookup(self, addr, k=8):  # TODO don't leave k's default value hardcoded
+    def do_lookup(self, addr, k=k):
         self.log.info("Setting up lookup for {a}", a=addr.hex())
         lookup = AddrLookup(self)
         lookup.configure(target=addr, num_peers=k)
