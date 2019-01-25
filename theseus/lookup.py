@@ -173,7 +173,7 @@ class AddrLookup:
 
             self.log.debug(self.prefix + "(path {n}) Lookup step's 'find' queries complete. Number of routing entries returned: {m}", n=path_num, m=len(new_peers))
 
-            # get routing entries for the returned results (TODO currently this will blindly trust addrs by default, which is very naive)
+            # get routing entries for the returned results (TODO currently this will blindly trust addrs by default, which speeds things up but is very naive)
             entries = yield DeferredList([RoutingEntry.from_bytes(peer, trusted=True) for peer in new_peers])
             new_set = set(entry for success, entry in entries if success)
 
