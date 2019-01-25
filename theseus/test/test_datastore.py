@@ -10,10 +10,14 @@ class DataStoreTests(unittest.TestCase):
             data_store.looper.stop()
 
     def test_init(self):
+        ds2_local_addr = bytes(L//8)
+        ds3_memlimit = 2**16
+        ds4_default_duration = 10
+
         ds = DataStore()
-        ds2 = DataStore(local_addr=bytes(L//8))
-        ds3 = DataStore(memlimit=2**16)
-        ds4 = DataStore(default_duration=10)
+        ds2 = DataStore(local_addr=ds2_local_addr)
+        ds3 = DataStore(memlimit=ds3_memlimit)
+        ds4 = DataStore(default_duration=ds4_default_duration)
 
         for store in (ds, ds2, ds3, ds4):
             self.addCleanup(self._cleanup, store)
@@ -22,17 +26,17 @@ class DataStoreTests(unittest.TestCase):
         self.assertEqual(ds.memlimit, DataStore.memlimit)
         self.assertEqual(ds.default_duration, DataStore.default_duration)
 
-        self.assertEqual(ds2.local_addr, bytes(L//8))
+        self.assertEqual(ds2.local_addr, ds2_local_addr)
         self.assertEqual(ds2.memlimit, DataStore.memlimit)
         self.assertEqual(ds2.default_duration, DataStore.default_duration)
 
         self.assertEqual(ds3.local_addr, None)
-        self.assertEqual(ds3.memlimit, 2**16)
+        self.assertEqual(ds3.memlimit, ds3_memlimit)
         self.assertEqual(ds3.default_duration, DataStore.default_duration)
 
         self.assertEqual(ds4.local_addr, None)
         self.assertEqual(ds4.memlimit, DataStore.memlimit)
-        self.assertEqual(ds4.default_duration, 10)
+        self.assertEqual(ds4.default_duration, ds4_default_duration)
 
     def test_basic_io(self):
         addr1 = bytes(L//8)

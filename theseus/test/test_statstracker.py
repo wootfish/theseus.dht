@@ -6,15 +6,13 @@ from theseus.routing import RoutingEntry
 from theseus.nodeaddr import NodeAddress
 from theseus.constants import k
 
-
-class DummyPeer:
-    pass  # when StatsTracker is filled out we'll need to dummy up lookups thru here
+from unittest.mock import Mock
 
 
 class StatsTrackerTests(unittest.TestCase):
     def setUp(self):
-        self.dummy = DummyPeer()
-        self.s = StatsTracker(self.dummy)
+        self.mock_peer = Mock()
+        self.s = StatsTracker(self.mock_peer)
         self.s.start()
 
     def tearDown(self):

@@ -1,31 +1,38 @@
 from twisted.trial import unittest
 
-import theseus.nodeaddr
+from unittest.mock import Mock, patch
+
+from theseus.nodeaddr import NodeAddress, Preimage
+from theseus.errors import ValidationError
 
 
+@patch('theseus.nodeaddr.time', lambda: 0x69696969)
+@patch('theseus.nodeaddr.urandom', lambda n: bytes(n))
 class NodeAddressTests(unittest.TestCase):
-    def setUp(self):
-        self.backup_urandom = theseus.nodeaddr.urandom
-        self.backup_time = theseus.nodeaddr.time
-
-    def tearDown(self):
-        theseus.nodeaddr.urandom = self.backup_urandom
-        theseus.nodeaddr.time = self.backup_time
-
     def test_vector(self):
-        def fake_urandom(n):
-            return bytes(n)
+        # >>> argon2id.kdf(20, b'\x69\x69\x69\x69\x7f\x00\x00\x01', bytes(16), argon2id.OPSLIMIT_INTERACTIVE, argon2id.MEMLIMIT_INTERACTIVE).hex()
+        # 'cd4b1f2c9f94fa0f42d5991bbc9e92c1c3580c73'
+        expected = bytes.fromhex('cd4b1f2c9f94fa0f42d5991bbc9e92c1c3580c73')
 
-        def fake_time():
-            return 0x69696969  # = 1768515945 = Jan 15 2026
-
-        # >>> argon2id.kdf(20, b'\x69\x69\x69\x69\x7f\x00\x00\x01', bytes(16), argon2id.OPSLIMIT_INTERACTIVE, argon2id.MEMLIMIT_INTERACTIVE)
-        # b'\xcdK\x1f,\x9f\x94\xfa\x0fB\xd5\x99\x1b\xbc\x9e\x92\xc1\xc3X\x0cs'
-        expected = b'\xcdK\x1f,\x9f\x94\xfa\x0fB\xd5\x99\x1b\xbc\x9e\x92\xc1\xc3X\x0cs'
-
-        theseus.nodeaddr.urandom = fake_urandom
-        theseus.nodeaddr.time = fake_time
-
-        d = theseus.nodeaddr.NodeAddress.new("127.0.0.1")
+        d = NodeAddress.new("127.0.0.1")
         d.addCallback(lambda result: self.assertEqual(expected, result.addr))
         return d
+
+    def test_from_trusted_preimage(self):
+        pre = Preimage(bytes(4), bytes(4), bytes(6))
+        d = NodeAddress.from_preimage(node_addr=bytes(20), preimage=pre, trusted=True)
+        self.assertTrue(d.called)
+        addr = d.result
+        self.assertEqual(addr.addr, bytes(20))
+        self.assertTrue(addr.preimage is pre)
+        self.assertFalse(addr.verified)
+
+    def test_rejecting_bad_timestamp(self):
+        pre = Preimage(bytes(4), bytes(4), bytes(6))
+        d = NodeAddress.from_preimage(node_addr=bytes(20), preimage=pre)
+        fail = self.failureResultOf(d)
+        self.assertEqual(fail.check(ValidationError), ValidationError)
+        self.assertEqual(fail.getErrorMessage(), "Expired timestamp")
+
+    def test_rejecting_missized_addr_bytes(self):
+        self.assertRaises(Exception, NodeAddress.from_bytes, b'oops')  # TODO make the method raise a more specific exception, then update this

@@ -2,6 +2,8 @@ from twisted.internet.error import ConnectionDone
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 
+from unittest.mock import Mock
+
 from theseus.errors import TheseusProtocolError, BencodeError
 from theseus.protocol import KRPCProtocol
 from theseus.bencode import bencode, bdecode
@@ -69,6 +71,7 @@ class KRPCTests(unittest.TestCase):
         self.transport.clear()
 
     def test_query_handling(self):
+        # smoke test for basic queries
         self._test_query(
                 {"t": "17", "y": "q", "q": "echo", "a": {"arg1": 1, "arg2": 2}},
                 {"t": "17", "y": "r", "r": {"arg1": 1, "arg2": 2}, }
@@ -80,23 +83,25 @@ class KRPCTests(unittest.TestCase):
                 )
 
     def _start_info_query(self):
-        d = self.proto.send_query("info", {"info": "cash rules everything around me"})
-        actual = unnetstringify(self.transport.value(), self)
+        # helper for a bunch of tests. "sends" a query for them to respond to
+        deferred = self.proto.send_query("info", {"info": "cash rules everything around me"})
+        message = unnetstringify(self.transport.value(), self)
         self.transport.clear()
 
-        txn = bdecode(actual)[b't']
+        txn = bdecode(message)[b't']
         self.assertEqual(len(txn), 2)
-        expected = bencode({
+        expected_message = bencode({
             b"t": txn,
             b"y": b"q",
             b"q": b"info",
             b"a": {b"info": b"cash rules everything around me"}
             })
 
-        self.assertEqual(expected, actual)
-        return d, txn
+        self.assertEqual(message, expected_message)
+        return deferred, txn
 
     def test_response_handling(self):
+        # normal query response
         d, txn = self._start_info_query()
 
         response = bencode({
@@ -110,6 +115,7 @@ class KRPCTests(unittest.TestCase):
         return d
 
     def test_error_response_handling(self):
+        # krpc error response
         d, txn = self._start_info_query()
 
         response = bencode({
@@ -122,6 +128,7 @@ class KRPCTests(unittest.TestCase):
         self.failureResultOf(d).trap(TheseusProtocolError)
 
     def test_malformed_error_response_handling(self):
+        # malformed krpc error response
         d, txn = self._start_info_query()
 
         response = bencode({
@@ -134,6 +141,7 @@ class KRPCTests(unittest.TestCase):
         self.failureResultOf(d).trap(TheseusProtocolError)
 
     def test_bad_txn_error_response_handling(self):
+        # response with different txn than query (and malformed krpc error)
         d, txn = self._start_info_query()
 
         new_txn = b'AA' if txn == b'ZZ' else b'ZZ'
@@ -149,6 +157,7 @@ class KRPCTests(unittest.TestCase):
         # sure the code doesn't wig out
 
     def test_bad_response(self):
+        # response with missing payload
         d, txn = self._start_info_query()
         response = bencode({
             "t": txn,
@@ -158,31 +167,35 @@ class KRPCTests(unittest.TestCase):
         self.assertFalse(self.proto.transport.connected)
         self.failureResultOf(d).trap(Exception)
 
-    def test_query_errors(self):
+    def test_query_errors_1(self):
         # 'nums' key missing from 'add' query args
         self._test_query(
                 {"t": "68", "y": "q", "q": "add", "a": {}},
                 {"t": "68", "y": "e", "e": (100, "Generic KRPC error")}
                 )
 
+    def test_query_errors_2(self):
         # non-ints passed to 'add' query handler
         self._test_query(
                 {"t": "85", "y": "q", "q": "add", "a": {"nums": (1, 2, 3, "oops")}},
                 {"t": "85", "y": "e", "e": (100, "Generic KRPC error")}
                 )
 
+    def test_query_errors_3(self):
         # query with 'q' and 'a' keys missing
         self._test_query(
                 {"t": "17", "y": "q"},
                 {"t": "17", "y": "e", "e": (101, "Invalid KRPC message")}
                 )
 
+    def test_query_errors_4(self):
         # query 'a' arg mapped to non-dict
         self._test_query(
                 {"t": "51", "y": "q", "q": "info", "a": "problem?"},
                 {"t": "51", "y": "e", "e": (101, "Invalid KRPC message")}
                 )
 
+    def test_query_errors_5(self):
         # unsupported query name
         self._test_query(
                 {"t": "34", "y": "q", "q": "nonesuch", "a": {}},
@@ -190,27 +203,21 @@ class KRPCTests(unittest.TestCase):
                 )
 
     def test_internal_error_in_query_hook(self):
-        def oh_no(*args):
-            raise TheseusProtocolError("oh no!")
-        self.proto.on_query = oh_no
+        self.proto.on_query = Mock(side_effect=TheseusProtocolError("oh no!"))
         self._test_query(
                 {"t": "17", "y": "q", "q": "echo", "a": {"arg1": 1, "arg2": 2}},
                 {"t": "17", "y": "e", "e": (200, "oh no!")}
                 )
 
     def test_internal_error_in_query_handler(self):
-        def oh_no(*args):
-            raise Exception("oh no!")
-        self.proto.query_handlers[b"echo"] = oh_no
+        self.proto.query_handlers[b"echo"] = Mock(side_effect=Exception("oh no!"))
         self._test_query(
                 {"t": "17", "y": "q", "q": "echo", "a": {"arg1": 1, "arg2": 2}},
                 {"t": "17", "y": "e", "e": (200, "Generic DHT error")}
                 )
 
     def test_bencode_error_in_query_responder(self):
-        def oh_no(*args):
-            raise BencodeError("oh no!")
-        self.proto._send_response = oh_no
+        self.proto._send_response = Mock(side_effect=BencodeError("oh no!"))
         self._test_query(
                 {"t": "17", "y": "q", "q": "echo", "a": {"arg1": 1, "arg2": 2}},
                 {"t": "17", "y": "e", "e": (102, "Internal error (KRPC)")}
@@ -230,7 +237,7 @@ class KRPCTests(unittest.TestCase):
     #        )))
 
     def test_errback_on_disconnect(self):
-        d = self.proto.send_query("info", {"info": "smoke weed every day"})
+        d = self.proto.send_query("info", {"info": "it's the wrong trousers, they've gone wrong"})
         self.transport.loseConnection()
         self.failureResultOf(d).trap(ConnectionDone)
 
