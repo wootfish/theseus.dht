@@ -8,7 +8,7 @@ setup(
     url="https://github.com/wootfish/theseus.dht",
     author="Eli Sohl",
     license="GPLv3",
-    packages=['theseus'],   # TODO should this be theseus.dht? Try changing it after the dust settles.
+    packages=['theseus'],   # TODO should this be theseus.dht? just look at once zope.interface does and copy that
     install_requires=["noiseprotocol", "twisted", "PyNaCl"],
     python_requires=">=3.5",
 )
